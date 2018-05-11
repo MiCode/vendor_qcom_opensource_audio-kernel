@@ -233,7 +233,7 @@ static int wsa881x_i2c_read_device(struct wsa881x_pdata *wsa881x,
 	struct i2c_msg *msg;
 	int ret = 0;
 	u8 reg_addr = 0;
-	u8 dest[5];
+	u8 dest[5] = {0};
 
 	wsa881x_index = get_i2c_wsa881x_device_index(reg);
 	if (wsa881x_index < 0) {
@@ -300,6 +300,8 @@ static unsigned int wsa881x_i2c_read(struct snd_soc_codec *codec,
 		return -EINVAL;
 	}
 	wsa881x = snd_soc_codec_get_drvdata(codec);
+	if (!wsa881x->wsa_active)
+		return 0;
 
 	wsa881x_index = get_i2c_wsa881x_device_index(reg);
 	if (wsa881x_index < 0) {
@@ -320,6 +322,9 @@ static int wsa881x_i2c_write(struct snd_soc_codec *codec, unsigned int reg,
 		return -EINVAL;
 	}
 	wsa881x = snd_soc_codec_get_drvdata(codec);
+	if (!wsa881x->wsa_active)
+		return 0;
+
 	wsa881x_index = get_i2c_wsa881x_device_index(reg);
 	if (wsa881x_index < 0) {
 		pr_err_ratelimited("%s:invalid register to read\n", __func__);
@@ -818,7 +823,7 @@ static void wsa881x_ocp_ctl_work(struct work_struct *work)
 	else
 		snd_soc_update_bits(codec, WSA881X_SPKR_OCP_CTL, 0xC0, 0xC0);
 
-		schedule_delayed_work(&wsa881x->ocp_ctl_work,
+	schedule_delayed_work(&wsa881x->ocp_ctl_work,
 			msecs_to_jiffies(wsa881x_ocp_poll_timer_sec * 1000));
 }
 
