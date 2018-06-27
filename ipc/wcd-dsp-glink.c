@@ -1,4 +1,4 @@
-/* Copyright (c) 2016-2017, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -22,6 +22,7 @@
 #include <linux/cdev.h>
 #include <linux/platform_device.h>
 #include <linux/vmalloc.h>
+#include <linux/of_device.h>
 #include <soc/qcom/glink.h>
 #include "sound/wcd-dsp-glink.h"
 
@@ -40,12 +41,14 @@
 #define RESP_QUEUE_SIZE 3
 #define QOS_PKT_SIZE 1024
 #define TIMEOUT_MS 1000
+#define GLINK_EDGE_MAX 16
 
 struct wdsp_glink_dev {
 	struct class *cls;
 	struct device *dev;
 	struct cdev cdev;
 	dev_t dev_num;
+	char glink_edge[GLINK_EDGE_MAX];
 };
 
 struct wdsp_glink_rsp_que {
@@ -106,6 +109,8 @@ struct wdsp_glink_priv {
 	/* Respone buffer related */
 	u8 rsp_cnt;
 	struct wdsp_glink_rsp_que rsp[RESP_QUEUE_SIZE];
+	u8 write_idx;
+	u8 read_idx;
 	struct completion rsp_complete;
 	struct mutex rsp_mutex;
 
@@ -116,6 +121,7 @@ struct wdsp_glink_priv {
 	u8 no_of_channels;
 	struct work_struct ch_open_cls_wrk;
 	struct workqueue_struct *work_queue;
+	const char *glink_edge;
 
 	wait_queue_head_t link_state_wait;
 
@@ -199,13 +205,19 @@ static void wdsp_glink_notify_rx(void *handle, const void *priv,
 	mutex_lock(&wpriv->rsp_mutex);
 	rsp_cnt = wpriv->rsp_cnt;
 	if (rsp_cnt >= RESP_QUEUE_SIZE) {
-		dev_err(wpriv->dev, "%s: Resp Queue is Full\n", __func__);
-		rsp_cnt = 0;
+		dev_err(wpriv->dev, "%s: Resp Queue is Full. Ignore latest and keep oldest.\n",
+				__func__);
+		mutex_unlock(&wpriv->rsp_mutex);
+		glink_rx_done(handle, ptr, true);
+		return;
 	}
-	dev_dbg(wpriv->dev, "%s: copy into buffer %d\n", __func__, rsp_cnt);
+	dev_dbg(wpriv->dev, "%s: rsp_cnt = %d copy into buffer %d\n",
+		__func__, rsp_cnt, wpriv->write_idx);
 
-	memcpy(wpriv->rsp[rsp_cnt].buf, rx_buf, size);
-	wpriv->rsp[rsp_cnt].buf_size = size;
+	memcpy(wpriv->rsp[wpriv->write_idx].buf, rx_buf, size);
+	wpriv->rsp[wpriv->write_idx].buf_size = size;
+
+	wpriv->write_idx = (wpriv->write_idx + 1) % RESP_QUEUE_SIZE;
 	wpriv->rsp_cnt = ++rsp_cnt;
 	mutex_unlock(&wpriv->rsp_mutex);
 
@@ -431,7 +443,7 @@ static int wdsp_glink_open_ch(struct wdsp_glink_ch *ch)
 	if (!ch->handle) {
 		memset(&open_cfg, 0, sizeof(open_cfg));
 		open_cfg.options = GLINK_OPT_INITIAL_XPORT;
-		open_cfg.edge = WDSP_EDGE;
+		open_cfg.edge = wpriv->glink_edge;
 		open_cfg.notify_rx = wdsp_glink_notify_rx;
 		open_cfg.notify_tx_done = wdsp_glink_notify_tx_done;
 		open_cfg.notify_tx_abort = wdsp_glink_notify_tx_abort;
@@ -541,10 +553,8 @@ static void wdsp_glink_link_state_cb(struct glink_link_state_cb_info *cb_info,
 
 	wpriv = (struct wdsp_glink_priv *)priv;
 
-	mutex_lock(&wpriv->glink_mutex);
 	wpriv->glink_state.link_state = cb_info->link_state;
 	wake_up(&wpriv->link_state_wait);
-	mutex_unlock(&wpriv->glink_mutex);
 
 	queue_work(wpriv->work_queue, &wpriv->ch_open_cls_wrk);
 }
@@ -661,7 +671,7 @@ static int wdsp_glink_ch_info_init(struct wdsp_glink_priv *wpriv,
 	/* Register glink link_state notification */
 	link_info.glink_link_state_notif_cb = wdsp_glink_link_state_cb;
 	link_info.transport = NULL;
-	link_info.edge = WDSP_EDGE;
+	link_info.edge = wpriv->glink_edge;
 
 	wpriv->glink_state.link_state = GLINK_LINK_STATE_DOWN;
 	wpriv->glink_state.handle = glink_register_link_state_cb(&link_info,
@@ -777,10 +787,11 @@ static ssize_t wdsp_glink_read(struct file *file, char __user *buf,
 	mutex_lock(&wpriv->rsp_mutex);
 	if (wpriv->rsp_cnt) {
 		wpriv->rsp_cnt--;
-		dev_dbg(wpriv->dev, "%s: read from buffer %d\n",
-			__func__, wpriv->rsp_cnt);
+		dev_dbg(wpriv->dev, "%s: rsp_cnt=%d read from buffer %d\n",
+			__func__, wpriv->rsp_cnt, wpriv->read_idx);
 
-		rsp = &wpriv->rsp[wpriv->rsp_cnt];
+		rsp = &wpriv->rsp[wpriv->read_idx];
+		wpriv->read_idx = (wpriv->read_idx + 1) % RESP_QUEUE_SIZE;
 		if (count < rsp->buf_size) {
 			ret1 = copy_to_user(buf, &rsp->buf, count);
 			/* Return the number of bytes copied */
@@ -1002,6 +1013,7 @@ static int wdsp_glink_open(struct inode *inode, struct file *file)
 		goto err_wq;
 	}
 
+	wpriv->glink_edge = wdev->glink_edge;
 	wpriv->glink_state.link_state = GLINK_LINK_STATE_DOWN;
 	init_completion(&wpriv->rsp_complete);
 	init_waitqueue_head(&wpriv->link_state_wait);
@@ -1117,6 +1129,7 @@ static int wdsp_glink_probe(struct platform_device *pdev)
 {
 	int ret;
 	struct wdsp_glink_dev *wdev;
+	const char *str = NULL;
 
 	wdev = devm_kzalloc(&pdev->dev, sizeof(*wdev), GFP_KERNEL);
 	if (!wdev) {
@@ -1156,6 +1169,20 @@ static int wdsp_glink_probe(struct platform_device *pdev)
 			__func__, ret);
 		goto err_cdev_add;
 	}
+	ret = of_property_read_string(pdev->dev.of_node,
+			"qcom,msm-codec-glink-edge", &str);
+	if (ret < 0) {
+		strlcpy(wdev->glink_edge, WDSP_EDGE, GLINK_EDGE_MAX);
+		dev_info(&pdev->dev,
+			"%s: qcom,msm-codec-glink-edge not set use default %s\n",
+			__func__, wdev->glink_edge);
+		ret = 0;
+	} else {
+		strlcpy(wdev->glink_edge, str, GLINK_EDGE_MAX);
+		dev_info(&pdev->dev, "%s: glink edge is %s\n", __func__,
+				wdev->glink_edge);
+	}
+
 	platform_set_drvdata(pdev, wdev);
 	goto done;
 
