@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -259,6 +260,8 @@ enum {
 	IDX_SECONDARY_SPDIF_RX,
 	IDX_PRIMARY_SPDIF_TX,
 	IDX_SECONDARY_SPDIF_TX,
+
+        IDX_AFE_PORT_ID_PSEUDOPORT_01,
 	/* IDX 185 to 186 */
 	IDX_SLIMBUS_9_RX,
 	IDX_SLIMBUS_9_TX,
@@ -456,6 +459,13 @@ int afe_get_sp_rx_tmax_xmax_logging_data(
 		u16 port_id);
 int afe_cal_init_hwdep(void *card);
 int afe_send_port_island_mode(u16 port_id);
+
+#ifdef CONFIG_MSM_CSPL
+int afe_apr_send_pkt_crus(void *data, int index, int set);
+int crus_afe_port_close(u16 port_id);
+int crus_afe_port_start(u16 port_id);
+#endif
+
 int afe_send_cmd_wakeup_register(void *handle, bool enable);
 void afe_register_wakeup_irq_callback(
 	void (*afe_cb_wakeup_irq)(void *handle));

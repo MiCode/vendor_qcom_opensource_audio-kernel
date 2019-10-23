@@ -1,5 +1,6 @@
 /*
 Copyright (c) 2017, 2019 The Linux Foundation. All rights reserved.
+Copyright (C) 2019 XiaoMi, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License version 2 and
@@ -31,7 +32,17 @@ static int __init audio_q6_init(void)
 	msm_audio_ion_init();
 	audio_slimslave_init();
 	avtimer_init();
+#ifdef CONFIG_MSM_CSPL
+	crus_sp_init();
+#endif
 	msm_mdf_init();
+	elliptic_driver_init();
+/* for mius start */
+#ifdef CONFIG_US_PROXIMITY
+	mius_driver_init();
+#endif
+/* for mius end */
+
 	voice_mhi_init();
 	return 0;
 }
@@ -39,6 +50,9 @@ static int __init audio_q6_init(void)
 static void __exit audio_q6_exit(void)
 {
 	msm_mdf_exit();
+#ifdef CONFIG_MSM_CSPL
+	crus_sp_exit();
+#endif
 	avtimer_exit();
 	audio_slimslave_exit();
 	msm_audio_ion_exit();
@@ -52,6 +66,13 @@ static void __exit audio_q6_exit(void)
 	rtac_exit();
 	audio_cal_exit();
 	adsp_err_exit();
+	elliptic_driver_exit();
+/* for mius start */
+#ifdef CONFIG_US_PROXIMITY
+	mius_driver_exit();
+#endif
+/* for mius end */
+
 	voice_mhi_exit();
 }
 

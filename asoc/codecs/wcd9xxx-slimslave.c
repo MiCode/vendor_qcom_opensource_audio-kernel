@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2017, 2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -396,7 +397,6 @@ int wcd9xxx_cfg_slim_sch_tx(struct wcd9xxx *wcd9xxx,
 		codec_port = tx->port;
 		pr_debug("%s: codec_port %d tx 0x%p, payload 0x%x\n",
 			 __func__, codec_port, tx, payload);
-
 		wcd9xxx_slim_tx_auto_recovery_cfg(wcd9xxx, codec_port);
 		/* write to interface device */
 		ret = wcd9xxx_interface_reg_write(wcd9xxx,
