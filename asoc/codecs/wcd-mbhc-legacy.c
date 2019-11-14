@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -181,6 +182,12 @@ static bool wcd_is_special_headset(struct wcd_mbhc *mbhc)
 	bool ret = false;
 	u16 hs_comp_res;
 	bool is_spl_hs = false;
+
+	/*
+	 * We keep the micbias to 2.2V, if we detect an external cable,
+	 * we don't need boost to 2.7V and then check again.
+	*/
+	return true;
 
 	/*
 	 * Increase micbias to 2.7V to detect headsets with
@@ -570,6 +577,7 @@ correct_plug_type:
 			}
 			goto exit;
 		}
+
 		WCD_MBHC_REG_READ(WCD_MBHC_HS_COMP_RESULT, hs_comp_res);
 
 		pr_debug("%s: hs_comp_res: %x\n", __func__, hs_comp_res);
@@ -685,10 +693,14 @@ correct_plug_type:
 				}
 			}
 			wrk_complete = false;
+			if ((plug_type == MBHC_PLUG_TYPE_HEADSET) || (plug_type == MBHC_PLUG_TYPE_ANC_HEADPHONE)){
+				pr_debug("%s: get plug_type = %d, exit while \n",  __func__, plug_type);
+				break;
+			}
 		}
 	}
 	if (!wrk_complete && mbhc->btn_press_intr) {
-		pr_debug("%s: Can be slow insertion of headphone\n", __func__);
+		pr_err("%s: Can be slow insertion of headphone\n", __func__);
 		wcd_cancel_btn_work(mbhc);
 		/* Report as headphone only if previously
 		 * not reported as lineout
@@ -730,6 +742,7 @@ report:
 	pr_debug("%s: Valid plug found, plug type %d wrk_cmpt %d btn_intr %d\n",
 			__func__, plug_type, wrk_complete,
 			mbhc->btn_press_intr);
+
 	WCD_MBHC_RSC_LOCK(mbhc);
 	wcd_mbhc_find_plug_and_report(mbhc, plug_type);
 	WCD_MBHC_RSC_UNLOCK(mbhc);
@@ -773,6 +786,7 @@ exit:
 								MIC_BIAS_2);
 	}
 
+	/* for HQ-37596
 	if (mbhc->mbhc_cfg->detect_extn_cable &&
 	    ((plug_type == MBHC_PLUG_TYPE_HEADPHONE) ||
 	     (plug_type == MBHC_PLUG_TYPE_HEADSET)) &&
@@ -781,6 +795,7 @@ exit:
 		wcd_mbhc_hs_elec_irq(mbhc, WCD_MBHC_ELEC_HS_REM, true);
 		WCD_MBHC_RSC_UNLOCK(mbhc);
 	}
+	*/
 	if (mbhc->mbhc_cb->set_cap_mode)
 		mbhc->mbhc_cb->set_cap_mode(codec, micbias1, micbias2);
 

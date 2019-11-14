@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -56,3 +57,5 @@
 #define CONFIG_SND_SOC_MSM_HDMI_CODEC_RX 1
 #define CONFIG_COMMON_CLK 1
 #define CONFIG_WCD_DSP_GLINK 1
+#define CONFIG_SND_SOC_AW87329 1
+#define CONFIG_SND_SOC_AW87519 1

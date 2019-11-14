@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2016, 2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -72,6 +73,24 @@ static int msm8952_mclk_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event);
 static int msm8952_wsa_switch_event(struct snd_soc_dapm_widget *w,
 			      struct snd_kcontrol *kcontrol, int event);
+#ifdef AW87519_PA
+extern unsigned char aw87519_audio_speaker(void);
+extern unsigned char aw87519_audio_receiver(void);
+extern unsigned char aw87519_audio_off(void);
+static int aw87519_spk_control = 0;
+static int aw87519_rcv_control = 0;
+static const char *const ext_speaker_amp_function[] = { "Off", "On" };
+static const char *const ext_receiver_amp_function[] = { "Off", "On" };
+#elif defined AW87329_PA
+//add by 101003082 for aw87329 begin at 2018/12/18
+extern unsigned char aw87329_audio_kspk(void);
+extern unsigned char aw87329_audio_drcv(void);
+extern unsigned char aw87329_audio_off(void);
+static int aw87329_kspk_control = 0;
+static int aw87329_drcv_control = 0;
+static const char *const ext_kspk_amp_function[] = { "Off", "On" };
+static const char *const ext_drcv_amp_function[] = { "Off", "On" };
+#endif
 
 /*
  * Android L spec
@@ -86,9 +105,9 @@ static struct wcd_mbhc_config mbhc_cfg = {
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = false,
 	.key_code[0] = KEY_MEDIA,
-	.key_code[1] = KEY_VOICECOMMAND,
-	.key_code[2] = KEY_VOLUMEUP,
-	.key_code[3] = KEY_VOLUMEDOWN,
+	.key_code[1] = BTN_1,
+	.key_code[2] = BTN_2,
+	.key_code[3] = 0,
 	.key_code[4] = 0,
 	.key_code[5] = 0,
 	.key_code[6] = 0,
@@ -331,10 +350,25 @@ int is_ext_spk_gpio_support(struct platform_device *pdev,
 
 static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 {
+#ifdef AW87519_PA
+	if(enable) {
+		aw87519_audio_speaker();
+	} else {
+		aw87519_audio_off();
+	}
+	return 0;
+#elif defined AW87329_PA
+	if(enable) {
+		aw87329_audio_kspk();
+	} else {
+		aw87329_audio_off();
+	}
+	return 0;
+
+#else
 	struct snd_soc_card *card = codec->component.card;
 	struct msm_asoc_mach_data *pdata = snd_soc_card_get_drvdata(card);
 	int ret;
-
 	if (!gpio_is_valid(pdata->spk_ext_pa_gpio)) {
 		pr_err("%s: Invalid gpio: %d\n", __func__,
 			pdata->spk_ext_pa_gpio);
@@ -364,6 +398,7 @@ static int enable_spk_ext_pa(struct snd_soc_codec *codec, int enable)
 		}
 	}
 	return 0;
+#endif
 }
 
 static bool msm8952_swap_gnd_mic(struct snd_soc_codec *codec, bool active)
@@ -1035,7 +1070,112 @@ static int msm_vi_feed_tx_ch_put(struct snd_kcontrol *kcontrol,
 	pr_debug("%s: msm_vi_feed_tx_ch = %d\n", __func__, msm_vi_feed_tx_ch);
 	return 1;
 }
+#ifdef AW87329_PA
+static int ext_kspk_amp_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = aw87329_kspk_control;
+	pr_debug("%s: aw87329_kspk_control = %d\n", __func__,
+		aw87329_kspk_control);
+	return 0;
+}
 
+static int ext_kspk_amp_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	if(ucontrol->value.integer.value[0] == aw87329_kspk_control){
+		return 1;
+	}
+	aw87329_kspk_control = ucontrol->value.integer.value[0];
+	if(ucontrol->value.integer.value[0]) {
+		aw87329_audio_kspk();
+	} else {
+		aw87329_audio_off();
+	}
+	pr_debug("%s: value.integer.value = %ld\n", __func__,
+		ucontrol->value.integer.value[0]);
+	return 0;
+}
+
+static int ext_drcv_amp_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = aw87329_drcv_control;
+	pr_debug("%s: aw87329_drcv_control = %d\n", __func__,
+		aw87329_drcv_control);
+	return 0;
+}
+
+static int ext_drcv_amp_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	aw87329_drcv_control = ucontrol->value.integer.value[0];
+	if(ucontrol->value.integer.value[0] == aw87329_drcv_control){
+		return 1;
+	}
+	if(ucontrol->value.integer.value[0]) {
+		aw87329_audio_drcv();
+	} else {
+		aw87329_audio_off();
+	}
+	pr_debug("%s: value.integer.value = %ld\n", __func__,
+		ucontrol->value.integer.value[0]);
+	return 0;
+}
+//add by 101003082 for aw87329 begin at 2018/12/18
+#elif defined AW87519_PA
+static int ext_speaker_amp_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = aw87519_spk_control;
+	pr_debug("%s: aw87519_kspk_control = %d\n", __func__,
+		aw87519_spk_control);
+	return 0;
+}
+
+static int ext_speaker_amp_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	if(ucontrol->value.integer.value[0] == aw87519_spk_control){
+		return 1;
+	}
+	aw87519_spk_control = ucontrol->value.integer.value[0];
+	if(ucontrol->value.integer.value[0]) {
+		aw87519_audio_speaker();
+	} else {
+		aw87519_audio_off();
+	}
+	pr_debug("%s: value.integer.value = %ld\n", __func__,
+		ucontrol->value.integer.value[0]);
+	return 0;
+}
+
+static int ext_receiver_amp_get(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	ucontrol->value.integer.value[0] = aw87519_rcv_control;
+	pr_debug("%s: aw87519_drcv_control = %d\n", __func__,
+		aw87519_rcv_control);
+	return 0;
+}
+
+static int ext_receiver_amp_put(struct snd_kcontrol *kcontrol,
+		struct snd_ctl_elem_value *ucontrol)
+{
+	aw87519_rcv_control = ucontrol->value.integer.value[0];
+	if(ucontrol->value.integer.value[0] == aw87519_rcv_control){
+		return 1;
+	}
+	if(ucontrol->value.integer.value[0]) {
+		aw87519_audio_receiver();
+	} else {
+		aw87519_audio_off();
+	}
+	pr_debug("%s: value.integer.value = %ld\n", __func__,
+		ucontrol->value.integer.value[0]);
+	return 0;
+}
+#endif
 static const struct soc_enum msm_snd_enum[] = {
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(rx_bit_format_text),
 				rx_bit_format_text),
@@ -1051,6 +1191,19 @@ static const struct soc_enum msm_snd_enum[] = {
 				vi_feed_ch_text),
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(mi2s_rx_sample_rate_text),
 				mi2s_rx_sample_rate_text),
+#ifdef AW87329_PA
+//add by 101003082 for aw87329 begin at 2018/12/18
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(ext_kspk_amp_function),
+		ext_kspk_amp_function),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(ext_drcv_amp_function),
+		ext_drcv_amp_function),
+//add by 101003082 for aw87329 begin at 2018/12/18
+#elif defined AW87519_PA
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(ext_speaker_amp_function),
+		ext_speaker_amp_function),
+	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(ext_receiver_amp_function),
+		ext_receiver_amp_function),
+#endif
 };
 
 static const struct snd_kcontrol_new msm_snd_controls[] = {
@@ -1070,6 +1223,19 @@ static const struct snd_kcontrol_new msm_snd_controls[] = {
 			msm_vi_feed_tx_ch_get, msm_vi_feed_tx_ch_put),
 	SOC_ENUM_EXT("MI2S_RX SampleRate", msm_snd_enum[6],
 			mi2s_rx_sample_rate_get, mi2s_rx_sample_rate_put),
+#ifdef AW87329_PA
+//add by 101003082 for aw87329 begin at 2018/12/18
+	SOC_ENUM_EXT("Ext_Speaker_Amp", msm_snd_enum[7],
+		ext_kspk_amp_get, ext_kspk_amp_put),
+	SOC_ENUM_EXT("Ext_Receiver_Amp", msm_snd_enum[8],
+		ext_drcv_amp_get, ext_drcv_amp_put),
+//add by 101003082 for aw87329 begin at 2018/12/18
+#elif defined AW87519_PA
+	SOC_ENUM_EXT("Ext_Speaker_Amp", msm_snd_enum[7],
+		ext_speaker_amp_get, ext_speaker_amp_put),
+	SOC_ENUM_EXT("Ext_Receiver_Amp", msm_snd_enum[8],
+		ext_receiver_amp_get, ext_receiver_amp_put),
+#endif
 };
 
 static int msm8952_enable_wsa_mclk(struct snd_soc_card *card, bool enable)
@@ -1516,7 +1682,7 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 		return NULL;
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(msm8952_wcd_cal)->X) = (Y))
-	S(v_hs_max, 1500);
+	S(v_hs_max, 1600);
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(msm8952_wcd_cal)->X) = (Y))
 	S(num_btn, WCD_MBHC_DEF_BUTTONS);
@@ -1539,16 +1705,16 @@ static void *def_msm8952_wcd_mbhc_cal(void)
 	 * 210-290 == Button 2
 	 * 360-680 == Button 3
 	 */
-	btn_low[0] = 75;
-	btn_high[0] = 75;
-	btn_low[1] = 150;
-	btn_high[1] = 150;
-	btn_low[2] = 225;
-	btn_high[2] = 225;
-	btn_low[3] = 450;
-	btn_high[3] = 450;
-	btn_low[4] = 500;
-	btn_high[4] = 500;
+	btn_low[0] = 89;
+	btn_high[0] = 89;
+	btn_low[1] = 288;
+	btn_high[1] = 288;
+	btn_low[2] = 488;
+	btn_high[2] = 555;
+	btn_low[3] = 488;
+	btn_high[3] = 555;
+	btn_low[4] = 488;
+	btn_high[4] = 555;
 
 	return msm8952_wcd_cal;
 }
@@ -1583,6 +1749,8 @@ static int msm_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	snd_soc_dapm_ignore_suspend(dapm, "DMIC2");
 	snd_soc_dapm_ignore_suspend(dapm, "WSA_SPK OUT");
 	snd_soc_dapm_ignore_suspend(dapm, "LINEOUT");
+	snd_soc_dapm_ignore_suspend(dapm, "Ext Spk");
+	snd_soc_dapm_ignore_suspend(dapm, "Ext Spk Switch");
 
 	snd_soc_dapm_sync(dapm);
 
