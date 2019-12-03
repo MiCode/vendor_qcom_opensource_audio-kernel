@@ -147,6 +147,16 @@ ifdef CONFIG_SND_SOC_QDSP6V2
 	PLATFORM_OBJS += msm-transcode-loopback-q6-v2.o
 	PLATFORM_OBJS += platform_init.o
 endif
+ifeq ($(TARGET_PRODUCT), aquila)
+AUDIO_FEATURE_ENABLED_SPKR_PROTECTION := true
+endif
+ifeq ($(TARGET_PRODUCT), lyra)
+AUDIO_FEATURE_ENABLED_SPKR_PROTECTION := true
+endif
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_SPKR_PROTECTION)),true)
+	PLATFORM_OBJS += tas2562-algo.o
+	PLATFORM_OBJS += tas2562-calib.o
+endif
 ifdef CONFIG_DOLBY_DS2
 	PLATFORM_OBJS += msm-ds2-dap-config.o
 endif
@@ -176,6 +186,18 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Wall\
 		-Werror\
 		-D__linux__
+
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_SPKR_PROTECTION)),true)
+	CDEFINES += -DSMART_AMP
+endif
+
+ifneq (,$(filter $(TARGET_PRODUCT), davinci davinciin))
+	CDEFINES += -DCONFIG_SND_SOC_TFA9874_FOR_DAVI
+endif
+
+ifneq (,$(filter $(TARGET_PRODUCT), tucana))
+	CDEFINES += -DCONFIG_SND_SOC_TFA9874_FOR_DAVI
+endif
 
 KBUILD_CPPFLAGS += $(CDEFINES)
 

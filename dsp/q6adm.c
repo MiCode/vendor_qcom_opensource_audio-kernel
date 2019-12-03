@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2019 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2858,8 +2859,12 @@ int adm_open(int port_id, int path, int rate, int channel_mode, int topology,
 		rate = 16000;
 	}
 
-	if (topology == VPM_TX_VOICE_SMECNS_V2_COPP_TOPOLOGY)
+	if (topology == VPM_TX_VOICE_SMECNS_V2_COPP_TOPOLOGY ||
+		topology == ADM_TOPOLOGY_ID_AUDIO_RX_FVSAM) {
+		pr_debug("%s: set channel_mode as 1 for topology=%d\n", __func__, topology);
 		channel_mode = 1;
+	}
+
 
 	/*
 	 * Routing driver reuses the same adm for streams with the same
