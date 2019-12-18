@@ -1,3 +1,4 @@
+ccflags-$(CONFIG_MIUI_CUST_GLOBAL) += -DMIUI_CUST_GLOBAL
 snd-soc-wcd9xxx-objs := wcd9xxx-common-v2.o wcd9xxx-resmgr-v2.o \
 			wcdcal-hwdep.o wcd9xxx-soc-init.o wcd-dsp-utils.o \
 			wcd-dsp-mgr.o audio-ext-clk-up.o
@@ -17,6 +18,8 @@ snd-soc-wcd-cpe-objs := wcd_cpe_services.o wcd_cpe_core.o
 obj-$(CONFIG_SND_SOC_WCD9335) += snd-soc-wcd9335.o
 obj-$(CONFIG_SND_SOC_WCD_CPE)   += snd-soc-wcd-cpe.o
 obj-$(CONFIG_SND_SOC_WCD934X)	+= wcd934x/
+obj-$(CONFIG_SND_SOC_TAS2557)	+= tas2557/
+obj-$(CONFIG_SND_SOC_TAS2559)   += tas2559/
 obj-$(CONFIG_SND_SOC_SDM660_CDC) += sdm660_cdc/
 obj-$(CONFIG_SND_SOC_MSM_SDW) += msm_sdw/
 
