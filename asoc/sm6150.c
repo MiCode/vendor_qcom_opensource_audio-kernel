@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -221,6 +222,7 @@ struct msm_asoc_mach_data {
 	struct pinctrl *usbc_en2_gpio_p; /* used by pinctrl API */
 	struct device_node *hph_en1_gpio_p; /* used by pinctrl API */
 	struct device_node *hph_en0_gpio_p; /* used by pinctrl API */
+	struct device_node *sec_mi2s_gpio_p; /* used by pinctrl API*//*bug 497075,wangchengqiang,20191031,add for audio bringup*/
 	bool is_afe_config_done;
 	struct device_node *fsa_handle;
 };
@@ -421,7 +423,7 @@ static struct dev_config mi2s_rx_cfg[] = {
 
 static struct dev_config mi2s_tx_cfg[] = {
 	[PRIM_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
-	[SEC_MI2S]  = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
+	[SEC_MI2S]  = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 2},
 	[TERT_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[QUAT_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
 	[QUIN_MI2S] = {SAMPLING_RATE_48KHZ, SNDRV_PCM_FORMAT_S16_LE, 1},
@@ -5070,7 +5072,7 @@ static int msm_int_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	struct snd_soc_dapm_context *dapm = snd_soc_codec_get_dapm(codec);
 	struct snd_card *card;
 	struct snd_info_entry *entry;
-	struct snd_soc_component *aux_comp;
+	//struct snd_soc_component *aux_comp;
 	struct msm_asoc_mach_data *pdata =
 				snd_soc_card_get_drvdata(rtd->card);
 
@@ -5115,7 +5117,7 @@ static int msm_int_audrx_init(struct snd_soc_pcm_runtime *rtd)
 	 */
 	dev_dbg(codec->dev, "%s: Number of aux devices: %d\n",
 		__func__, rtd->card->num_aux_devs);
-	if (rtd->card->num_aux_devs &&
+/*	if (rtd->card->num_aux_devs &&
 	    !list_empty(&rtd->card->aux_comp_list)) {
 		list_for_each_entry(aux_comp, &rtd->card->aux_comp_list,
 				card_aux_list) {
@@ -5128,7 +5130,7 @@ static int msm_int_audrx_init(struct snd_soc_pcm_runtime *rtd)
 				break;
 			}
 		}
-	}
+	}*/
 	card = rtd->card->snd_card;
 	if (!pdata->codec_root) {
 		entry = snd_info_create_subdir(card->module, "codecs",
@@ -5183,7 +5185,7 @@ static void *def_wcd_mbhc_cal(void)
 		return NULL;
 
 #define S(X, Y) ((WCD_MBHC_CAL_PLUG_TYPE_PTR(wcd_mbhc_cal)->X) = (Y))
-	S(v_hs_max, 1600);
+	S(v_hs_max, 1700);
 #undef S
 #define S(X, Y) ((WCD_MBHC_CAL_BTN_DET_PTR(wcd_mbhc_cal)->X) = (Y))
 	S(num_btn, WCD_MBHC_DEF_BUTTONS);
@@ -5907,6 +5909,10 @@ static int msm_mi2s_snd_startup(struct snd_pcm_substream *substream)
 		if (pdata->mi2s_gpio_p[index])
 			msm_cdc_pinctrl_select_active_state(
 					pdata->mi2s_gpio_p[index]);
+		/*bug 497075,wangchengqiang,20191031,add for audio bringup*/
+
+		if (index == SEC_MI2S)
+		msm_cdc_pinctrl_select_active_state(pdata->sec_mi2s_gpio_p);
 	}
 clk_off:
 	if (ret < 0)
@@ -5962,6 +5968,9 @@ static void msm_mi2s_snd_shutdown(struct snd_pcm_substream *substream)
 					__func__, index, ret);
 			mi2s_mclk[index].enable = 0;
 		}
+			/*bug 497075,wangchengqiang,20191031,add for audio bringup*/
+	if (index == SEC_MI2S)
+		msm_cdc_pinctrl_select_sleep_state(pdata->sec_mi2s_gpio_p);
 	}
 	mutex_unlock(&mi2s_intf_conf[index].lock);
 }
@@ -6847,6 +6856,38 @@ static struct snd_soc_dai_link msm_common_misc_fe_dai_links[] = {
 		.codec_name = "snd-soc-dummy",
 	},
 };
+static struct snd_soc_dai_link msm_smartpa_mi2s_fe_dai_links[] = {
+	{
+		.name = "Secondary MI2S_RX Hostless Playback",
+		.stream_name = "Secondary MI2S_RX Hostless Playback",
+		.cpu_dai_name = "SEC_MI2S_RX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dpcm_playback = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
+	{
+		.name = "Secondary MI2S_TX Hostless Capture",
+		.stream_name = "Secondary MI2S_TX Hostless Capture",
+		.cpu_dai_name = "SEC_MI2S_TX_HOSTLESS",
+		.platform_name = "msm-pcm-hostless",
+		.dynamic = 1,
+		.dpcm_capture = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.codec_dai_name = "snd-soc-dummy-dai",
+		.codec_name = "snd-soc-dummy",
+	},
+};
 
 static struct snd_soc_dai_link msm_common_be_dai_links[] = {
 	/* Backend AFE DAI Links */
@@ -7556,6 +7597,37 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.ops = &msm_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
+#ifdef CONFIG_SND_SOC_MAX98937/*bug 497075,wangchengqiang,20191031,add for audio bringup*/
+	{
+		.name = LPASS_BE_SEC_MI2S_RX,
+		.stream_name = "Secondary MI2S Playback",
+		.cpu_dai_name = "msm-dai-q6-mi2s.1",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "max98927",
+		.codec_dai_name = "max98927-aif1",
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_SECONDARY_MI2S_RX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+	},
+	{
+		.name = LPASS_BE_SEC_MI2S_TX,
+		.stream_name = "Secondary MI2S Capture",
+		.cpu_dai_name = "msm-dai-q6-mi2s.1",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "max98927",
+		.codec_dai_name = "max98927-aif1",
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.id = MSM_BACKEND_DAI_SECONDARY_MI2S_TX,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &msm_mi2s_be_ops,
+		.ignore_suspend = 1,
+	},
+#else
 	{
 		.name = LPASS_BE_SEC_MI2S_RX,
 		.stream_name = "Secondary MI2S Playback",
@@ -7585,6 +7657,10 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 		.ops = &msm_mi2s_be_ops,
 		.ignore_suspend = 1,
 	},
+#endif
+/*bug 497075,wangchengqiang,20191031,add for audio bringup*/
+
+
 	{
 		.name = LPASS_BE_TERT_MI2S_RX,
 		.stream_name = "Tertiary MI2S Playback",
@@ -7980,6 +8056,7 @@ static struct snd_soc_dai_link msm_sm6150_dai_links[
 			 ARRAY_SIZE(msm_tasha_fe_dai_links) +
 			 ARRAY_SIZE(msm_common_misc_fe_dai_links) +
 			 ARRAY_SIZE(msm_int_compress_capture_dai) +
+			 ARRAY_SIZE(msm_smartpa_mi2s_fe_dai_links) +
 			 ARRAY_SIZE(msm_common_be_dai_links) +
 			 ARRAY_SIZE(msm_tavil_be_dai_links) +
 			 ARRAY_SIZE(msm_tasha_be_dai_links) +
@@ -8350,6 +8427,12 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 		       sizeof(msm_int_compress_capture_dai));
 
 		total_links += ARRAY_SIZE(msm_int_compress_capture_dai);
+		
+		memcpy(msm_sm6150_dai_links + total_links,
+		       msm_smartpa_mi2s_fe_dai_links,
+		       sizeof(msm_smartpa_mi2s_fe_dai_links));
+
+		total_links += ARRAY_SIZE(msm_smartpa_mi2s_fe_dai_links);
 
 		memcpy(msm_sm6150_dai_links + total_links,
 		       msm_common_be_dai_links,
@@ -9071,7 +9154,7 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 			sizeof(struct msm_asoc_mach_data), GFP_KERNEL);
 	if (!pdata)
 		return -ENOMEM;
-
+	
 	card = populate_snd_card_dailinks(&pdev->dev);
 	if (!card) {
 		dev_err(&pdev->dev, "%s: Card uninitialized\n", __func__);
@@ -9137,6 +9220,10 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		dev_dbg(&pdev->dev, "property %s not detected in node %s",
 			"qcom,hph-en0-gpio", pdev->dev.of_node->full_name);
 	}
+	/*bug 497075,wangchengqiang,20191031,add for audio bringup*/
+
+	pdata->sec_mi2s_gpio_p = of_parse_phandle(pdev->dev.of_node,
+					"qcom,sec-mi2s-gpios", 0);
 
 	ret = msm_ext_prepare_hifi(pdata);
 	if (ret) {

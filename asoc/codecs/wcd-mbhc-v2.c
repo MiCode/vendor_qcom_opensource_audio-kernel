@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -727,6 +728,8 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 				    WCD_MBHC_JACK_MASK);
 		wcd_mbhc_clr_and_turnon_hph_padac(mbhc);
 	}
+	printk("%s: insertion %d, jack_type %x, hph_status %x, RL %d ohm, RR %d\n",
+	__func__, insertion, jack_type, mbhc->hph_status, mbhc->zl, mbhc->zr);
 	pr_debug("%s: leave hph_status %x\n", __func__, mbhc->hph_status);
 }
 EXPORT_SYMBOL(wcd_mbhc_report_plug);
@@ -1178,6 +1181,7 @@ static irqreturn_t wcd_mbhc_btn_press_handler(int irq, void *data)
 		WARN(1, "Button pressed twice without release event\n");
 		mbhc->mbhc_cb->lock_sleep(mbhc, false);
 	}
+	printk("%s: button press %x\n", __func__, mbhc->buttons_pressed);
 done:
 	pr_debug("%s: leave\n", __func__);
 	WCD_MBHC_RSC_UNLOCK(mbhc);
@@ -1241,6 +1245,7 @@ static irqreturn_t wcd_mbhc_release_handler(int irq, void *data)
 						0, mbhc->buttons_pressed);
 			}
 		}
+		printk("%s: %s button press %x\n", __func__,((ret == 0) ? "long" : ""), mbhc->buttons_pressed);
 		mbhc->buttons_pressed &= ~WCD_MBHC_JACK_BUTTON_MASK;
 	}
 exit:
