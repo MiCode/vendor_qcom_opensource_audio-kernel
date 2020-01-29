@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/of_platform.h>
@@ -308,7 +308,7 @@ static int bolero_clk_rsc_mux1_clk_request(struct bolero_clk_rsc *priv,
 				if (!ret) {
 					/*
 					 * Temp SW workaround to address a glitch issue
-						 * of VA GFMux instance responsible for
+					 * of VA GFMux instance responsible for
 					 * switching from TX MCLK to VA MCLK.
 					 * This configuration would be taken
 					 * care in DSP itself.
