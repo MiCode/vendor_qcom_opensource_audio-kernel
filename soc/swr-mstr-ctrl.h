@@ -25,7 +25,7 @@
 
 #define SWR_ROW_48		0
 #define SWR_ROW_50		1
-#define SWR_ROW_64		2
+#define SWR_ROW_64		3
 #define SWR_MAX_COL		7 /* Cols = 16 */
 #define SWR_MIN_COL		0 /* Cols = 2 */
 
@@ -124,7 +124,6 @@ struct swr_mstr_ctrl {
 	struct mutex mlock;
 	struct mutex reslock;
 	struct mutex pm_lock;
-	struct mutex irq_lock;
 	u32 swrm_base_reg;
 	char __iomem *swrm_dig_base;
 	char __iomem *swrm_hctl_reg;
@@ -178,6 +177,7 @@ struct swr_mstr_ctrl {
 	u32 swr_irq_wakeup_capable;
 	int hw_core_clk_en;
 	int aud_core_clk_en;
+	int clk_src;
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_swrm_dent;
 	struct dentry *debugfs_peek;
