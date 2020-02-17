@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2013-2019, Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 #include <linux/fs.h>
 #include <linux/mutex.h>
@@ -28,6 +29,7 @@
 #include "adsp_err.h"
 
 #define APR_TIMEOUT	(HZ)
+#define LSM_ALIGN_BOUNDARY 512
 #define LSM_SAMPLE_RATE 16000
 #define QLSM_PARAM_ID_MINOR_VERSION 1
 #define QLSM_PARAM_ID_MINOR_VERSION_2 2
@@ -1972,7 +1974,7 @@ int q6lsm_snd_model_buf_alloc(struct lsm_client *client, size_t len,
 	size_t total_mem = 0;
 	struct lsm_sound_model *sm = NULL;
 
-	if (!client)
+	if (!client || len <= LSM_ALIGN_BOUNDARY)
 		return rc;
 
 	pr_debug("%s:Snd Model len = %zd, stage idx %d\n",

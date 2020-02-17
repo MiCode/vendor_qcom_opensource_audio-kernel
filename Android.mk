@@ -20,6 +20,7 @@ include $(MY_LOCAL_PATH)/dsp/codecs/Android.mk
 include $(MY_LOCAL_PATH)/soc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/Android.mk
+include $(MY_LOCAL_PATH)/asoc/codecs/cs35l41/Android.mk
 endif
 
 ifeq ($(call is-board-platform-in-list,msmnile $(MSMSTEPPE) $(TRINKET) sdmshrike),true)
@@ -52,4 +53,6 @@ $(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codec
 include $(MY_LOCAL_PATH)/asoc/codecs/bolero/Android.mk
 $(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/wcd938x/Module.symvers)
 include $(MY_LOCAL_PATH)/asoc/codecs/wcd938x/Android.mk
+$(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/tfa98xx/Module.symvers)
+include $(MY_LOCAL_PATH)/asoc/codecs/tfa98xx/Android.mk
 endif

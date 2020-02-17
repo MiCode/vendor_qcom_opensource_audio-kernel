@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 
 #define CONFIG_PINCTRL_LPI 1
@@ -38,3 +39,6 @@
 #define CONFIG_SND_SOC_WCD938X_SLAVE 1
 #define CONFIG_SND_SOC_LITO 1
 #define CONFIG_SND_EVENT 1
+#define CONFIG_SND_SOC_TFA9874 1
+#define CONFIG_SND_SOC_CS35L41 1
+#define CONFIG_MSM_CSPL 1
