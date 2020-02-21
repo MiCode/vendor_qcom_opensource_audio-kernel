@@ -1966,6 +1966,11 @@ handle_irq:
 			dev_err_ratelimited(swrm->dev,
 					"%s: SWR bus clsh detected\n",
 					__func__);
+			swrm->intr_mask &=
+				~SWRM_INTERRUPT_STATUS_MASTER_CLASH_DET;
+			swr_master_write(swrm,
+				SWR_MSTR_RX_SWRM_CPU_INTERRUPT_EN,
+				swrm->intr_mask);
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_OVERFLOW:
 			dev_dbg(swrm->dev, "%s: SWR read FIFO overflow\n",
@@ -3280,12 +3285,19 @@ int swrm_wcd_notify(struct platform_device *pdev, u32 id, void *data)
 		break;
 	case SWR_DEVICE_SSR_DOWN:
 		trace_printk("%s: swr device down called\n", __func__);
+		mutex_lock(&swrm->mlock);
+		if (swrm->state == SWR_MSTR_DOWN)
+			dev_dbg(swrm->dev, "%s:SWR master is already Down:%d\n",
+				__func__, swrm->state);
+		else
+			swrm_device_down(&pdev->dev);
 		mutex_lock(&swrm->devlock);
 		swrm->dev_up = false;
 		mutex_unlock(&swrm->devlock);
 		mutex_lock(&swrm->reslock);
 		swrm->state = SWR_MSTR_SSR;
 		mutex_unlock(&swrm->reslock);
+		mutex_unlock(&swrm->mlock);
 		break;
 	case SWR_DEVICE_SSR_UP:
 		/* wait for clk voting to be zero */
@@ -3328,7 +3340,12 @@ int swrm_wcd_notify(struct platform_device *pdev, u32 id, void *data)
 		mutex_lock(&swrm->reslock);
 		list_for_each_entry(swr_dev, &mstr->devices, dev_list) {
 			ret = swr_reset_device(swr_dev);
-			if (ret) {
+			if (ret == -ENODEV) {
+				dev_dbg_ratelimited(swrm->dev,
+					"%s slave reset not implemented\n",
+					__func__);
+				ret = 0;
+			} else if (ret) {
 				dev_err(swrm->dev,
 					"%s: failed to reset swr device %d\n",
 					__func__, swr_dev->dev_num);
