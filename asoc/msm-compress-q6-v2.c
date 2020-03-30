@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 
 
@@ -408,8 +409,8 @@ static int msm_compr_set_volume(struct snd_compr_stream *cstream,
 		gain_list[0] = volume_l;
 		gain_list[1] = volume_r;
 		gain_list[2] = volume_l;
-		if (use_default)
-			num_channels = 3;
+		num_channels = 3;
+		use_default = true;
 		rc = q6asm_set_multich_gain(prtd->audio_client, num_channels,
 					gain_list, chmap, use_default);
 	}
@@ -825,23 +826,15 @@ static void compr_event_handler(uint32_t opcode,
 			 * RESUME
 			 */
 			if ((prtd->copied_total == prtd->bytes_sent) &&
-					atomic_read(&prtd->drain)) {
-				bytes_available = prtd->bytes_received - prtd->copied_total;
-				if (bytes_available < cstream->runtime->fragment_size) {
-					pr_debug("%s: RUN ack, wake up & continue pending drain\n",
-							__func__);
+			    atomic_read(&prtd->drain)) {
+				pr_debug("RUN ack, wake up & continue pending drain\n");
 
-					if (prtd->last_buffer)
-						prtd->last_buffer = 0;
+				if (prtd->last_buffer)
+					prtd->last_buffer = 0;
 
-					prtd->drain_ready = 1;
-					wake_up(&prtd->drain_wait);
-					atomic_set(&prtd->drain, 0);
-				} else if (atomic_read(&prtd->xrun)) {
-					pr_debug("%s: RUN ack, continue write cycle\n", __func__);
-					atomic_set(&prtd->xrun, 0);
-					msm_compr_send_buffer(prtd);
-				}
+				prtd->drain_ready = 1;
+				wake_up(&prtd->drain_wait);
+				atomic_set(&prtd->drain, 0);
 			}
 
 			spin_unlock_irqrestore(&prtd->lock, flags);
@@ -1333,7 +1326,7 @@ static int msm_compr_configure_dsp_for_playback
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct msm_compr_audio *prtd = runtime->private_data;
 	struct snd_soc_pcm_runtime *soc_prtd = cstream->private_data;
-	uint16_t bits_per_sample = 16;
+	uint16_t bits_per_sample = 24;
 	int dir = IN, ret = 0;
 	struct audio_client *ac = prtd->audio_client;
 	uint32_t stream_index;
@@ -2364,7 +2357,7 @@ static int msm_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	unsigned long flags;
 	int stream_id;
 	uint32_t stream_index;
-	uint16_t bits_per_sample = 16;
+	uint16_t bits_per_sample = 24;
 
 	component = snd_soc_rtdcom_lookup(rtd, DRV_NAME);
 	if (!component) {
@@ -3710,7 +3703,8 @@ static int msm_compr_dec_params_put(struct snd_kcontrol *kcontrol,
 	if (fe_id >= MSM_FRONTEND_DAI_MAX) {
 		pr_err("%s Received out of bounds fe_id %lu\n",
 			__func__, fe_id);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto end;
 	}
 
 	cstream = pdata->cstream[fe_id];
@@ -3718,12 +3712,14 @@ static int msm_compr_dec_params_put(struct snd_kcontrol *kcontrol,
 
 	if (!cstream || !dec_params) {
 		pr_err("%s: stream or dec_params inactive\n", __func__);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto end;
 	}
 	prtd = cstream->runtime->private_data;
 	if (!prtd) {
 		pr_err("%s: cannot set dec_params\n", __func__);
-		return -EINVAL;
+		rc = -EINVAL;
+		goto end;
 	}
 
 	mutex_lock(&pdata->lock);
@@ -3980,19 +3976,22 @@ static int msm_compr_adsp_stream_cmd_put(struct snd_kcontrol *kcontrol,
 	if (fe_id >= MSM_FRONTEND_DAI_MAX) {
 		pr_err("%s Received invalid fe_id %lu\n",
 			__func__, fe_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
 
 	cstream = pdata->cstream[fe_id];
 	if (cstream == NULL) {
 		pr_err("%s cstream is null\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
 
 	prtd = cstream->runtime->private_data;
 	if (!prtd) {
 		pr_err("%s: prtd is null\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
 
 	mutex_lock(&pdata->lock);
@@ -4043,19 +4042,22 @@ static int msm_compr_ion_fd_map_put(struct snd_kcontrol *kcontrol,
 	if (fe_id >= MSM_FRONTEND_DAI_MAX) {
 		pr_err("%s Received out of bounds invalid fe_id %lu\n",
 			__func__, fe_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
 
 	cstream = pdata->cstream[fe_id];
 	if (cstream == NULL) {
 		pr_err("%s cstream is null\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
 
 	prtd = cstream->runtime->private_data;
 	if (!prtd) {
 		pr_err("%s: prtd is null\n", __func__);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
 
 	mutex_lock(&pdata->lock);
@@ -4089,7 +4091,8 @@ static int msm_compr_rtic_event_ack_put(struct snd_kcontrol *kcontrol,
 	if (fe_id >= MSM_FRONTEND_DAI_MAX) {
 		pr_err("%s Received invalid fe_id %lu\n",
 			__func__, fe_id);
-		return -EINVAL;
+		ret = -EINVAL;
+		goto done;
 	}
 
 	mutex_lock(&pdata->lock);
