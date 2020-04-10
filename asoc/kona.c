@@ -80,8 +80,10 @@
 
 #define ADSP_STATE_READY_TIMEOUT_MS 3000
 
-#define WSA8810_NAME_1 "wsa881x.20170211"
-#define WSA8810_NAME_2 "wsa881x.20170212"
+#define WSA8810_NAME_1 "wsa881x.1020170211"
+#define WSA8810_NAME_2 "wsa881x.1020170212"
+#define WSA8815_NAME_1 "wsa881x.1021170213"
+#define WSA8815_NAME_2 "wsa881x.1021170214"
 #define WCN_CDC_SLIM_RX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX_LITO 3
@@ -5499,6 +5501,11 @@ static int msm_int_audrx_init(struct snd_soc_pcm_runtime *rtd)
 						WSA_MACRO_SPKR_MODE_1);
 				wsa_macro_set_spkr_gain_offset(component,
 						WSA_MACRO_GAIN_OFFSET_M1P5_DB);
+			} else if (aux_comp->name != NULL && (
+				!strcmp(aux_comp->name, WSA8815_NAME_1) ||
+		    		!strcmp(aux_comp->name, WSA8815_NAME_2))) {
+				wsa_macro_set_spkr_mode(component,
+						WSA_MACRO_SPKR_MODE_DEFAULT);
 			}
 		}
 	}
@@ -5520,21 +5527,26 @@ static int msm_int_audrx_init(struct snd_soc_pcm_runtime *rtd)
 			if (data != NULL) {
 				if (!strncmp(data, "wcd937x",
 						sizeof("wcd937x"))) {
-					bolero_set_port_map(component, ARRAY_SIZE(sm_port_map_wcd937x),
-								sm_port_map_wcd937x);
+					bolero_set_port_map(component,
+						ARRAY_SIZE(sm_port_map_wcd937x),
+						sm_port_map_wcd937x);
 					break;
 				} else if (!strncmp( data, "wcd938x",
 							sizeof("wcd938x"))) {
 					if (pdata->lito_v2_enabled) {
 						/*
-						 * Enable tx data line3 for saipan version v2 amd
-						 * write corresponding lpi register.
+						 * Enable tx data line3 for
+						 * saipan version v2 and
+						 * write corresponding
+						 * lpi register.
 						 */
-						bolero_set_port_map(component, ARRAY_SIZE(sm_port_map_v2),
-									sm_port_map_v2);
+						bolero_set_port_map(component,
+							ARRAY_SIZE(sm_port_map_v2),
+							sm_port_map_v2);
 					} else {
-						bolero_set_port_map(component, ARRAY_SIZE(sm_port_map),
-									sm_port_map);
+						bolero_set_port_map(component,
+							ARRAY_SIZE(sm_port_map),
+							sm_port_map);
 					}
 					break;
 				}

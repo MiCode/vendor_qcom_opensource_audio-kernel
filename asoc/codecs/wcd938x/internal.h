@@ -101,6 +101,7 @@ struct wcd938x_priv {
 	int flyback_cur_det_disable;
 	int ear_rx_path;
 	bool dev_up;
+	bool usbc_hs_status;
 };
 
 struct wcd938x_micbias_setting {
@@ -155,8 +156,8 @@ enum {
 
 enum {
 	/* INTR_CTRL_INT_MASK_0 */
-	WCD938X_IRQ_MBHC_BUTTON_RELEASE_DET = 0,
-	WCD938X_IRQ_MBHC_BUTTON_PRESS_DET,
+	WCD938X_IRQ_MBHC_BUTTON_PRESS_DET = 0,
+	WCD938X_IRQ_MBHC_BUTTON_RELEASE_DET,
 	WCD938X_IRQ_MBHC_ELECT_INS_REM_DET,
 	WCD938X_IRQ_MBHC_ELECT_INS_REM_LEG_DET,
 	WCD938X_IRQ_MBHC_SW_DET,
