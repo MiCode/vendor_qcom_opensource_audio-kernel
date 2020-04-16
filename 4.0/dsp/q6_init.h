@@ -16,6 +16,7 @@ int core_init(void);
 int rtac_init(void);
 int msm_audio_ion_init(void);
 int avtimer_init(void);
+int elliptic_driver_init(void);
 #ifdef CONFIG_MSM_MDF
 int msm_mdf_init(void);
 void msm_mdf_exit(void);
@@ -54,6 +55,7 @@ void q6asm_exit(void);
 void afe_exit(void);
 void adm_exit(void);
 void adsp_err_exit(void);
+int elliptic_driver_exit(void);
 #if IS_ENABLED(CONFIG_WCD9XXX_CODEC_CORE)
 int audio_slimslave_init(void);
 void audio_slimslave_exit(void);
