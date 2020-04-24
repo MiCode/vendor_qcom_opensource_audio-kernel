@@ -97,7 +97,6 @@ static void swrm_unlock_sleep(struct swr_mstr_ctrl *swrm);
 static u32 swr_master_read(struct swr_mstr_ctrl *swrm, unsigned int reg_addr);
 static void swr_master_write(struct swr_mstr_ctrl *swrm, u16 reg_addr, u32 val);
 
-
 static u8 swrm_get_clk_div(int mclk_freq, int bus_clk_freq)
 {
 	int clk_div = 0;
@@ -132,6 +131,7 @@ static u8 swrm_get_clk_div(int mclk_freq, int bus_clk_freq)
 
 	return div_val;
 }
+static int swrm_master_init(struct swr_mstr_ctrl *swrm);
 
 static bool swrm_is_msm_variant(int val)
 {
@@ -619,7 +619,7 @@ static int swr_master_bulk_write(struct swr_mstr_ctrl *swrm, u32 *reg_addr,
 		 * Reduce sleep from 100us to 50us to meet KPIs
 		 * This still meets the hardware spec
 		 */
-			usleep_range(50, 55);
+			usleep_range(100, 110);
 			swr_master_write(swrm, reg_addr[i], val[i]);
 		}
 		mutex_unlock(&swrm->iolock);
@@ -2034,15 +2034,21 @@ handle_irq:
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_OVERFLOW:
 			dev_dbg(swrm->dev, "%s: SWR read FIFO overflow\n",
 				__func__);
+			swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
+			swrm_master_init(swrm);
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_UNDERFLOW:
 			dev_dbg(swrm->dev, "%s: SWR read FIFO underflow\n",
 				__func__);
+			swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
+			swrm_master_init(swrm);
 			break;
 		case SWRM_INTERRUPT_STATUS_WR_CMD_FIFO_OVERFLOW:
 			dev_dbg(swrm->dev, "%s: SWR write FIFO overflow\n",
 				__func__);
 			swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
+			swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
+			swrm_master_init(swrm);
 			break;
 		case SWRM_INTERRUPT_STATUS_CMD_ERROR:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
