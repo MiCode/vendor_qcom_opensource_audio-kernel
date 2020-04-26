@@ -68,6 +68,8 @@ struct wsa_reg_mask_val {
 
 static const struct wsa_reg_mask_val reg_init[] = {
 	{WSA883X_PA_FSM_BYP, 0x01, 0x00},
+	{WSA883X_ISENSE2, 0xE0, 0x40},
+	{WSA883X_ADC_6, 0x02, 0x02},
 	{WSA883X_CDC_SPK_DSM_A2_0, 0xFF, 0x0A},
 	{WSA883X_CDC_SPK_DSM_A2_1, 0x0F, 0x08},
 	{WSA883X_CDC_SPK_DSM_A3_0, 0xFF, 0xF3},
@@ -106,8 +108,12 @@ static const struct wsa_reg_mask_val reg_init[] = {
 	{WSA883X_OTP_REG_3, 0xFF, 0xC9},
 	{WSA883X_OTP_REG_4, 0xC0, 0x40},
 	{WSA883X_TAGC_CTL, 0x01, 0x01},
+	{WSA883X_ADC_2, 0x40, 0x00},
+	{WSA883X_ADC_7, 0x04, 0x04},
+	{WSA883X_ADC_7, 0x02, 0x02},
 	{WSA883X_CKWD_CTL_0, 0x60, 0x00},
 	{WSA883X_CKWD_CTL_1, 0x1F, 0x1B},
+	{WSA883X_GMAMP_SUP1, 0x60, 0x60},
 };
 
 static int wsa883x_get_temperature(struct snd_soc_component *component,
@@ -238,8 +244,13 @@ static ssize_t swr_slave_reg_show(struct swr_device *pdev, char __user *ubuf,
 		if (!is_swr_slave_reg_readable(i))
 			continue;
 		swr_read(pdev, pdev->dev_num, i, &reg_val, 1);
-		len = snprintf(tmp_buf, 25, "0x%.3x: 0x%.2x\n", i,
+		len = snprintf(tmp_buf, sizeof(tmp_buf), "0x%.3x: 0x%.2x\n", i,
 			       (reg_val & 0xFF));
+		if (len < 0) {
+			pr_err("%s: fail to fill the buffer\n", __func__);
+			total = -EFAULT;
+			goto copy_err;
+		}
 		if ((total + len) >= count - 1)
 			break;
 		if (copy_to_user((ubuf + total), tmp_buf, len)) {
