@@ -9244,7 +9244,7 @@ int __init afe_init(void)
 	if (!this_afe.uevent_data)
 		return -ENOMEM;
 #if (LINUX_VERSION_CODE >= KERNEL_VERSION(4, 19, 110))
-	wl.ws = wakeup_source_register(NULL, "spkr-prot")
+	wl.ws = wakeup_source_register(NULL, "spkr-prot");
 #else
 	wl.ws = wakeup_source_register("spkr-prot");
 #endif
