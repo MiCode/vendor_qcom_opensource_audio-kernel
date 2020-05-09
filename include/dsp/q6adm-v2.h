@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
  */
 #ifndef __Q6_ADM_V2_H__
 #define __Q6_ADM_V2_H__
@@ -35,6 +35,7 @@ enum {
 	ADM_SRS_TRUMEDIA,
 	ADM_RTAC_AUDVOL_CAL,
 	ADM_LSM_AUDPROC_PERSISTENT_CAL,
+	ADM_AUDPROC_PERSISTENT_CAL,
 	ADM_MAX_CAL_TYPES
 };
 

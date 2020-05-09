@@ -855,7 +855,7 @@ static const struct snd_kcontrol_new wsa883x_snd_controls[] = {
 	SOC_SINGLE_EXT("WSA PA Mute", SND_SOC_NOPM, 0, 1, 0,
 		wsa883x_get_mute, wsa883x_set_mute),
 
-	SOC_SINGLE_EXT("WSA Temp", SND_SOC_NOPM, 0, 1, 0,
+	SOC_SINGLE_EXT("WSA Temp", SND_SOC_NOPM, 0, UINT_MAX, 0,
 			wsa_get_temp, NULL),
 
 	SOC_ENUM_EXT("WSA MODE", wsa_dev_mode_enum,
@@ -1085,7 +1085,19 @@ static int32_t wsa883x_temp_reg_read(struct snd_soc_component *component,
 
 	mutex_lock(&wsa883x->res_lock);
 
-	/* TODO Vote for global PA */
+	snd_soc_component_update_bits(component, WSA883X_PA_FSM_BYP,
+				0x01, 0x01);
+	snd_soc_component_update_bits(component, WSA883X_PA_FSM_BYP,
+				0x04, 0x04);
+	snd_soc_component_update_bits(component, WSA883X_PA_FSM_BYP,
+				0x02, 0x02);
+	snd_soc_component_update_bits(component, WSA883X_PA_FSM_BYP,
+				0x80, 0x80);
+	snd_soc_component_update_bits(component, WSA883X_PA_FSM_BYP,
+				0x20, 0x20);
+	snd_soc_component_update_bits(component, WSA883X_PA_FSM_BYP,
+				0x40, 0x40);
+
 	snd_soc_component_update_bits(component, WSA883X_TADC_VALUE_CTL,
 				0x01, 0x00);
 	wsa_temp_reg->dmeas_msb = snd_soc_component_read32(
@@ -1103,7 +1115,8 @@ static int32_t wsa883x_temp_reg_read(struct snd_soc_component *component,
 	wsa_temp_reg->d2_lsb = snd_soc_component_read32(
 					component, WSA883X_OTP_REG_4);
 
-	/* TODO Unvote for global PA */
+	snd_soc_component_update_bits(component, WSA883X_PA_FSM_BYP,
+				0xE7, 0x00);
 	mutex_unlock(&wsa883x->res_lock);
 
 	return 0;
@@ -1290,6 +1303,19 @@ static int wsa883x_swr_up(struct wsa883x_priv *wsa883x)
 	return ret;
 }
 
+static int wsa883x_swr_device_up(struct swr_device *pdev)
+{
+	struct wsa883x_priv *wsa883x;
+
+	wsa883x = swr_get_dev_data(pdev);
+	if (!wsa883x) {
+		dev_err(&pdev->dev, "%s: wsa883x is NULL\n", __func__);
+		return -EINVAL;
+	}
+	wsa883x_swr_up(wsa883x);
+	return 0;
+}
+
 static int wsa883x_swr_down(struct wsa883x_priv *wsa883x)
 {
 	int ret;
@@ -1299,6 +1325,19 @@ static int wsa883x_swr_down(struct wsa883x_priv *wsa883x)
 		dev_err(wsa883x->dev, "%s: Failed to disable gpio\n", __func__);
 
 	return ret;
+}
+
+static int wsa883x_swr_device_down(struct swr_device *pdev)
+{
+	struct wsa883x_priv *wsa883x;
+
+	wsa883x = swr_get_dev_data(pdev);
+	if (!wsa883x) {
+		dev_err(&pdev->dev, "%s: wsa883x is NULL\n", __func__);
+		return -EINVAL;
+	}
+	wsa883x_swr_down(wsa883x);
+	return 0;
 }
 
 static int wsa883x_swr_reset(struct wsa883x_priv *wsa883x)
@@ -1315,6 +1354,19 @@ static int wsa883x_swr_reset(struct wsa883x_priv *wsa883x)
 	pdev->dev_num = devnum;
 	wsa883x_regcache_sync(wsa883x);
 
+	return 0;
+}
+
+static int wsa883x_swr_device_reset(struct swr_device *pdev)
+{
+	struct wsa883x_priv *wsa883x;
+
+	wsa883x = swr_get_dev_data(pdev);
+	if (!wsa883x) {
+		dev_err(&pdev->dev, "%s: wsa883x is NULL\n", __func__);
+		return -EINVAL;
+	}
+	wsa883x_swr_reset(wsa883x);
 	return 0;
 }
 
@@ -1672,6 +1724,9 @@ static struct swr_driver wsa883x_swr_driver = {
 	.probe = wsa883x_swr_probe,
 	.remove = wsa883x_swr_remove,
 	.id_table = wsa883x_swr_id,
+	.device_up = wsa883x_swr_device_up,
+	.device_down = wsa883x_swr_device_down,
+	.reset_device = wsa883x_swr_device_reset,
 };
 
 static int __init wsa883x_swr_init(void)
