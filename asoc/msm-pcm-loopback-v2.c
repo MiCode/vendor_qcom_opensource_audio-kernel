@@ -307,6 +307,7 @@ static int msm_pcm_open(struct snd_pcm_substream *substream)
 			dev_err(component->dev,
 				"%s: pcm out open failed\n", __func__);
 			q6asm_audio_client_free(pcm->audio_client);
+			pcm->audio_client = NULL;
 			mutex_unlock(&pcm->lock);
 			return -ENOMEM;
 		}
