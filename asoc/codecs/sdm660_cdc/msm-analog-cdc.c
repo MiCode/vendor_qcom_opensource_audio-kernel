@@ -194,6 +194,7 @@ static int msm_anlg_cdc_enable_ext_mb_source(struct wcd_mbhc *wcd_mbhc,
 					     bool turn_on);
 static void msm_anlg_cdc_trim_btn_reg(struct snd_soc_codec *codec);
 static void msm_anlg_cdc_set_micb_v(struct snd_soc_codec *codec);
+static void msm_anlg_cdc_set_micb2_v(struct snd_soc_codec *codec, u32 mv);
 static void msm_anlg_cdc_set_boost_v(struct snd_soc_codec *codec);
 static void msm_anlg_cdc_set_auto_zeroing(struct snd_soc_codec *codec,
 					  bool enable);
@@ -914,6 +915,7 @@ static const struct wcd_mbhc_cb mbhc_cb = {
 	.trim_btn_reg = msm_anlg_cdc_trim_btn_reg,
 	.compute_impedance = msm_anlg_cdc_mbhc_calc_impedance,
 	.set_micbias_value = msm_anlg_cdc_set_micb_v,
+	.set_micbias2_value = msm_anlg_cdc_set_micb2_v,
 	.set_auto_zeroing = msm_anlg_cdc_set_auto_zeroing,
 	.get_hwdep_fw_cal = msm_anlg_cdc_get_hwdep_fw_cal,
 	.set_cap_mode = msm_anlg_cdc_configure_cap,
@@ -3915,10 +3917,42 @@ static void msm_anlg_cdc_set_micb_v(struct snd_soc_codec *codec)
 	struct sdm660_cdc_pdata *pdata = sdm660_cdc->dev->platform_data;
 	u8 reg_val;
 
-	reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt1_mv, MICBIAS_MIN_VAL,
-			MICBIAS_STEP_SIZE);
-	dev_dbg(codec->dev, "cfilt1_mv %d reg_val %x\n",
-			(u32)pdata->micbias.cfilt1_mv, reg_val);
+	if (pdata->micbias.cfilt2_mv > 0) {
+		reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt2_mv, MICBIAS_MIN_VAL,
+				MICBIAS_STEP_SIZE);
+		dev_dbg(codec->dev, "cfilt2_mv %d reg_val %x\n",
+				(u32)pdata->micbias.cfilt2_mv, reg_val);
+	} else {
+		reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt1_mv, MICBIAS_MIN_VAL,
+				MICBIAS_STEP_SIZE);
+		dev_dbg(codec->dev, "cfilt1_mv %d reg_val %x\n",
+				(u32)pdata->micbias.cfilt1_mv, reg_val);
+	}
+
+	snd_soc_update_bits(codec, MSM89XX_PMIC_ANALOG_MICB_1_VAL,
+			0xF8, (reg_val << 3));
+}
+
+static void msm_anlg_cdc_set_micb2_v(struct snd_soc_codec *codec, u32 mv)
+{
+	struct sdm660_cdc_priv *sdm660_cdc = snd_soc_codec_get_drvdata(codec);
+	struct sdm660_cdc_pdata *pdata = sdm660_cdc->dev->platform_data;
+	u8 reg_val;
+
+	pdata->micbias.cfilt2_mv = mv;
+
+	if (pdata->micbias.cfilt2_mv > 0) {
+		reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt2_mv, MICBIAS_MIN_VAL,
+				MICBIAS_STEP_SIZE);
+		dev_dbg(codec->dev, "cfilt2_mv %d reg_val %x\n",
+				(u32)pdata->micbias.cfilt2_mv, reg_val);
+	} else {
+		reg_val = VOLTAGE_CONVERTER(pdata->micbias.cfilt1_mv, MICBIAS_MIN_VAL,
+				MICBIAS_STEP_SIZE);
+		dev_dbg(codec->dev, "cfilt1_mv %d reg_val %x\n",
+				(u32)pdata->micbias.cfilt1_mv, reg_val);
+	}
+
 	snd_soc_update_bits(codec, MSM89XX_PMIC_ANALOG_MICB_1_VAL,
 			0xF8, (reg_val << 3));
 }

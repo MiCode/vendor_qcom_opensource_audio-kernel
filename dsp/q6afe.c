@@ -23,10 +23,17 @@
 #include <dsp/audio_cal_utils.h>
 #include <dsp/q6afe-v2.h>
 #include <dsp/q6audio-v2.h>
+#include <dsp/apr_elliptic.h>
 #include <ipc/apr_tal.h>
 #include "adsp_err.h"
 #include <dsp/q6core.h>
 
+#ifdef CONFIG_MSM_CSPL
+#include <dsp/msm-cirrus-playback.h>
+#endif
+#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
+#include <dsp/smart_amp.h>
+#endif
 #define WAKELOCK_TIMEOUT	5000
 enum {
 	AFE_COMMON_RX_CAL = 0,
@@ -123,6 +130,9 @@ struct afe_ctl {
 	int set_custom_topology;
 	int dev_acdb_id[AFE_MAX_PORTS];
 	routing_cb rt_cb;
+#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
+	struct afe_smartamp_calib_get_resp smart_amp_calib_data;
+#endif
 };
 
 static atomic_t afe_ports_mad_type[SLIMBUS_PORT_LAST - SLIMBUS_0_RX];
@@ -363,7 +373,10 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 	afe_callback_debug_print(data);
 	if (data->opcode == AFE_PORT_CMDRSP_GET_PARAM_V2) {
 		uint32_t *payload = data->payload;
-
+#ifdef CONFIG_MSM_CSPL
+		if (crus_afe_callback(data->payload, data->payload_size) == 0)
+			return 0;
+#endif
 		if (!payload || (data->token >= AFE_MAX_PORTS)) {
 			pr_err("%s: Error: size %d payload %pK token %d\n",
 				__func__, data->payload_size,
@@ -385,6 +398,15 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			av_dev_drift_afe_cb_handler(data->payload,
 						    data->payload_size);
 		} else {
+#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
+			if ((payload[1] == AFE_SMARTAMP_MODULE_RX) ||
+				(payload[1] == AFE_SMARTAMP_MODULE_TX)) {
+                memcpy(&this_afe.smart_amp_calib_data, payload,
+                sizeof(this_afe.smart_amp_calib_data));
+				atomic_set(&this_afe.state, 0);
+                pr_debug("[Smartamp:%s] inside !this_afe.smart_amp_calib_data.status", __func__);
+			}
+#endif
 			if (sp_make_afe_callback(data->payload,
 						 data->payload_size))
 				return -EINVAL;
@@ -393,6 +415,11 @@ static int32_t afe_callback(struct apr_client_data *data, void *priv)
 			wake_up(&this_afe.wait[data->token]);
 		else
 			return -EINVAL;
+	} else if (data->opcode == ULTRASOUND_OPCODE) {
+		if (NULL != data->payload)
+			elliptic_process_apr_payload(data->payload);
+		else
+			pr_err("[EXPORT_SYMBOLLUS]: payload ptr is Invalid");
 	} else if (data->payload_size) {
 		uint32_t *payload;
 		uint16_t port_id = 0;
@@ -831,6 +858,21 @@ static int afe_apr_send_pkt(void *data, wait_queue_head_t *wait)
 	return ret;
 }
 
+#ifdef CONFIG_MSM_CSPL
+int afe_apr_send_pkt_crus(void *data, int index, int set)
+{
+	pr_info("[CSPL] %s: index = %d, set=%d, data = %p\n",
+		__func__, index, set, data);
+
+	if (set)
+		return afe_apr_send_pkt(data, &this_afe.wait[index]);
+	else /* get */
+		return afe_apr_send_pkt(data, 0);
+}
+
+EXPORT_SYMBOL(afe_apr_send_pkt_crus);
+#endif
+
 static int afe_send_cal_block(u16 port_id, struct cal_block_data *cal_block)
 {
 	int						result = 0;
@@ -1151,6 +1193,15 @@ fail_cmd:
 	__func__, config.pdata.param_id, ret, src_port);
 	return ret;
 }
+
+afe_ultrasound_state_t elus_afe = {
+	.ptr_apr= &this_afe.apr,
+	.ptr_status= &this_afe.status,
+	.ptr_state= &this_afe.state,
+	.ptr_wait= this_afe.wait,
+	.timeout_ms= TIMEOUT_MS,
+};
+EXPORT_SYMBOL(elus_afe);
 
 static void afe_send_cal_spkr_prot_tx(int port_id)
 {
@@ -4414,6 +4465,172 @@ int afe_start_pseudo_port(u16 port_id)
 		       __func__, port_id, ret);
 	return ret;
 }
+
+#ifdef CONFIG_SND_SOC_TAS2562_FOR_PYXIS
+int afe_smartamp_set_calib_data(uint32_t param_id,
+		struct afe_smartamp_set_params_t *prot_config,
+	        uint8_t length, uint32_t module_id)
+{
+	int ret = -EINVAL;
+	int index = 0 , port_id = 0;
+	struct afe_smartamp_config_command configV;
+	struct afe_smartamp_config_command *config;
+
+
+	pr_info("[Smartamp:%s] module_id 0x%x, param_id 0x%x \n", __func__,
+                module_id, param_id);
+	config = &configV;
+	memset(config, 0 , sizeof(struct afe_smartamp_config_command));
+	if (!prot_config) {
+		pr_err("[Smartamp:%s] Invalid params\n", __func__);
+		goto fail_cmd;
+	}
+
+	if (module_id == AFE_SMARTAMP_MODULE_RX) {
+		port_id = TAS_RX_PORT;
+	} else if (module_id == AFE_SMARTAMP_MODULE_TX) {
+		port_id = TAS_TX_PORT;
+	} else {
+		pr_err("[Smartamp:%s] Invalid module id\n", __func__);
+		goto fail_cmd;
+	}
+
+	if ((q6audio_validate_port(port_id) < 0)) {
+		pr_err("[Smartamp:%s] invalid port %d", __func__, port_id);
+		goto fail_cmd;
+	}
+
+	index = q6audio_get_port_index(port_id);
+	config->pdata.module_id = module_id;
+	config->hdr.hdr_field = APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+				APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
+	config->hdr.pkt_size = sizeof(struct afe_smartamp_config_command);
+	config->hdr.src_port = 0;
+	config->hdr.dest_port = 0;
+	config->hdr.token = index;
+	config->hdr.opcode = AFE_PORT_CMD_SET_PARAM_V2;
+	config->param.port_id = q6audio_get_port_id(port_id);
+	//config->param.payload_size = length + 1;
+	config->param.payload_size =
+		sizeof(configV) - sizeof(configV.hdr) - sizeof(configV.param);
+	config->pdata.param_id = param_id;
+	config->pdata.param_size = sizeof(configV.prot_config);
+	memcpy(config->prot_config.payload, prot_config, length);
+	atomic_set(&this_afe.state, 1);
+	ret = apr_send_pkt(this_afe.apr, (uint32_t *) config);
+
+
+	if (ret < 0) {
+		pr_err("[Smartamp:%s] Setting param for port %d param[0x%x]failed\n",
+		       __func__, port_id, param_id);
+		goto fail_cmd;
+	}
+
+	ret = wait_event_timeout(this_afe.wait[index],
+			(atomic_read(&this_afe.state) == 0),
+			msecs_to_jiffies(TIMEOUT_MS*10));
+	if (!ret) {
+		pr_err("[Smartamp:%s] wait_event timeout\n", __func__);
+		ret = -EINVAL;
+		goto fail_cmd;
+	}
+	if (atomic_read(&this_afe.status) != 0) {
+		pr_err("[Smartamp:%s] config cmd failed\n", __func__);
+		ret = -EINVAL;
+		goto fail_cmd;
+	}
+        ret = 0;
+	return ret;
+fail_cmd:
+	pr_err("[Smartamp:%s] config->pdata.param_id %x status %d\n",
+	__func__, config->pdata.param_id, ret);
+	return ret;
+}
+
+EXPORT_SYMBOL(afe_smartamp_set_calib_data);
+
+int afe_smartamp_get_calib_data(struct afe_smartamp_get_calib *calib_resp,
+		uint32_t param_id, uint32_t module_id)
+{
+	int ret = -EINVAL;
+	int index = 0, port_id = 0;
+
+	pr_info("[Smartamp:%s] module_id 0x%x, param_id 0x%x \n", __func__,
+		module_id, param_id);
+	if (!calib_resp) {
+		pr_err("[Smartamp:%s] Invalid params\n", __func__);
+		goto fail_cmd;
+	}
+	if (module_id == AFE_SMARTAMP_MODULE_RX) {
+		port_id = TAS_RX_PORT;
+	} else if (module_id == AFE_SMARTAMP_MODULE_TX) {
+		port_id = TAS_TX_PORT;
+	} else {
+		pr_err("[Smartamp:%s] Invalid module id\n", __func__);
+		return ret;
+	}
+
+	if ((q6audio_validate_port(port_id) < 0)) {
+		pr_err("[Smartamp:%s] invalid port %d\n", __func__, port_id);
+		goto fail_cmd;
+	}
+
+	index = q6audio_get_port_index(port_id);
+	calib_resp->hdr.hdr_field =
+		APR_HDR_FIELD(APR_MSG_TYPE_SEQ_CMD,
+		APR_HDR_LEN(APR_HDR_SIZE), APR_PKT_VER);
+	calib_resp->hdr.src_svc = APR_SVC_AFE;
+	calib_resp->hdr.src_domain = APR_DOMAIN_APPS;
+	calib_resp->hdr.dest_svc = APR_SVC_AFE;
+	calib_resp->hdr.dest_domain = APR_DOMAIN_ADSP;
+	calib_resp->hdr.pkt_size = sizeof(*calib_resp);
+	calib_resp->hdr.src_port = 0;
+	calib_resp->hdr.dest_port = 0;
+	calib_resp->hdr.token = index;
+	calib_resp->hdr.opcode =  AFE_PORT_CMD_GET_PARAM_V2;
+	calib_resp->get_param.mem_map_handle = 0;
+	calib_resp->get_param.module_id = module_id;
+	calib_resp->get_param.param_id = param_id;
+	calib_resp->get_param.payload_address_lsw = 0;
+	calib_resp->get_param.payload_address_msw = 0;
+	calib_resp->get_param.payload_size =
+		sizeof(*calib_resp) - sizeof(calib_resp->get_param);
+	calib_resp->get_param.port_id = q6audio_get_port_id(port_id);
+	calib_resp->pdata.module_id = module_id;
+	calib_resp->pdata.param_id = param_id;
+	calib_resp->pdata.param_size = sizeof(calib_resp->res_cfg);
+	calib_resp->pdata.reserved = 0;
+	atomic_set(&this_afe.state, 1);
+	ret = apr_send_pkt(this_afe.apr, (uint32_t *)calib_resp);
+
+	if (ret < 0) {
+		pr_err("[Smartamp:%s] get param port %d param id[0x%x]failed\n",
+			   __func__, port_id, calib_resp->get_param.param_id);
+		goto fail_cmd;
+	}
+
+	ret = wait_event_timeout(this_afe.wait[index],
+		(atomic_read(&this_afe.state) == 0),
+		msecs_to_jiffies(TIMEOUT_MS * 5));
+	if (!ret) {
+		pr_err("[Smartamp:%s] wait_event timeout\n", __func__);
+		ret = -EINVAL;
+		goto fail_cmd;
+	}
+	if (atomic_read(&this_afe.status) != 0) {
+		pr_err("[Smartamp:%s] config cmd failed\n", __func__);
+		ret = -EINVAL;
+		goto fail_cmd;
+	}
+	memcpy(&calib_resp->res_cfg, &this_afe.smart_amp_calib_data.res_cfg,
+	       sizeof(this_afe.smart_amp_calib_data.res_cfg));
+        ret = 0;
+fail_cmd:
+	return ret;
+}
+
+EXPORT_SYMBOL(afe_smartamp_get_calib_data);
+#endif
 
 int afe_pseudo_port_stop_nowait(u16 port_id)
 {

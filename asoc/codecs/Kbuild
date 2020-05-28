@@ -148,6 +148,10 @@ ifdef CONFIG_SND_SOC_MSM_HDMI_CODEC_RX
 	HDMICODEC_OBJS += msm_hdmi_codec_rx.o
 endif
 
+ifdef CONFIG_SPK_ID
+	SPK_OBJS += spk-id.o
+endif
+
 LINUX_INC +=	-Iinclude/linux
 
 INCS +=		$(COMMON_INC) \
@@ -193,6 +197,8 @@ ifeq ($(KERNEL_BUILD), 1)
 	obj-y	+= wcd934x/
 	obj-y	+= sdm660_cdc/
 	obj-y	+= msm_sdw/
+	obj-y	+= tas2557/
+	obj-y	+= cs35l41/
 endif
 # Module information used by KBuild framework
 obj-$(CONFIG_WCD9XXX_CODEC_CORE) += wcd_core_dlkm.o
@@ -213,11 +219,16 @@ wsa881x_analog_dlkm-y := $(WSA881X_ANALOG_OBJS)
 obj-$(CONFIG_SND_SOC_MSM_STUB) += stub_dlkm.o
 stub_dlkm-y := $(STUB_OBJS)
 
+obj-y	+= tas2562/
+
 obj-$(CONFIG_SND_SOC_WCD_CPE) += wcd_cpe_dlkm.o
 wcd_cpe_dlkm-y := $(WCD_CPE_OBJS)
 
 obj-$(CONFIG_SND_SOC_WCD_SPI) += wcd_spi_dlkm.o
 wcd_spi_dlkm-y := $(SPI_OBJS)
+
+obj-$(CONFIG_SPK_ID)    += spk_id_dlkm.o
+spk_id_dlkm-y := $(SPK_OBJS)
 
 obj-$(CONFIG_SND_SOC_WCD_MBHC) += mbhc_dlkm.o
 mbhc_dlkm-y := $(MBHC_OBJS)

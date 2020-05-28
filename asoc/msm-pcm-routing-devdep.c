@@ -19,7 +19,7 @@
 #include "msm-pcm-routing-devdep.h"
 #include "msm-ds2-dap-config.h"
 
-#ifdef CONFIG_SND_HWDEP
+#ifdef CONFIG_SND_HWDEP_ROUTING
 static int msm_pcm_routing_hwdep_open(struct snd_hwdep *hw, struct file *file)
 {
 	pr_debug("%s\n", __func__);

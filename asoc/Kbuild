@@ -160,6 +160,16 @@ ifdef CONFIG_SND_SOC_QDSP6V2
 	PLATFORM_OBJS += msm-transcode-loopback-q6-v2.o
 	PLATFORM_OBJS += platform_init.o
 endif
+ifeq ($(TARGET_PRODUCT), pyxis)
+AUDIO_FEATURE_ENABLED_SPKR_PROTECTION := true
+endif
+ifeq ($(TARGET_PRODUCT), vela)
+AUDIO_FEATURE_ENABLED_SPKR_PROTECTION := true
+endif
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_SPKR_PROTECTION)),true)
+	PLATFORM_OBJS += tas2562-algo.o
+	PLATFORM_OBJS += tas2562-calib.o
+endif
 ifdef CONFIG_DOLBY_DS2
 	PLATFORM_OBJS += msm-ds2-dap-config.o
 endif
@@ -190,6 +200,25 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Werror\
 		-D__linux__
 
+ifeq ($(TARGET_PRODUCT), grus)
+	CDEFINES += -DCONFIG_SND_SOC_CS35L41_FOR_GRUS
+endif
+
+ifeq ($(TARGET_PRODUCT), grus)
+	CDEFINES += -DAUDIO_FEATURE_SUPPORT_24BIT
+endif
+
+ifeq ($(TARGET_PRODUCT), pyxis)
+	CDEFINES += -DAUDIO_FEATURE_SUPPORT_24BIT
+endif
+
+ifeq ($(TARGET_PRODUCT), vela)
+	CDEFINES += -DAUDIO_FEATURE_SUPPORT_24BIT
+endif
+
+ifeq ($(strip $(AUDIO_FEATURE_ENABLED_SPKR_PROTECTION)),true)
+	CDEFINES += -DCONFIG_SND_SOC_TAS2562_FOR_PYXIS
+endif
 KBUILD_CPPFLAGS += $(CDEFINES)
 
 # Currently, for versions of gcc which support it, the kernel Makefile

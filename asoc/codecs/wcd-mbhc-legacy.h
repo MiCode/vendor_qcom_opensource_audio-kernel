@@ -23,4 +23,6 @@ static inline void wcd_mbhc_legacy_init(struct wcd_mbhc *mbhc)
 }
 #endif
 
+void wcd_enable_mbhc_supply(struct wcd_mbhc *mbhc,enum wcd_mbhc_plug_type plug_type);
+
 #endif /* __WCD_MBHC_LEGACY_H__ */

@@ -1049,6 +1049,72 @@ dolby_dap_send_param_return:
 }
 EXPORT_SYMBOL(adm_dolby_dap_send_params);
 
+#if CONFIG_MSM_CSPL
+int crus_adm_set_params(int port_id, int copp_idx, uint32_t module_id,
+							uint32_t param_id, char *params,
+							uint32_t params_length)
+{
+	int ret = 0;
+	//int i = 0;
+	uint32_t *update_param_data = NULL;
+	uint32_t *param_data = NULL;
+	uint32_t param_size = params_length +
+			sizeof(struct adm_param_data_v5);
+
+	pr_info("CSPL: %s: port=0x%x, copp_idx=%d, module=0x%x, param_id=0x%x, params_len=0x%x\n",
+					__func__, (unsigned int)port_id, copp_idx,
+					(unsigned int)module_id,
+					(unsigned int)param_id,
+					(unsigned int)params_length);
+	param_data = kzalloc(param_size, GFP_KERNEL);
+	if (!param_data)
+		return -ENOMEM;
+	update_param_data = (uint32_t *)param_data;
+	*update_param_data++ = module_id;
+	*update_param_data++ = param_id;
+    *update_param_data++ = params_length;
+    //for (i = 0; i < params_length/sizeof(uint32_t); i ++) {
+    //	*update_param_data++ = ((uint32_t*)params)[i];
+    //}
+    memcpy((char *)param_data + sizeof(struct adm_param_data_v5), params, params_length);
+    ret = adm_send_params_v5(port_id, copp_idx,
+            (char *)param_data, param_size);
+    if (ret) {
+		pr_err("%s: Setting param failed with err=%d\n",
+				__func__, ret);
+		ret = -EINVAL;
+		goto exit;
+	}
+
+exit:
+	kfree(param_data);
+	return ret;
+}
+
+int crus_adm_get_params(int port_id, int copp_idx, uint32_t module_id,
+							uint32_t param_id, char *params,
+							uint32_t params_length,
+							uint32_t client_id)
+{
+	int ret = 0;
+	pr_info("CSPL: %s: port=0x%x, copp_idx=%d, module=0x%x, param_id=0x%x, params_len=0x%x\n",
+					__func__, (unsigned int)port_id, copp_idx,
+					(unsigned int)module_id,
+					(unsigned int)param_id,
+					(unsigned int)params_length);
+
+	ret = adm_get_params(port_id, copp_idx,
+				module_id, param_id, params_length, params);
+
+	if (ret == 0) {
+		pr_debug("%s: params_value [0x%x, 0x%x, 0x%x]\n",
+			__func__, params[0], params[1], params[2]);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(crus_adm_get_params);
+#endif
+
 /**
  * adm_get_params_v5 -
  *        command to retrieve ADM params for given module
@@ -1145,6 +1211,8 @@ int adm_get_params_v2(int port_id, int copp_idx, uint32_t module_id,
 	int port_idx, idx;
 	int *params_data = (int *)params;
 	uint64_t sz = 0;
+
+	pr_err("%s: copp_id = %d, client_id=%d\n", __func__, copp_idx, client_id);
 
 	port_id = afe_convert_virtual_to_portid(port_id);
 	port_idx = adm_validate_and_get_port_index(port_id);

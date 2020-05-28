@@ -26,7 +26,14 @@ int rtac_init(void);
 int msm_audio_ion_init(void);
 int audio_slimslave_init(void);
 int avtimer_init(void);
+int elliptic_driver_init(void);
+#ifdef CONFIG_MSM_CSPL
+int crus_sp_init(void);
+#endif
 
+#ifdef CONFIG_MSM_CSPL
+void crus_sp_exit(void);
+#endif
 void avtimer_exit(void);
 void audio_slimslave_exit(void);
 void msm_audio_ion_exit(void);
@@ -39,5 +46,6 @@ void q6asm_exit(void);
 void afe_exit(void);
 void adm_exit(void);
 void adsp_err_exit(void);
+int elliptic_driver_exit(void);
 #endif
 

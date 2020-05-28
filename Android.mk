@@ -22,6 +22,9 @@ include $(MY_LOCAL_PATH)/soc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/wcd934x/Android.mk
+include $(MY_LOCAL_PATH)/asoc/codecs/tas2557/Android.mk
+include $(MY_LOCAL_PATH)/asoc/codecs/tas2562/Android.mk
+include $(MY_LOCAL_PATH)/asoc/codecs/cs35l41/Android.mk
 endif
 
 ifeq ($(strip $(AUDIO_FEATURE_ENABLED_DLKM_8909W)),true)
