@@ -6373,6 +6373,20 @@ static struct snd_soc_dai_link msm_common_be_dai_links[] = {
 		.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ignore_suspend = 1,
 	},
+	{
+		.name = LPASS_BE_WSA_CDC_DMA_TX_0_VI,
+		.stream_name = "WSA CDC DMA0 Capture",
+		.cpu_dai_name = "msm-dai-cdc-dma-dev.45057",
+		.platform_name = "msm-pcm-routing",
+		.codec_name = "bolero_codec",
+		.codec_dai_name = "wsa_macro_vifeedback",
+		.no_pcm = 1,
+		.dpcm_capture = 1,
+		.id = MSM_BACKEND_DAI_WSA_CDC_DMA_TX_0,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ignore_suspend = 1,
+		.ops = &msm_cdc_dma_be_ops,
+	},
 };
 
 
