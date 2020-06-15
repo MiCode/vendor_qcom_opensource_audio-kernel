@@ -722,8 +722,8 @@ static const char *const usb_ch_text[] = {"One", "Two", "Three", "Four",
 					   "Five", "Six", "Seven",
 					   "Eight"};
 static char const *tdm_sample_rate_text[] = {"KHZ_8", "KHZ_16", "KHZ_32",
-					     "KHZ_48", "KHZ_176P4",
-					     "KHZ_352P8"};
+					     "KHZ_48", "KHZ_96",
+					     "KHZ_176P4", "KHZ_352P8"};
 static char const *tdm_bit_format_text[] = {"S16_LE", "S24_LE", "S32_LE"};
 static char const *tdm_ch_text[] = {"One", "Two", "Three", "Four",
 				    "Five", "Six", "Seven", "Eight"};
@@ -1682,9 +1682,12 @@ static int tdm_get_sample_rate(int value)
 		sample_rate = SAMPLING_RATE_48KHZ;
 		break;
 	case 4:
-		sample_rate = SAMPLING_RATE_176P4KHZ;
+		sample_rate = SAMPLING_RATE_96KHZ;
 		break;
 	case 5:
+		sample_rate = SAMPLING_RATE_176P4KHZ;
+		break;
+	case 6:
 		sample_rate = SAMPLING_RATE_352P8KHZ;
 		break;
 	default:
@@ -1711,11 +1714,14 @@ static int tdm_get_sample_rate_val(int sample_rate)
 	case SAMPLING_RATE_48KHZ:
 		sample_rate_val = 3;
 		break;
-	case SAMPLING_RATE_176P4KHZ:
+	case SAMPLING_RATE_96KHZ:
 		sample_rate_val = 4;
 		break;
-	case SAMPLING_RATE_352P8KHZ:
+	case SAMPLING_RATE_176P4KHZ:
 		sample_rate_val = 5;
+		break;
+	case SAMPLING_RATE_352P8KHZ:
+		sample_rate_val = 6;
 		break;
 	default:
 		sample_rate_val = 3;
@@ -3796,6 +3802,9 @@ static const struct snd_kcontrol_new msm_tdm_snd_controls[] = {
 	SOC_ENUM_EXT("TERT_TDM_RX_0 SampleRate", tdm_rx_sample_rate,
 			tdm_rx_sample_rate_get,
 			tdm_rx_sample_rate_put),
+	SOC_ENUM_EXT("TERT_TDM_RX_1 SampleRate", tdm_rx_sample_rate,
+			tdm_rx_sample_rate_get,
+			tdm_rx_sample_rate_put),
 	SOC_ENUM_EXT("QUAT_TDM_RX_0 SampleRate", tdm_rx_sample_rate,
 			tdm_rx_sample_rate_get,
 			tdm_rx_sample_rate_put),
@@ -3832,6 +3841,9 @@ static const struct snd_kcontrol_new msm_tdm_snd_controls[] = {
 	SOC_ENUM_EXT("TERT_TDM_RX_0 Format", tdm_rx_format,
 			tdm_rx_format_get,
 			tdm_rx_format_put),
+	SOC_ENUM_EXT("TERT_TDM_RX_1 Format", tdm_rx_format,
+			tdm_rx_format_get,
+			tdm_rx_format_put),
 	SOC_ENUM_EXT("QUAT_TDM_RX_0 Format", tdm_rx_format,
 			tdm_rx_format_get,
 			tdm_rx_format_put),
@@ -3866,6 +3878,9 @@ static const struct snd_kcontrol_new msm_tdm_snd_controls[] = {
 			tdm_rx_ch_get,
 			tdm_rx_ch_put),
 	SOC_ENUM_EXT("TERT_TDM_RX_0 Channels", tdm_rx_chs,
+			tdm_rx_ch_get,
+			tdm_rx_ch_put),
+	SOC_ENUM_EXT("TERT_TDM_RX_1 Channels", tdm_rx_chs,
 			tdm_rx_ch_get,
 			tdm_rx_ch_put),
 	SOC_ENUM_EXT("QUAT_TDM_RX_0 Channels", tdm_rx_chs,
@@ -4198,6 +4213,13 @@ static int msm_be_hw_params_fixup(struct snd_soc_pcm_runtime *rtd,
 		rate->min = rate->max = tdm_rx_cfg[TDM_TERT][TDM_0].sample_rate;
 		break;
 
+	case MSM_BACKEND_DAI_TERT_TDM_RX_1:
+		channels->min = channels->max =
+				tdm_rx_cfg[TDM_TERT][TDM_1].channels;
+		param_set_mask(params, SNDRV_PCM_HW_PARAM_FORMAT,
+			       tdm_rx_cfg[TDM_TERT][TDM_1].bit_format);
+		rate->min = rate->max = tdm_rx_cfg[TDM_TERT][TDM_1].sample_rate;
+		break;
 	case MSM_BACKEND_DAI_TERT_TDM_TX_0:
 		channels->min = channels->max =
 				tdm_tx_cfg[TDM_TERT][TDM_0].channels;
@@ -4709,6 +4731,7 @@ static int msm_get_tdm_mode(u32 port_id)
 		tdm_mode = TDM_SEC;
 		break;
 	case AFE_PORT_ID_TERTIARY_TDM_RX:
+	case AFE_PORT_ID_TERTIARY_TDM_RX_1:
 	case AFE_PORT_ID_TERTIARY_TDM_TX:
 		tdm_mode = TDM_TERT;
 		break;
@@ -6184,6 +6207,24 @@ static struct snd_soc_dai_link msm_common_dai_links[] = {
 		.ops = &msm_fe_qos_ops,
 	},
 	{/* hw:x,30 */
+#if defined(CONFIG_TARGET_PRODUCT_APOLLO) || defined(CONFIG_TARGET_PRODUCT_CAS)
+		.name = "Tertiary TDM1 Hostless Playback",
+		.stream_name = "Tertiary TDM1 Hostless Playback",
+		.cpu_dai_name = "msm-dai-q6-tdm.36898",
+		.platform_name = "msm-pcm-hostless",
+		//.dynamic = 1,
+		.dpcm_playback = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+				SND_SOC_DPCM_TRIGGER_POST},
+		.no_host_mode = SND_SOC_DAI_LINK_NO_HOST,
+		.ops = &kona_tdm_be_ops,
+		.id = MSM_BACKEND_DAI_TERT_TDM_RX_1,
+		.codecs = cs35l41_codec_components,
+		.num_codecs = ARRAY_SIZE(cs35l41_codec_components),
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+#else
 		.name = "CDC_DMA Hostless",
 		.stream_name = "CDC_DMA Hostless",
 		.cpu_dai_name = "msm-dai-cdc-dma-dev.45106",
@@ -6199,6 +6240,7 @@ static struct snd_soc_dai_link msm_common_dai_links[] = {
 		.ignore_pmdown_time = 1,
 		//.be_hw_params_fixup = msm_be_hw_params_fixup,
 		.ops = &msm_cdc_dma_be_ops,
+#endif
 	},
 	{/* hw:x,31 */
 		.name = "TX3_CDC_DMA Hostless",
@@ -7039,6 +7081,40 @@ static struct snd_soc_dai_link msm_mi2s_be_dai_links[] = {
 
 #ifdef AUDIO_SM8250_FLAG  //j1
 static struct snd_soc_dai_link tert_mi2s_rx_cs35l41_dai_links[] = {
+#if defined(CONFIG_TARGET_PRODUCT_APOLLO) || defined(CONFIG_TARGET_PRODUCT_CAS)
+	{
+		.name = LPASS_BE_TERT_TDM_RX_0,
+		.stream_name = "Tertiary TDM0 Playback",
+		.cpu_dai_name = "msm-dai-q6-tdm.36896",
+		.platform_name = "msm-pcm-routing",
+		.codecs = cs35l41_codec_components,
+		.num_codecs = ARRAY_SIZE(cs35l41_codec_components),
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_TERT_TDM_RX_0,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &kona_tdm_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.init = &cs35l41_init,
+	},
+  	{
+		.name = LPASS_BE_TERT_TDM_RX_1,
+		.stream_name = "Tertiary TDM1 Playback",
+		.cpu_dai_name = "msm-dai-q6-tdm.36898",
+		.platform_name = "msm-pcm-routing",
+		.codecs = cs35l41_codec_components,
+		.num_codecs = ARRAY_SIZE(cs35l41_codec_components),
+		.no_pcm = 1,
+		.dpcm_playback = 1,
+		.id = MSM_BACKEND_DAI_TERT_TDM_RX_1,
+		.be_hw_params_fixup = msm_be_hw_params_fixup,
+		.ops = &kona_tdm_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		.init = &cs35l41_init,
+	},
+#else
 	{
 		.name = LPASS_BE_TERT_MI2S_RX,
 		.stream_name = "Tertiary MI2S Playback",
@@ -7055,6 +7131,7 @@ static struct snd_soc_dai_link tert_mi2s_rx_cs35l41_dai_links[] = {
 		.ignore_pmdown_time = 1,
 		.init = &cs35l41_init,
 	},
+#endif
 };
 
 static struct snd_soc_dai_link pri_mi2s_rx_tfa9874_dai_links[] = {
@@ -7816,7 +7893,9 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 				    get_hw_version_platform() == HARDWARE_PLATFORM_CMI ||
 				    get_hw_version_platform() == HARDWARE_PLATFORM_URD ||
 				    get_hw_version_platform() == HARDWARE_PLATFORM_VERTHANDI ||
-				    get_hw_version_platform() == HARDWARE_PLATFORM_SKULD) {
+				    get_hw_version_platform() == HARDWARE_PLATFORM_SKULD ||
+				    get_hw_version_platform() == HARDWARE_PLATFORM_APOLLO ||
+					get_hw_version_platform() == HARDWARE_PLATFORM_CAS) {
 					memcpy(msm_kona_dai_links + total_links,
 						tert_mi2s_rx_cs35l41_dai_links,
 						sizeof(tert_mi2s_rx_cs35l41_dai_links));
