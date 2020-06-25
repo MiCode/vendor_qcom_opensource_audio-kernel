@@ -783,6 +783,9 @@ static int rouleur_codec_enable_ear_pa(struct snd_soc_dapm_widget *w,
 		ret = swr_slvdev_datapath_control(rouleur->rx_swr_dev,
 			    rouleur->rx_swr_dev->dev_num,
 			    true);
+		snd_soc_component_update_bits(component,
+				ROULEUR_ANA_COMBOPA_CTL,
+				0x40, 0x00);
 		usleep_range(5000, 5100);
 		snd_soc_component_update_bits(component,
 				ROULEUR_DIG_SWR_PDM_WD_CTL0,
@@ -1342,6 +1345,17 @@ static int rouleur_get_logical_addr(struct swr_device *swr_dev)
 	return 0;
 }
 
+static bool get_usbc_hs_status(struct snd_soc_component *component,
+			       struct wcd_mbhc_config *mbhc_cfg)
+{
+	if (mbhc_cfg->enable_usbc_analog) {
+		if (!(snd_soc_component_read32(component, ROULEUR_ANA_MBHC_MECH)
+			& 0x20))
+			return true;
+	}
+	return false;
+}
+
 static int rouleur_event_notify(struct notifier_block *block,
 				unsigned long val,
 				void *data)
@@ -1374,6 +1388,8 @@ static int rouleur_event_notify(struct notifier_block *block,
 		rouleur->dev_up = false;
 		rouleur->mbhc->wcd_mbhc.deinit_in_progress = true;
 		mbhc = &rouleur->mbhc->wcd_mbhc;
+		rouleur->usbc_hs_status = get_usbc_hs_status(component,
+						mbhc->mbhc_cfg);
 		rouleur_mbhc_ssr_down(rouleur->mbhc, component);
 		rouleur_reset(rouleur->dev, 0x01);
 		break;
@@ -1387,6 +1403,7 @@ static int rouleur_event_notify(struct notifier_block *block,
 		rouleur_init_reg(component);
 		regcache_mark_dirty(rouleur->regmap);
 		regcache_sync(rouleur->regmap);
+		rouleur->dev_up = true;
 		/* Initialize MBHC module */
 		mbhc = &rouleur->mbhc->wcd_mbhc;
 		ret = rouleur_mbhc_post_ssr_init(rouleur->mbhc, component);
@@ -1395,9 +1412,10 @@ static int rouleur_event_notify(struct notifier_block *block,
 				__func__);
 		} else {
 			rouleur_mbhc_hs_detect(component, mbhc->mbhc_cfg);
+			if (rouleur->usbc_hs_status)
+				mdelay(500);
 		}
 		rouleur->mbhc->wcd_mbhc.deinit_in_progress = false;
-		rouleur->dev_up = true;
 		break;
 	default:
 		dev_err(component->dev, "%s: invalid event %d\n", __func__,
