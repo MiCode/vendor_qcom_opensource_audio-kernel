@@ -622,6 +622,7 @@ static int swr_master_bulk_write(struct swr_mstr_ctrl *swrm, u32 *reg_addr,
 			usleep_range(50, 55);
 			swr_master_write(swrm, reg_addr[i], val[i]);
 		}
+		usleep_range(100, 110);
 		mutex_unlock(&swrm->iolock);
 	}
 	return 0;
@@ -2038,19 +2039,19 @@ handle_irq:
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_OVERFLOW:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
 			dev_err(swrm->dev,
-				"%s: SWR read FIFO overflow fifo status\n",
+				"%s: SWR read FIFO overflow fifo status %x\n",
 				__func__, value);
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_UNDERFLOW:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
 			dev_err(swrm->dev,
-				"%s: SWR read FIFO underflow fifo status\n",
+				"%s: SWR read FIFO underflow fifo status %x\n",
 				__func__, value);
 			break;
 		case SWRM_INTERRUPT_STATUS_WR_CMD_FIFO_OVERFLOW:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
 			dev_err(swrm->dev,
-				"%s: SWR write FIFO overflow fifo status\n",
+				"%s: SWR write FIFO overflow fifo status %x\n",
 				__func__, value);
 			swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
 			break;
@@ -3382,6 +3383,9 @@ int swrm_wcd_notify(struct platform_device *pdev, u32 id, void *data)
 		swrm->hw_core_clk_en = 0;
 		swrm->aud_core_clk_en = 0;
 		mutex_unlock(&swrm->devlock);
+		mutex_lock(&swrm->reslock);
+		swrm->state = SWR_MSTR_SSR;
+		mutex_unlock(&swrm->reslock);
 		mutex_unlock(&swrm->mlock);
 		break;
 	case SWR_DEVICE_SSR_UP:
