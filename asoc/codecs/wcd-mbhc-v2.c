@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -32,7 +33,10 @@
 #include "wcd-mbhc-legacy.h"
 #include "wcd-mbhc-adc.h"
 #include "wcd-mbhc-v2-api.h"
-
+static int det_Selfiestick_ins = 0; 
+//add-begin by zad for headset state check
+static int headset_state = 0;
+//add-end
 void wcd_mbhc_jack_report(struct wcd_mbhc *mbhc,
 			  struct snd_soc_jack *jack, int status, int mask)
 {
@@ -322,12 +326,17 @@ out_micb_en:
 			hphlocp_off_report(mbhc, SND_JACK_OC_HPHL);
 		clear_bit(WCD_MBHC_EVENT_PA_HPHL, &mbhc->event_state);
 		/* check if micbias is enabled */
-		if (micbias2)
+//Add-begin by zad 2018112 for selfie stick 
+		if (micbias2 || (det_Selfiestick_ins == 1))
 			/* Disable cs, pullup & enable micbias */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
-		else
+//modify start by zad for playing music is interrupted when headset was inserting sometimes
+		//else
+		else if(!wcd_swch_level_remove(mbhc))
+//modify end
 			/* Disable micbias, pullup & enable cs */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
+//Add-end
 		mutex_unlock(&mbhc->hphl_pa_lock);
 		clear_bit(WCD_MBHC_ANC0_OFF_ACK, &mbhc->hph_anc_state);
 		break;
@@ -343,7 +352,10 @@ out_micb_en:
 		if (micbias2)
 			/* Disable cs, pullup & enable micbias */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
-		else
+//modify start by zad for playing music is interrupted when headset was inserting sometimes
+		//else
+		else if(!wcd_swch_level_remove(mbhc))
+//modify end
 			/* Disable micbias, pullup & enable cs */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS);
 		mutex_unlock(&mbhc->hphr_pa_lock);
@@ -354,9 +366,12 @@ out_micb_en:
 		/* check if micbias is enabled */
 		if (micbias2)
 			/* Disable cs, pullup & enable micbias */
-			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
-		else
-			/* Disable micbias, enable pullup & cs */
+			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);	
+//modify start by zad for playing music is interrupted when headset was inserting sometimes
+		//else
+		else if(!wcd_swch_level_remove(mbhc))
+//modify end	
+		/* Disable micbias, enable pullup & cs */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_PULLUP);
 		break;
 	case WCD_EVENT_PRE_HPHR_PA_ON:
@@ -365,7 +380,10 @@ out_micb_en:
 		if (micbias2)
 			/* Disable cs, pullup & enable micbias */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
-		else
+//modify start by zad for playing music is interrupted when headset was inserting sometimes
+		//else
+		else if(!wcd_swch_level_remove(mbhc))
+//modify end
 			/* Disable micbias, enable pullup & cs */
 			wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_PULLUP);
 		break;
@@ -558,7 +576,9 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 	u8 fsm_en = 0;
 
 	WCD_MBHC_RSC_ASSERT_LOCKED(mbhc);
-
+//add-begin by zad for headset state check
+	headset_state = insertion;
+//add-end
 	pr_debug("%s: enter insertion %d hph_status %x\n",
 		 __func__, insertion, mbhc->hph_status);
 	if (!insertion) {
@@ -578,7 +598,7 @@ void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 			mbhc->buttons_pressed &=
 				~WCD_MBHC_JACK_BUTTON_MASK;
 		}
-
+		det_Selfiestick_ins = 0;
 		if (mbhc->micbias_enable) {
 			if (mbhc->mbhc_cb->mbhc_micbias_control)
 				mbhc->mbhc_cb->mbhc_micbias_control(
@@ -774,7 +794,6 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 {
 	bool anc_mic_found = false;
 	enum snd_jack_types jack_type;
-
 	pr_debug("%s: enter current_plug(%d) new_plug(%d)\n",
 		 __func__, mbhc->current_plug, plug_type);
 
@@ -796,7 +815,45 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 			wcd_mbhc_report_plug(mbhc, 0, SND_JACK_HEADPHONE);
 		if (mbhc->current_plug == MBHC_PLUG_TYPE_HEADSET)
 			wcd_mbhc_report_plug(mbhc, 0, SND_JACK_HEADSET);
-		wcd_mbhc_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);
+//		wcd_mbhc_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);	
+//Add-begin by zad 2018112 for selfie stick 
+		/*
+		 * calculate impedance detection
+		 * If Zl and Zr > 20k then it is special accessory
+		 * otherwise unsupported cable.
+		 */
+		if (mbhc->impedance_detect) {
+			mbhc->mbhc_cb->compute_impedance(mbhc,
+					&mbhc->zl, &mbhc->zr);
+			if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
+				pr_debug("%s: special accessory \n", __func__);
+				/* Toggle switch back */
+				if (mbhc->mbhc_cfg->swap_gnd_mic &&
+						mbhc->mbhc_cfg->swap_gnd_mic(mbhc->codec,false)) {
+					pr_debug("%s: US_EU gpio present,flip switch again\n"
+							, __func__);
+				}
+				/* enable CS/MICBIAS for headset button detection to work */
+				//wcd_enable_mbhc_supply(mbhc, MBHC_PLUG_TYPE_HEADSET);
+				wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB); 
+				wcd_mbhc_report_plug(mbhc, 1, SND_JACK_HEADSET);
+				det_Selfiestick_ins = 1;
+				 /* add code start 
+ 				if (mbhc->is_hs_recording) 
+				 wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB); 
+ 				else if ((test_bit(WCD_MBHC_EVENT_PA_HPHL, &mbhc->event_state)) || 
+ 				(test_bit(WCD_MBHC_EVENT_PA_HPHR, &mbhc->event_state))) 
+ 				wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_PULLUP); 
+ 				else 
+				 wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_CS); 
+ 				add code end */
+
+			}
+			else {
+				wcd_mbhc_report_plug(mbhc, 1, SND_JACK_UNSUPPORTED);
+			}
+		}
+//Add-end
 	} else if (plug_type == MBHC_PLUG_TYPE_HEADSET) {
 		if (mbhc->mbhc_cfg->enable_anc_mic_detect &&
 		    mbhc->mbhc_fn->wcd_mbhc_detect_anc_plug_type)
@@ -805,14 +862,46 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 		jack_type = SND_JACK_HEADSET;
 		if (anc_mic_found)
 			jack_type = SND_JACK_ANC_HEADPHONE;
-
+	
+		
 		/*
 		 * If Headphone was reported previously, this will
 		 * only report the mic line
 		 */
 		wcd_mbhc_report_plug(mbhc, 1, jack_type);
+
 	} else if (plug_type == MBHC_PLUG_TYPE_HIGH_HPH) {
-		if (mbhc->mbhc_cfg->detect_extn_cable) {
+         	if (mbhc->mbhc_cfg->detect_extn_cable) {
+//Add-begin by zad 2018112 for selfie stick 
+		/*
+		 * calculate impedance detection
+		 * If Zl and Zr > 20k then it is special accessory
+		 * otherwise unsupported cable.
+		 */
+		if (mbhc->impedance_detect) {
+			mbhc->mbhc_cb->compute_impedance(mbhc,
+					&mbhc->zl, &mbhc->zr);
+			if ((mbhc->zl > 20000) && (mbhc->zr > 20000)) {
+				printk("%s: special accessory \n", __func__);
+				/* Toggle switch back */
+				if (mbhc->mbhc_cfg->swap_gnd_mic &&
+						mbhc->mbhc_cfg->swap_gnd_mic(mbhc->codec,false)) {
+					printk("%s: US_EU gpio present,flip switch again\n"
+							, __func__);
+				}
+				/* enable CS/MICBIAS for headset button detection to work */
+				//wcd_enable_mbhc_supply(mbhc, MBHC_PLUG_TYPE_HEADSET);
+				wcd_enable_curr_micbias(mbhc, WCD_MBHC_EN_MB);
+				det_Selfiestick_ins = 1;
+				wcd_mbhc_report_plug(mbhc, 1, SND_JACK_HEADSET);
+			}
+			else {
+				wcd_mbhc_report_plug(mbhc, 1, SND_JACK_LINEOUT);
+			}
+		}
+//Add-end
+		else
+		{
 			/* High impedance device found. Report as LINEOUT */
 			wcd_mbhc_report_plug(mbhc, 1, SND_JACK_LINEOUT);
 			pr_debug("%s: setup mic trigger for further detection\n",
@@ -832,7 +921,8 @@ void wcd_mbhc_find_plug_and_report(struct wcd_mbhc *mbhc,
 						 3);
 			wcd_mbhc_hs_elec_irq(mbhc, WCD_MBHC_ELEC_HS_INS,
 					     true);
-		} else {
+		}
+        } else {
 			wcd_mbhc_report_plug(mbhc, 1, SND_JACK_LINEOUT);
 		}
 	} else {
@@ -1267,11 +1357,40 @@ done:
 	return IRQ_HANDLED;
 }
 
+//add-begin by zad for headset state check
+static ssize_t state_show(struct device *dev,struct device_attribute *attr, char *buf)
+{
+	return sprintf(buf,"%d\n",headset_state);
+}
+
+static DEVICE_ATTR(state,0440,state_show,NULL);
+//add-end
 static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 {
 	int ret = 0;
-	struct snd_soc_codec *codec = mbhc->codec;
-
+	struct snd_soc_codec *codec = mbhc->codec;	
+//add-begin by zad for headset state check
+	struct device *dev;
+	struct class *dev_class;
+	dev_class = class_create(THIS_MODULE,"h2w");
+	if (IS_ERR(dev_class))
+	{
+		pr_err("%s: class_create fail\n", __func__);
+		goto CREATE_FAIL;
+	}
+	dev = device_create(dev_class,NULL,0,NULL,"device");
+	if (IS_ERR(dev)) 
+	{
+		pr_err("%s: device_create fail\n", __func__);
+		goto CREATE_FAIL;
+	}	
+	if(device_create_file(dev,&dev_attr_state))
+	{	
+		pr_err("%s: device_create_file fail\n", __func__);
+		goto CREATE_FAIL;
+	}
+CREATE_FAIL:
+//add-end
 	pr_debug("%s: enter\n", __func__);
 	WCD_MBHC_RSC_LOCK(mbhc);
 
@@ -1313,7 +1432,11 @@ static int wcd_mbhc_initialise(struct wcd_mbhc *mbhc)
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_INSREM_DBNC, 4);
 	} else {
 		/* Insertion debounce set to 96ms */
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_INSREM_DBNC, 6);
+//modify start by zad for playing music is interrupted when headset was inserting sometimes
+		//WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_INSREM_DBNC, 6);
+		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_INSREM_DBNC, 8);
+//modify end
+
 	}
 
 	/* Button Debounce set to 16ms */

@@ -1,5 +1,6 @@
 /*
  * Copyright (c) 2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -30,6 +31,7 @@
 #define CONFIG_SND_SOC_MSM_HOSTLESS_PCM 1
 #define CONFIG_SND_SOC_MSM_QDSP6V2_INTF 1
 #define CONFIG_SND_SOC_SDM450 1
+#define CONFIG_SND_SOC_AW87329 1
 #define CONFIG_SND_SOC_EXT_CODEC_SDM450 1
 #define CONFIG_SOUNDWIRE 1
 #define CONFIG_SOUNDWIRE_WCD_CTRL 1

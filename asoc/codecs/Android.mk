@@ -144,6 +144,13 @@ LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/AndroidKernelModule.mk
 ###########################################################
-
+include $(CLEAR_VARS)
+LOCAL_MODULE              := $(AUDIO_CHIPSET)_aw87329_audio.ko
+LOCAL_MODULE_KBUILD_NAME  := aw87329_audio_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/AndroidKernelModule.mk
+###########################################################
 endif # DLKM check
 endif # supported target check

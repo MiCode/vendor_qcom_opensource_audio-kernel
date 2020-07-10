@@ -95,6 +95,10 @@ ifdef CONFIG_SND_SOC_WCD9XXX_V2
 	WCD9XXX_OBJS += wcd-dsp-mgr.o
 endif
 
+ifdef CONFIG_SND_SOC_AW87329
+	AW87329_AUDIO_OBJS += aw87329_audio.o
+endif
+
 ifdef CONFIG_COMMON_CLK_QCOM
 	WCD9XXX_OBJS += audio-ext-clk-up.o
 endif
@@ -224,6 +228,9 @@ mbhc_dlkm-y := $(MBHC_OBJS)
 
 obj-$(CONFIG_SND_SOC_MSM_HDMI_CODEC_RX) += hdmi_dlkm.o
 hdmi_dlkm-y := $(HDMICODEC_OBJS)
+
+obj-$(CONFIG_SND_SOC_AW87329) += aw87329_audio_dlkm.o
+aw87329_audio_dlkm-y := $(AW87329_AUDIO_OBJS)
 
 # inject some build related information
 DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"

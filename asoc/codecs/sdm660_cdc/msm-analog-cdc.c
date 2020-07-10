@@ -1,4 +1,5 @@
 /* Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -58,7 +59,7 @@
 #define SPK_PMD 2
 #define SPK_PMU 3
 
-#define MICBIAS_DEFAULT_VAL 1800000
+#define MICBIAS_DEFAULT_VAL 2700000
 #define MICBIAS_MIN_VAL 1600000
 #define MICBIAS_STEP_SIZE 50000
 
@@ -3237,7 +3238,7 @@ static struct snd_soc_dai_driver msm_anlg_cdc_i2s_dai[] = {
 	},
 };
 
-
+extern unsigned char aw87329_hw_off(void);
 static int msm_anlg_cdc_codec_enable_lo_pa(struct snd_soc_dapm_widget *w,
 					   struct snd_kcontrol *kcontrol,
 					   int event)
@@ -3251,6 +3252,8 @@ static int msm_anlg_cdc_codec_enable_lo_pa(struct snd_soc_dapm_widget *w,
 				       DIG_CDC_EVENT_RX3_MUTE_OFF);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
+		aw87329_hw_off();
+		usleep_range(4000, 5000);
 		msm_anlg_cdc_dig_notifier_call(codec,
 				       DIG_CDC_EVENT_RX3_MUTE_ON);
 		break;
