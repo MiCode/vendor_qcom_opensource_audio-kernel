@@ -242,7 +242,7 @@ static int q6afe_load_avcs_modules(int num_modules, u16 port_id,
 	struct avcs_load_unload_modules_sec_payload sec_payload;
 
 	if (num_modules <= 0) {
-		pr_err("%s: Invalid number of modules to load\n");
+		pr_err("%s: Invalid number of modules to load\n", __func__);
 		return -EINVAL;
 	}
 
@@ -9228,29 +9228,27 @@ int afe_spk_prot_feed_back_cfg(int src_port, int dst_port,
 		}
 		this_afe.v4_ch_map_cfg.num_channels = index;
 		this_afe.num_spkrs = index / 2;
-		pr_debug("%s no of channels: %d\n", __func__, index);
-		this_afe.vi_tx_port = src_port;
-		this_afe.vi_rx_port = dst_port;
-		ret = 0;
-	} else {
-		memset(&prot_config, 0, sizeof(prot_config));
-		prot_config.feedback_path_cfg.dst_portid =
-		q6audio_get_port_id(dst_port);
-		if (l_ch) {
-			prot_config.feedback_path_cfg.chan_info[index++] = 1;
-			prot_config.feedback_path_cfg.chan_info[index++] = 2;
-		}
-		if (r_ch) {
-			prot_config.feedback_path_cfg.chan_info[index++] = 3;
-			prot_config.feedback_path_cfg.chan_info[index++] = 4;
-		}
-		prot_config.feedback_path_cfg.num_channels = index;
-		pr_debug("%s no of channels: %d\n", __func__, index);
-		prot_config.feedback_path_cfg.minor_version = 1;
-		ret = afe_spk_prot_prepare(src_port, dst_port,
-				AFE_PARAM_ID_FEEDBACK_PATH_CFG, &prot_config,
-				 sizeof(union afe_spkr_prot_config));
 	}
+
+	index = 0;
+	memset(&prot_config, 0, sizeof(prot_config));
+	prot_config.feedback_path_cfg.dst_portid =
+		q6audio_get_port_id(dst_port);
+	if (l_ch) {
+		prot_config.feedback_path_cfg.chan_info[index++] = 1;
+		prot_config.feedback_path_cfg.chan_info[index++] = 2;
+	}
+	if (r_ch) {
+		prot_config.feedback_path_cfg.chan_info[index++] = 3;
+		prot_config.feedback_path_cfg.chan_info[index++] = 4;
+	}
+
+	prot_config.feedback_path_cfg.num_channels = index;
+	pr_debug("%s no of channels: %d\n", __func__, index);
+	prot_config.feedback_path_cfg.minor_version = 1;
+	ret = afe_spk_prot_prepare(src_port, dst_port,
+			AFE_PARAM_ID_FEEDBACK_PATH_CFG, &prot_config,
+			 sizeof(union afe_spkr_prot_config));
 
 fail_cmd:
 	return ret;

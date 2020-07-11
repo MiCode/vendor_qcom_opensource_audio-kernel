@@ -96,7 +96,7 @@ static bool swrm_lock_sleep(struct swr_mstr_ctrl *swrm);
 static void swrm_unlock_sleep(struct swr_mstr_ctrl *swrm);
 static u32 swr_master_read(struct swr_mstr_ctrl *swrm, unsigned int reg_addr);
 static void swr_master_write(struct swr_mstr_ctrl *swrm, u16 reg_addr, u32 val);
-
+static int swrm_runtime_resume(struct device *dev);
 
 static u8 swrm_get_clk_div(int mclk_freq, int bus_clk_freq)
 {
@@ -622,6 +622,7 @@ static int swr_master_bulk_write(struct swr_mstr_ctrl *swrm, u32 *reg_addr,
 			usleep_range(50, 55);
 			swr_master_write(swrm, reg_addr[i], val[i]);
 		}
+		usleep_range(100, 110);
 		mutex_unlock(&swrm->iolock);
 	}
 	return 0;
@@ -853,6 +854,8 @@ static int swrm_read(struct swr_master *master, u8 dev_num, u16 reg_addr,
 	mutex_unlock(&swrm->devlock);
 
 	pm_runtime_get_sync(swrm->dev);
+	if (swrm->req_clk_switch)
+		swrm_runtime_resume(swrm->dev);
 	ret = swrm_cmd_fifo_rd_cmd(swrm, &val, dev_num, 0, reg_addr, len);
 
 	if (!ret)
@@ -886,6 +889,8 @@ static int swrm_write(struct swr_master *master, u8 dev_num, u16 reg_addr,
 	mutex_unlock(&swrm->devlock);
 
 	pm_runtime_get_sync(swrm->dev);
+	if (swrm->req_clk_switch)
+		swrm_runtime_resume(swrm->dev);
 	ret = swrm_cmd_fifo_wr_cmd(swrm, reg_val, dev_num, 0, reg_addr);
 
 	pm_runtime_put_autosuspend(swrm->dev);
@@ -2032,16 +2037,22 @@ handle_irq:
 				swrm->intr_mask);
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_OVERFLOW:
-			dev_dbg(swrm->dev, "%s: SWR read FIFO overflow\n",
-				__func__);
+			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
+			dev_err(swrm->dev,
+				"%s: SWR read FIFO overflow fifo status %x\n",
+				__func__, value);
 			break;
 		case SWRM_INTERRUPT_STATUS_RD_FIFO_UNDERFLOW:
-			dev_dbg(swrm->dev, "%s: SWR read FIFO underflow\n",
-				__func__);
+			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
+			dev_err(swrm->dev,
+				"%s: SWR read FIFO underflow fifo status %x\n",
+				__func__, value);
 			break;
 		case SWRM_INTERRUPT_STATUS_WR_CMD_FIFO_OVERFLOW:
-			dev_dbg(swrm->dev, "%s: SWR write FIFO overflow\n",
-				__func__);
+			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS);
+			dev_err(swrm->dev,
+				"%s: SWR write FIFO overflow fifo status %x\n",
+				__func__, value);
 			swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
 			break;
 		case SWRM_INTERRUPT_STATUS_CMD_ERROR:
@@ -2563,8 +2574,6 @@ static int swrm_probe(struct platform_device *pdev)
 		ret = -EINVAL;
 		goto err_pdata_fail;
 	}
-	swrm->pinctrl_setup = pdata->pinctrl_setup;
-
 	if (of_property_read_u32(pdev->dev.of_node,
 			"qcom,swr-clock-stop-mode0",
 			&swrm->clk_stop_mode0_supp)) {
@@ -2897,6 +2906,7 @@ static int swrm_runtime_resume(struct device *dev)
 	int ret = 0;
 	bool swrm_clk_req_err = false;
 	bool hw_core_err = false;
+	bool aud_core_err = false;
 	struct swr_master *mstr = &swrm->master;
 	struct swr_device *swr_dev;
 
@@ -2914,7 +2924,7 @@ static int swrm_runtime_resume(struct device *dev)
 	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true)) {
 		dev_err(dev, "%s:lpass audio hw enable failed\n",
 			__func__);
-		swrm->aud_core_err = true;
+		aud_core_err = true;
 	}
 
 	if ((swrm->state == SWR_MSTR_DOWN) ||
@@ -2933,9 +2943,6 @@ static int swrm_runtime_resume(struct device *dev)
 				    irq_get_irq_data(swrm->wake_irq)))
 					disable_irq_nosync(swrm->wake_irq);
 				mutex_unlock(&swrm->irq_lock);
-				if (swrm->dmic_sva && swrm->pinctrl_setup)
-					swrm->pinctrl_setup(swrm->handle,
-							    false);
 			}
 			if (swrm->ipc_wakeup)
 				msm_aud_evt_blocking_notifier_call_chain(
@@ -3003,7 +3010,7 @@ static int swrm_runtime_resume(struct device *dev)
 		swrm->state = SWR_MSTR_UP;
 	}
 exit:
-	if (ret && !swrm->aud_core_err)
+	if (!aud_core_err)
 		swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, false);
 	if (!hw_core_err)
 		swrm_request_hw_vote(swrm, LPASS_HW_CORE, false);
@@ -3013,6 +3020,8 @@ exit:
 	else
 		pm_runtime_set_autosuspend_delay(&pdev->dev,
 				auto_suspend_timer);
+	if (swrm->req_clk_switch)
+		swrm->req_clk_switch = false;
 	mutex_unlock(&swrm->reslock);
 
 	trace_printk("%s: pm_runtime: resume done, state:%d\n",
@@ -3026,6 +3035,7 @@ static int swrm_runtime_suspend(struct device *dev)
 	struct swr_mstr_ctrl *swrm = platform_get_drvdata(pdev);
 	int ret = 0;
 	bool hw_core_err = false;
+	bool aud_core_err = false;
 	struct swr_master *mstr = &swrm->master;
 	struct swr_device *swr_dev;
 	int current_state = 0;
@@ -3043,6 +3053,11 @@ static int swrm_runtime_suspend(struct device *dev)
 		dev_err(dev, "%s:lpass core hw enable failed\n",
 			__func__);
 		hw_core_err = true;
+	}
+	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true)) {
+		dev_err(dev, "%s:lpass audio hw enable failed\n",
+			__func__);
+		aud_core_err = true;
 	}
 
 	if ((current_state == SWR_MSTR_UP) ||
@@ -3128,8 +3143,6 @@ static int swrm_runtime_suspend(struct device *dev)
 
 		if (swrm->clk_stop_mode0_supp) {
 			if (swrm->wake_irq > 0) {
-				if (swrm->dmic_sva && swrm->pinctrl_setup)
-					swrm->pinctrl_setup(swrm->handle, true);
 				enable_irq(swrm->wake_irq);
 			} else if (swrm->ipc_wakeup) {
 				msm_aud_evt_blocking_notifier_call_chain(
@@ -3143,11 +3156,10 @@ static int swrm_runtime_suspend(struct device *dev)
 	if (current_state != SWR_MSTR_SSR)
 		swrm->state = SWR_MSTR_DOWN;
 exit:
-	if (!swrm->aud_core_err)
+	if (!aud_core_err)
 		swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, false);
 	if (!hw_core_err)
 		swrm_request_hw_vote(swrm, LPASS_HW_CORE, false);
-	swrm->aud_core_err = false;
 	mutex_unlock(&swrm->reslock);
 	trace_printk("%s: pm_runtime: suspend done state: %d\n",
 		__func__, swrm->state);
@@ -3318,8 +3330,12 @@ int swrm_wcd_notify(struct platform_device *pdev, u32 id, void *data)
 		}
 		mutex_lock(&swrm->mlock);
 		if (swrm->clk_src != *(int *)data) {
-			if (swrm->state == SWR_MSTR_UP)
+			if (swrm->state == SWR_MSTR_UP) {
+				swrm->req_clk_switch = true;
 				swrm_device_suspend(&pdev->dev);
+				if (swrm->state == SWR_MSTR_UP)
+					swrm->req_clk_switch = false;
+			}
 			swrm->clk_src = *(int *)data;
 		}
 		mutex_unlock(&swrm->mlock);
@@ -3479,12 +3495,10 @@ int swrm_wcd_notify(struct platform_device *pdev, u32 id, void *data)
 	case SWR_REGISTER_WAKEUP:
 		msm_aud_evt_blocking_notifier_call_chain(
 					SWR_WAKE_IRQ_REGISTER, (void *)swrm);
-		swrm->dmic_sva = *(u32 *)data;
 		break;
 	case SWR_DEREGISTER_WAKEUP:
 		msm_aud_evt_blocking_notifier_call_chain(
 					SWR_WAKE_IRQ_DEREGISTER, (void *)swrm);
-		swrm->dmic_sva = 0;
 		break;
 	case SWR_SET_PORT_MAP:
 		if (!data) {
