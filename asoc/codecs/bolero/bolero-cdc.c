@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 
 #include <linux/of_platform.h>
@@ -473,7 +474,7 @@ EXPORT_SYMBOL(bolero_unregister_res_clk);
 static u8 bolero_dmic_clk_div_get(struct snd_soc_component *component,
 				   int mode)
 {
-	struct bolero_priv* priv = snd_soc_component_get_drvdata(component);
+	struct bolero_priv *priv = snd_soc_component_get_drvdata(component);
 	int macro = (mode ? VA_MACRO : TX_MACRO);
 	int ret = 0;
 
@@ -489,7 +490,7 @@ static u8 bolero_dmic_clk_div_get(struct snd_soc_component *component,
 int bolero_dmic_clk_enable(struct snd_soc_component *component,
 			   u32 dmic, u32 tx_mode, bool enable)
 {
-	struct bolero_priv* priv = snd_soc_component_get_drvdata(component);
+	struct bolero_priv *priv = snd_soc_component_get_drvdata(component);
 	u8  dmic_clk_en = 0x01;
 	u16 dmic_clk_reg = 0;
 	s32 *dmic_clk_cnt = NULL;
@@ -1357,6 +1358,7 @@ static int bolero_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_PM
 int bolero_runtime_resume(struct device *dev)
 {
 	struct bolero_priv *priv = dev_get_drvdata(dev->parent);
@@ -1438,6 +1440,7 @@ int bolero_runtime_suspend(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(bolero_runtime_suspend);
+#endif /* CONFIG_PM */
 
 bool bolero_check_core_votes(struct device *dev)
 {

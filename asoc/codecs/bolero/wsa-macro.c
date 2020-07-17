@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 
 #include <linux/module.h>
@@ -869,7 +870,6 @@ static int wsa_macro_digital_mute(struct snd_soc_dai *dai, int mute)
 			}
 		}
 	}
-	bolero_wsa_pa_on(wsa_dev);
 		break;
 	default:
 		break;
@@ -3247,6 +3247,10 @@ static const struct of_device_id wsa_macro_dt_match[] = {
 };
 
 static const struct dev_pm_ops bolero_dev_pm_ops = {
+	SET_SYSTEM_SLEEP_PM_OPS(
+		pm_runtime_force_suspend,
+		pm_runtime_force_resume
+	)
 	SET_RUNTIME_PM_OPS(
 		bolero_runtime_suspend,
 		bolero_runtime_resume,
