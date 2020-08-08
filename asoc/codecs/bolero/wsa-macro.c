@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 
 #include <linux/module.h>
@@ -1448,7 +1449,6 @@ static int wsa_macro_enable_main_path(struct snd_soc_dapm_widget *w,
 
 	if (!wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
 		return -EINVAL;
-
 
 	reg = BOLERO_CDC_WSA_RX0_RX_PATH_CTL +
 			WSA_MACRO_RX_PATH_OFFSET * w->shift;
