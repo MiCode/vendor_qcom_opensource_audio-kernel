@@ -508,6 +508,9 @@ static void wcd_mbhc_set_and_turnoff_hph_padac(struct wcd_mbhc *mbhc)
 int wcd_mbhc_get_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 			uint32_t *zr)
 {
+	if (mbhc->mbhc_cb->compute_impedance)
+		mbhc->mbhc_cb->compute_impedance(mbhc,
+						&mbhc->zl, &mbhc->zr);
 	*zl = mbhc->zl;
 	*zr = mbhc->zr;
 
