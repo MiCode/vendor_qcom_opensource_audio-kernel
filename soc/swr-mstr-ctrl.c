@@ -1192,7 +1192,7 @@ static void swrm_disable_ports(struct swr_master *master,
 					bank));
 			dev_dbg(swrm->dev, "%s: mport :%d, reg: 0x%x\n",
 				__func__, i,
-				(SWRM_DP_PORT_CTRL_BANK(i + 1, bank)));
+				(SWRM_DP_PORT_CTRL_BANK((i + 1), bank)));
 		}
 		value = ((mport->req_ch)
 					<< SWRM_DP_PORT_CTRL_EN_CHAN_SHFT);
@@ -1203,11 +1203,11 @@ static void swrm_disable_ports(struct swr_master *master,
 		value |= mport->sinterval;
 
 		swr_master_write(swrm,
-				SWRM_DP_PORT_CTRL_BANK(i+1, bank),
+				SWRM_DP_PORT_CTRL_BANK((i + 1), bank),
 				value);
 		dev_dbg(swrm->dev, "%s: mport :%d, reg: 0x%x, val: 0x%x\n",
 			__func__, i,
-			(SWRM_DP_PORT_CTRL_BANK(i+1, bank)), value);
+			(SWRM_DP_PORT_CTRL_BANK((i + 1), bank)), value);
 	}
 }
 
@@ -1358,37 +1358,37 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 		value |= mport->sinterval;
 
 
-		reg[len] = SWRM_DP_PORT_CTRL_BANK(i + 1, bank);
+		reg[len] = SWRM_DP_PORT_CTRL_BANK((i + 1), bank);
 		val[len++] = value;
 		dev_dbg(swrm->dev, "%s: mport :%d, reg: 0x%x, val: 0x%x\n",
 			__func__, i,
-			(SWRM_DP_PORT_CTRL_BANK(i + 1, bank)), value);
+			(SWRM_DP_PORT_CTRL_BANK((i + 1), bank)), value);
 
 		if (mport->lane_ctrl != SWR_INVALID_PARAM) {
-			reg[len] = SWRM_DP_PORT_CTRL_2_BANK(i + 1, bank);
+			reg[len] = SWRM_DP_PORT_CTRL_2_BANK((i + 1), bank);
 			val[len++] = mport->lane_ctrl;
 		}
 		if (mport->word_length != SWR_INVALID_PARAM) {
-			reg[len] = SWRM_DP_BLOCK_CTRL_1(i + 1);
+			reg[len] = SWRM_DP_BLOCK_CTRL_1((i + 1));
 			val[len++] = mport->word_length;
 		}
 
 		if (mport->blk_grp_count != SWR_INVALID_PARAM) {
-			reg[len] = SWRM_DP_BLOCK_CTRL2_BANK(i + 1, bank);
+			reg[len] = SWRM_DP_BLOCK_CTRL2_BANK((i + 1), bank);
 			val[len++] = mport->blk_grp_count;
 		}
 		if (mport->hstart != SWR_INVALID_PARAM
 				&& mport->hstop != SWR_INVALID_PARAM) {
-			reg[len] = SWRM_DP_PORT_HCTRL_BANK(i + 1, bank);
+			reg[len] = SWRM_DP_PORT_HCTRL_BANK((i + 1), bank);
 			hparams = (mport->hstop << 4) | mport->hstart;
 			val[len++] = hparams;
 		} else {
-			reg[len] = SWRM_DP_PORT_HCTRL_BANK(i + 1, bank);
+			reg[len] = SWRM_DP_PORT_HCTRL_BANK((i + 1), bank);
 			hparams = (SWR_HSTOP_MAX_VAL << 4) | SWR_HSTART_MIN_VAL;
 			val[len++] = hparams;
 		}
 		if (mport->blk_pack_mode != SWR_INVALID_PARAM) {
-			reg[len] = SWRM_DP_BLOCK_CTRL3_BANK(i + 1, bank);
+			reg[len] = SWRM_DP_BLOCK_CTRL3_BANK((i + 1), bank);
 			val[len++] = mport->blk_pack_mode;
 		}
 		mport->ch_en = mport->req_ch;
@@ -1744,6 +1744,7 @@ static void swrm_enable_slave_irq(struct swr_mstr_ctrl *swrm)
 {
 	int i;
 	int status = 0;
+	u32 temp;
 
 	status = swr_master_read(swrm, SWRM_MCP_SLV_STATUS);
 	if (!status) {
@@ -1754,6 +1755,8 @@ static void swrm_enable_slave_irq(struct swr_mstr_ctrl *swrm)
 	dev_dbg(swrm->dev, "%s: slave status: 0x%x\n", __func__, status);
 	for (i = 0; i < (swrm->master.num_dev + 1); i++) {
 		if (status & SWRM_MCP_SLV_STATUS_MASK) {
+			swrm_cmd_fifo_rd_cmd(swrm, &temp, i, 0x0,
+					SWRS_SCP_INT_STATUS_CLEAR_1, 1);
 			swrm_cmd_fifo_wr_cmd(swrm, 0xFF, i, 0x0,
 					SWRS_SCP_INT_STATUS_CLEAR_1);
 			swrm_cmd_fifo_wr_cmd(swrm, 0x4, i, 0x0,
@@ -2069,10 +2072,7 @@ handle_irq:
 					 * as hw will mask host_irq at slave
 					 * but will not unmask it afterwards.
 					 */
-					swrm_cmd_fifo_wr_cmd(swrm, 0xFF, devnum, 0x0,
-						SWRS_SCP_INT_STATUS_CLEAR_1);
-					swrm_cmd_fifo_wr_cmd(swrm, 0x4, devnum, 0x0,
-						SWRS_SCP_INT_STATUS_MASK_1);
+					swrm->enable_slave_irq = true;
 				}
 				break;
 			case SWR_ATTACHED_OK:
@@ -2080,11 +2080,7 @@ handle_irq:
 					"%s: device %d got attached\n",
 					__func__, devnum);
 				/* enable host irq from slave device*/
-				swrm_cmd_fifo_wr_cmd(swrm, 0xFF, devnum, 0x0,
-					SWRS_SCP_INT_STATUS_CLEAR_1);
-				swrm_cmd_fifo_wr_cmd(swrm, 0x4, devnum, 0x0,
-					SWRS_SCP_INT_STATUS_MASK_1);
-
+				swrm->enable_slave_irq = true;
 				break;
 			case SWR_ALERT:
 				dev_dbg(swrm->dev,
@@ -2186,6 +2182,12 @@ handle_irq:
 	}
 	swr_master_write(swrm, SWRM_INTERRUPT_CLEAR, intr_sts);
 	swr_master_write(swrm, SWRM_INTERRUPT_CLEAR, 0x0);
+
+	if (swrm->enable_slave_irq) {
+		/* Enable slave irq here */
+		swrm_enable_slave_irq(swrm);
+		swrm->enable_slave_irq = false;
+	}
 
 	intr_sts = swr_master_read(swrm, SWRM_INTERRUPT_STATUS);
 	intr_sts_masked = intr_sts & swrm->intr_mask;
@@ -2983,6 +2985,7 @@ static int swrm_runtime_resume(struct device *dev)
 	bool aud_core_err = false;
 	struct swr_master *mstr = &swrm->master;
 	struct swr_device *swr_dev;
+	u32 temp = 0;
 
 	dev_dbg(dev, "%s: pm_runtime: resume, state:%d\n",
 		__func__, swrm->state);
@@ -3066,6 +3069,11 @@ static int swrm_runtime_resume(struct device *dev)
 				mutex_lock(&swrm->reslock);
 			}
 		} else {
+			if (swrm->swrm_hctl_reg) {
+				temp = ioread32(swrm->swrm_hctl_reg);
+				temp &= 0xFFFFFFFD;
+				iowrite32(temp, swrm->swrm_hctl_reg);
+			}
 			/*wake up from clock stop*/
 			swr_master_write(swrm, SWRM_MCP_BUS_CTRL_ADDR, 0x2);
 			/* clear and enable bus clash interrupt */
