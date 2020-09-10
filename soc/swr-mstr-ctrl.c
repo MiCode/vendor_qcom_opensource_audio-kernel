@@ -2157,20 +2157,21 @@ handle_irq:
 		case SWRM_INTERRUPT_STATUS_CLK_STOP_FINISHED_V2:
 			break;
 		case SWRM_INTERRUPT_STATUS_EXT_CLK_STOP_WAKEUP:
-			if (swrm->state == SWR_MSTR_UP)
+			if (swrm->state == SWR_MSTR_UP) {
 				dev_dbg(swrm->dev,
 					"%s:SWR Master is already up\n",
 					__func__);
-			else
+			} else {
 				dev_err_ratelimited(swrm->dev,
 					"%s: SWR wokeup during clock stop\n",
 					__func__);
-			/* It might be possible the slave device gets reset
-			 * and slave interrupt gets missed. So re-enable
-			 * Host IRQ and process slave pending
-			 * interrupts, if any.
-			 */
-			swrm_enable_slave_irq(swrm);
+				/* It might be possible the slave device gets
+				 * reset and slave interrupt gets missed. So
+				 * re-enable Host IRQ and process slave pending
+				 * interrupts, if any.
+				 */
+				swrm_enable_slave_irq(swrm);
+			}
 			break;
 		default:
 			dev_err_ratelimited(swrm->dev,
@@ -2475,9 +2476,6 @@ static int swrm_master_init(struct swr_mstr_ctrl *swrm)
 	reg[len] = SWRM_COMP_CFG_ADDR;
 	value[len++] = 0x02;
 
-	reg[len] = SWRM_COMP_CFG_ADDR;
-	value[len++] = 0x03;
-
 	reg[len] = SWRM_INTERRUPT_CLEAR;
 	value[len++] = 0xFFFFFFFF;
 
@@ -2488,6 +2486,9 @@ static int swrm_master_init(struct swr_mstr_ctrl *swrm)
 
 	reg[len] = SWR_MSTR_RX_SWRM_CPU_INTERRUPT_EN;
 	value[len++] = swrm->intr_mask;
+
+	reg[len] = SWRM_COMP_CFG_ADDR;
+	value[len++] = 0x03;
 
 	swr_master_bulk_write(swrm, reg, value, len);
 
@@ -2661,6 +2662,8 @@ static int swrm_probe(struct platform_device *pdev)
 				SWRM_NUM_AUTO_ENUM_SLAVES);
 			ret = -EINVAL;
 			goto err_pdata_fail;
+		} else {
+			swrm->master.num_dev = swrm->num_dev;
 		}
 	}
 
@@ -2835,6 +2838,8 @@ static int swrm_probe(struct platform_device *pdev)
 	 * controller will be up now
 	 */
 	swr_master_add_boarddevices(&swrm->master);
+	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true))
+		dev_dbg(&pdev->dev, "%s: Audio HW Vote is failed\n", __func__);
 	mutex_lock(&swrm->mlock);
 	swrm_clk_request(swrm, true);
 	swrm->version = swr_master_read(swrm, SWRM_COMP_HW_VERSION);
@@ -2982,7 +2987,6 @@ static int swrm_runtime_resume(struct device *dev)
 	int ret = 0;
 	bool swrm_clk_req_err = false;
 	bool hw_core_err = false;
-	bool aud_core_err = false;
 	struct swr_master *mstr = &swrm->master;
 	struct swr_device *swr_dev;
 	u32 temp = 0;
@@ -2998,11 +3002,9 @@ static int swrm_runtime_resume(struct device *dev)
 			__func__);
 		hw_core_err = true;
 	}
-	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true)) {
+	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true))
 		dev_err(dev, "%s:lpass audio hw enable failed\n",
 			__func__);
-		aud_core_err = true;
-	}
 
 	if ((swrm->state == SWR_MSTR_DOWN) ||
 	    (swrm->state == SWR_MSTR_SSR && swrm->dev_up)) {
@@ -3092,8 +3094,6 @@ static int swrm_runtime_resume(struct device *dev)
 		swrm->state = SWR_MSTR_UP;
 	}
 exit:
-	if (!aud_core_err)
-		swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, false);
 	if (!hw_core_err)
 		swrm_request_hw_vote(swrm, LPASS_HW_CORE, false);
 	if (swrm_clk_req_err)
@@ -3117,7 +3117,6 @@ static int swrm_runtime_suspend(struct device *dev)
 	struct swr_mstr_ctrl *swrm = platform_get_drvdata(pdev);
 	int ret = 0;
 	bool hw_core_err = false;
-	bool aud_core_err = false;
 	struct swr_master *mstr = &swrm->master;
 	struct swr_device *swr_dev;
 	int current_state = 0;
@@ -3135,11 +3134,6 @@ static int swrm_runtime_suspend(struct device *dev)
 		dev_err(dev, "%s:lpass core hw enable failed\n",
 			__func__);
 		hw_core_err = true;
-	}
-	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, true)) {
-		dev_err(dev, "%s:lpass audio hw enable failed\n",
-			__func__);
-		aud_core_err = true;
 	}
 
 	if ((current_state == SWR_MSTR_UP) ||
@@ -3234,12 +3228,14 @@ static int swrm_runtime_suspend(struct device *dev)
 		}
 
 	}
+	if (swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, false))
+		dev_dbg(dev, "%s:lpass audio hw enable failed\n",
+			__func__);
+
 	/* Retain  SSR state until resume */
 	if (current_state != SWR_MSTR_SSR)
 		swrm->state = SWR_MSTR_DOWN;
 exit:
-	if (!aud_core_err)
-		swrm_request_hw_vote(swrm, LPASS_AUDIO_CORE, false);
 	if (!hw_core_err)
 		swrm_request_hw_vote(swrm, LPASS_HW_CORE, false);
 	mutex_unlock(&swrm->reslock);
