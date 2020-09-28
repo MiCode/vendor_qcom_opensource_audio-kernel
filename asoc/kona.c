@@ -7288,6 +7288,7 @@ static struct snd_soc_dai_link pri_mi2s_rx_tfa9874_dai_links[] = {
 	},
 };
 #else //g7a
+
 static struct snd_soc_dai_link sec_mi2s_rx_tfa9874_be_dai_links[] = {
 	{
 		.name = LPASS_BE_SEC_MI2S_RX,
@@ -7324,6 +7325,7 @@ static struct snd_soc_dai_link sec_mi2s_rx_cs35l41_dai_links[] = {
 		.init = &cs35l41_init,
 	},
 };
+
 #endif
 static struct snd_soc_dai_link msm_auxpcm_be_dai_links[] = {
 	/* Primary AUX PCM Backend DAI Links */
@@ -8031,6 +8033,7 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 				    get_hw_version_platform() == HARDWARE_PLATFORM_VERTHANDI ||
 				    get_hw_version_platform() == HARDWARE_PLATFORM_SKULD ||
 				    get_hw_version_platform() == HARDWARE_PLATFORM_APOLLO ||
+				    get_hw_version_platform() == HARDWARE_PLATFORM_ALIOTH ||
 					get_hw_version_platform() == HARDWARE_PLATFORM_CAS) {
 					memcpy(msm_kona_dai_links + total_links,
 						tert_mi2s_rx_cs35l41_dai_links,
@@ -8045,6 +8048,7 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 					dev_info(dev, "%s: Using pri_mi2s_rx_tfa9874_dai_links\n", __func__);
 				}
 #else
+
 				if (get_hw_version_platform() == HARDWARE_PLATFORM_PICASSO) {
 					memcpy(msm_kona_dai_links + total_links,
 						sec_mi2s_rx_tfa9874_be_dai_links,
@@ -8063,6 +8067,8 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev)
 					    sizeof(sec_mi2s_rx_cs35l41_dai_links));
 				    total_links += ARRAY_SIZE(sec_mi2s_rx_cs35l41_dai_links);
 				}
+
+
 #endif
 			}
 		}
