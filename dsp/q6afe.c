@@ -1,4 +1,5 @@
 /* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -2126,9 +2127,11 @@ static int afe_send_port_topology_id(u16 port_id)
 
 	ret = afe_get_cal_topology_id(port_id, &topology_id, AFE_TOPOLOGY_CAL);
 	if (ret < 0) {
-		pr_debug("%s: Check for LSM topology\n", __func__);
-		ret = afe_get_cal_topology_id(port_id, &topology_id,
-					      AFE_LSM_TOPOLOGY_CAL);
+		if (port_id >= AFE_PORT_ID_VA_CODEC_DMA_TX_0 && port_id <= AFE_PORT_ID_VA_CODEC_DMA_TX_2) {
+			pr_info("%s: Check for LSM topology\n", __func__);
+			ret = afe_get_cal_topology_id(port_id, &topology_id,
+							AFE_LSM_TOPOLOGY_CAL);
+		}
 	}
 	if (ret || !topology_id) {
 		pr_debug("%s: AFE port[%d] get_cal_topology[%d] invalid!\n",

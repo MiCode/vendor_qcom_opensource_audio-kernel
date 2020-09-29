@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -23,7 +24,7 @@
 #include <asoc/wcd-mbhc-v2.h>
 #include <asoc/pdata.h>
 
-#define WCD_MBHC_ADC_HS_THRESHOLD_MV    1700
+#define WCD_MBHC_ADC_HS_THRESHOLD_MV    1733
 #define WCD_MBHC_ADC_HPH_THRESHOLD_MV   75
 #define WCD_MBHC_ADC_MICBIAS_MV         1800
 #define WCD_MBHC_FAKE_INS_RETRY         4

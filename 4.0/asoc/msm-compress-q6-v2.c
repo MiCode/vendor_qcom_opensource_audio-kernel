@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+/* Copyright (c) 2012-2020, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 
 
@@ -812,15 +813,23 @@ static void compr_event_handler(uint32_t opcode,
 			 * RESUME
 			 */
 			if ((prtd->copied_total == prtd->bytes_sent) &&
-			    atomic_read(&prtd->drain)) {
-				pr_debug("RUN ack, wake up & continue pending drain\n");
+					atomic_read(&prtd->drain)) {
+				bytes_available = prtd->bytes_received - prtd->copied_total;
+				if (bytes_available < cstream->runtime->fragment_size) {
+					pr_debug("%s: RUN ack, wake up & continue pending drain\n",
+							__func__);
 
-				if (prtd->last_buffer)
-					prtd->last_buffer = 0;
+					if (prtd->last_buffer)
+						prtd->last_buffer = 0;
 
-				prtd->drain_ready = 1;
-				wake_up(&prtd->drain_wait);
-				atomic_set(&prtd->drain, 0);
+					prtd->drain_ready = 1;
+					wake_up(&prtd->drain_wait);
+					atomic_set(&prtd->drain, 0);
+				} else if (atomic_read(&prtd->xrun)) {
+					pr_debug("%s: RUN ack, continue write cycle\n", __func__);
+					atomic_set(&prtd->xrun, 0);
+					msm_compr_send_buffer(prtd);
+				}
 			}
 
 			spin_unlock_irqrestore(&prtd->lock, flags);
@@ -1305,7 +1314,7 @@ static int msm_compr_configure_dsp_for_playback
 	struct snd_compr_runtime *runtime = cstream->runtime;
 	struct msm_compr_audio *prtd = runtime->private_data;
 	struct snd_soc_pcm_runtime *soc_prtd = cstream->private_data;
-	uint16_t bits_per_sample = 16;
+	uint16_t bits_per_sample = 24;
 	int dir = IN, ret = 0;
 	struct audio_client *ac = prtd->audio_client;
 	uint32_t stream_index;
@@ -1483,6 +1492,7 @@ static int msm_compr_configure_dsp_for_capture(struct snd_compr_stream *cstream)
 	struct audio_client *ac = prtd->audio_client;
 	uint32_t stream_index;
 	uint32_t enc_cfg_id = ENC_CFG_ID_NONE;
+	bool compress_ts = false;
 
 	switch (prtd->codec_param.codec.format) {
 	case SNDRV_PCM_FORMAT_S24_LE:
@@ -1532,22 +1542,19 @@ static int msm_compr_configure_dsp_for_capture(struct snd_compr_stream *cstream)
 			return ret;
 		}
 	} else {
-		if (prtd->codec_param.codec.flags & COMPRESSED_TIMESTAMP_FLAG) {
+		if (prtd->codec_param.codec.flags & COMPRESSED_TIMESTAMP_FLAG)
+			compress_ts = true;
+
+		if (q6core_get_avcs_api_version_per_service(
+				APRV2_IDS_SERVICE_ID_ADSP_ASM_V) >=
+				ADSP_ASM_API_VERSION_V2)
+			ret = q6asm_open_read_v5(prtd->audio_client,
+					prtd->codec, bits_per_sample,
+					compress_ts, enc_cfg_id);
+		else
 			ret = q6asm_open_read_v4(prtd->audio_client,
-					prtd->codec,
-					bits_per_sample, true, enc_cfg_id);
-		} else {
-			if (q6core_get_avcs_api_version_per_service(
-					APRV2_IDS_SERVICE_ID_ADSP_ASM_V) >=
-					ADSP_ASM_API_VERSION_V2)
-				ret = q6asm_open_read_v5(prtd->audio_client,
-						prtd->codec, bits_per_sample,
-						false, enc_cfg_id);
-			else
-				ret = q6asm_open_read_v4(prtd->audio_client,
-						prtd->codec, bits_per_sample,
-						false, enc_cfg_id);
-		}
+					prtd->codec, bits_per_sample,
+					compress_ts, enc_cfg_id);
 		if (ret < 0) {
 			pr_err("%s: q6asm_open_read failed:%d\n",
 					__func__, ret);
@@ -2313,7 +2320,7 @@ static int msm_compr_trigger(struct snd_compr_stream *cstream, int cmd)
 	unsigned long flags;
 	int stream_id;
 	uint32_t stream_index;
-	uint16_t bits_per_sample = 16;
+	uint16_t bits_per_sample = 24;
 
 	if (!pdata) {
 		pr_err("%s: pdata is NULL\n", __func__);
@@ -4112,6 +4119,7 @@ static int msm_compr_probe(struct snd_soc_platform *platform)
 		return -EINVAL;
 	}
 
+	mutex_init(&pdata->lock);
 	snd_soc_platform_set_drvdata(platform, pdata);
 
 	for (i = 0; i < MSM_FRONTEND_DAI_MAX; i++) {
