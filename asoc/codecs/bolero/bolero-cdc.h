@@ -38,11 +38,6 @@ enum {
 };
 
 enum {
-	CLK_SRC_TX_RCG = 0,
-	CLK_SRC_VA_RCG,
-};
-
-enum {
 	BOLERO_MACRO_EVT_RX_MUTE = 1, /* for RX mute/unmute */
 	BOLERO_MACRO_EVT_IMPED_TRUE, /* for imped true */
 	BOLERO_MACRO_EVT_IMPED_FALSE, /* for imped false */
@@ -87,9 +82,7 @@ struct macro_ops {
 	int (*set_port_map)(struct snd_soc_component *component, u32 uc,
 			    u32 size, void *data);
 	int (*clk_div_get)(struct snd_soc_component *component);
-	int (*clk_switch)(struct snd_soc_component *component, int clk_src);
-	int (*reg_evt_listener)(struct snd_soc_component *component,
-			bool en, bool is_dmic_sva);
+	int (*reg_evt_listener)(struct snd_soc_component *component, bool en);
 	int (*clk_enable)(struct snd_soc_component *c, bool en);
 	char __iomem *io_base;
 	u16 clk_id_req;
@@ -114,16 +107,20 @@ void bolero_clear_amic_tx_hold(struct device *dev, u16 adc_n);
 int bolero_runtime_resume(struct device *dev);
 int bolero_runtime_suspend(struct device *dev);
 int bolero_set_port_map(struct snd_soc_component *component, u32 size, void *data);
-int bolero_tx_clk_switch(struct snd_soc_component *component, int clk_src);
 int bolero_register_event_listener(struct snd_soc_component *component,
-				   bool enable, bool is_dmic_sva);
+				   bool enable);
 void bolero_wsa_pa_on(struct device *dev);
 bool bolero_check_core_votes(struct device *dev);
 int bolero_tx_mclk_enable(struct snd_soc_component *c, bool enable);
 int bolero_get_version(struct device *dev);
 int bolero_dmic_clk_enable(struct snd_soc_component *component,
 			   u32 dmic, u32 tx_mode, bool enable);
+void bolero_tx_macro_mute_hs(void);
 #else
+
+static inline void bolero_tx_macro_mute_hs(void)
+{
+}
 static inline int bolero_register_res_clk(struct device *dev, rsc_clk_cb_t cb)
 {
 	return 0;
@@ -182,15 +179,9 @@ static inline int bolero_set_port_map(struct snd_soc_component *component,
 	return 0;
 }
 
-static inline int bolero_tx_clk_switch(struct snd_soc_component *component,
-					int clk_src)
-{
-	return 0;
-}
-
 static inline int bolero_register_event_listener(
 					struct snd_soc_component *component,
-					bool enable, bool is_dmic_sva)
+					bool enable)
 {
 	return 0;
 }

@@ -67,6 +67,18 @@
 static bool lpi_dev_up;
 static struct device *lpi_dev;
 
+
+#define gpio_debug_output(m, c, fmt, ...)		\
+do {							\
+	if (m)						\
+		seq_printf(m, fmt, ##__VA_ARGS__);	\
+	else if (c)					\
+		pr_cont(fmt, ##__VA_ARGS__);		\
+	else						\
+		pr_info(fmt, ##__VA_ARGS__);		\
+} while (0)
+
+
 /* The index of each function in lpi_gpio_functions[] array */
 enum lpi_gpio_func_index {
 	LPI_GPIO_FUNC_INDEX_GPIO	= 0x00,
@@ -599,10 +611,10 @@ static void lpi_gpio_dbg_show_one(struct seq_file *s,
 		 LPI_GPIO_REG_OUT_STRENGTH_SHIFT;
 	pull = (ctl_reg & LPI_GPIO_REG_PULL_MASK) >> LPI_GPIO_REG_PULL_SHIFT;
 
-	seq_printf(s, " %-8s: %-3s %d",
+	gpio_debug_output(s, 1, " %-8s: %-3s %d",
 		   pindesc.name, is_out ? "out" : "in", func);
-	seq_printf(s, " %dmA", lpi_regval_to_drive(drive));
-	seq_printf(s, " %s", pulls[pull]);
+	gpio_debug_output(s, 1, " %dmA", lpi_regval_to_drive(drive));
+	gpio_debug_output(s, 1, " %s", pulls[pull]);
 }
 
 static void lpi_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
@@ -612,7 +624,7 @@ static void lpi_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
 		lpi_gpio_dbg_show_one(s, NULL, chip, i, gpio);
-		seq_puts(s, "\n");
+		gpio_debug_output(s, 1, "\n");
 	}
 }
 
