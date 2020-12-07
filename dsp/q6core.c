@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2012-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 
 #include <linux/kernel.h>
@@ -989,7 +990,7 @@ int32_t q6core_avcs_load_unload_modules(struct avcs_load_unload_modules_payload
 		mod->hdr.opcode =  AVCS_CMD_LOAD_MODULES;
 	else
 		mod->hdr.opcode =  AVCS_CMD_UNLOAD_MODULES;
-
+	q6core_lcl.adsp_status = 0;
 	q6core_lcl.avcs_module_resp_received = 0;
 	ret = apr_send_pkt(q6core_lcl.core_handle_q,
 		(uint32_t *)mod);
