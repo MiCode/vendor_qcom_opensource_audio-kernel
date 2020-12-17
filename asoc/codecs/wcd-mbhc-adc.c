@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017-2020, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2020 XiaoMi, Inc.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -682,10 +683,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	enum wcd_mbhc_plug_type plug_type = MBHC_PLUG_TYPE_INVALID;
 	unsigned long timeout;
 	bool wrk_complete = false;
-	int pt_gnd_mic_swap_cnt = 0;
-	int no_gnd_mic_swap_cnt = 0;
 	bool is_pa_on = false, spl_hs = false, spl_hs_reported = false;
-	int ret = 0;
 	int spl_hs_count = 0;
 	int output_mv = 0;
 	int cross_conn;
@@ -801,60 +799,6 @@ correct_plug_type:
 		if (mbhc->mbhc_cb->hph_pa_on_status)
 			is_pa_on = mbhc->mbhc_cb->hph_pa_on_status(
 					mbhc->component);
-
-		if ((output_mv <= hs_threshold) &&
-		    (!is_pa_on)) {
-			/* Check for cross connection*/
-			ret = wcd_check_cross_conn(mbhc);
-			if (ret < 0)
-				continue;
-			else if (ret > 0) {
-				pt_gnd_mic_swap_cnt++;
-				no_gnd_mic_swap_cnt = 0;
-				if (pt_gnd_mic_swap_cnt <
-						mbhc->swap_thr) {
-					continue;
-				} else if (pt_gnd_mic_swap_cnt >
-					   mbhc->swap_thr) {
-					/*
-					 * This is due to GND/MIC switch didn't
-					 * work,  Report unsupported plug.
-					 */
-					pr_debug("%s: switch did not work\n",
-						 __func__);
-					plug_type = MBHC_PLUG_TYPE_GND_MIC_SWAP;
-					goto report;
-				} else {
-					plug_type = MBHC_PLUG_TYPE_GND_MIC_SWAP;
-				}
-			} else {
-				no_gnd_mic_swap_cnt++;
-				pt_gnd_mic_swap_cnt = 0;
-				plug_type = wcd_mbhc_get_plug_from_adc(
-						mbhc, output_mv);
-				if ((no_gnd_mic_swap_cnt <
-				    mbhc->swap_thr) &&
-				    (spl_hs_count != WCD_MBHC_SPL_HS_CNT)) {
-					continue;
-				} else {
-					no_gnd_mic_swap_cnt = 0;
-				}
-			}
-			if ((pt_gnd_mic_swap_cnt == mbhc->swap_thr) &&
-				(plug_type == MBHC_PLUG_TYPE_GND_MIC_SWAP)) {
-				/*
-				 * if switch is toggled, check again,
-				 * otherwise report unsupported plug
-				 */
-				if (mbhc->mbhc_cfg->swap_gnd_mic &&
-					mbhc->mbhc_cfg->swap_gnd_mic(component,
-					true)) {
-					pr_debug("%s: US_EU gpio present,flip switch\n"
-						, __func__);
-					continue;
-				}
-			}
-		}
 
 		if (output_mv > hs_threshold) {
 			pr_debug("%s: cable is extension cable\n", __func__);

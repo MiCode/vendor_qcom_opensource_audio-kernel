@@ -93,6 +93,22 @@ endif
 ###########################################################
 ifeq ($(call is-board-platform-in-list,msmnile $(MSMSTEPPE) $(TRINKET) sdmshrike),true)
 include $(CLEAR_VARS)
+LOCAL_MODULE              := $(AUDIO_CHIPSET)_aw87359_audio.ko
+LOCAL_MODULE_KBUILD_NAME  := aw87359_audio_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/AndroidKernelModule.mk
+###########################################################
+include $(CLEAR_VARS)
+LOCAL_MODULE              := $(AUDIO_CHIPSET)_aw87519_audio.ko
+LOCAL_MODULE_KBUILD_NAME  := aw87519_audio_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/AndroidKernelModule.mk
+###########################################################
+include $(CLEAR_VARS)
 LOCAL_MODULE              := $(AUDIO_CHIPSET)_wcd_spi.ko
 LOCAL_MODULE_KBUILD_NAME  := wcd_spi_dlkm.ko
 LOCAL_MODULE_TAGS         := optional
@@ -123,12 +139,28 @@ endif
 ###########################################################
 ifeq ($(call is-board-platform-in-list, bengal),true)
 include $(CLEAR_VARS)
-LOCAL_MODULE              := $(AUDIO_CHIPSET)_wsa881x_analog.ko
-LOCAL_MODULE_KBUILD_NAME  := wsa881x_analog_dlkm.ko
+LOCAL_MODULE              := $(AUDIO_CHIPSET)_aw87359_audio.ko
+LOCAL_MODULE_KBUILD_NAME  := aw87359_audio_dlkm.ko
 LOCAL_MODULE_TAGS         := optional
 LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/AndroidKernelModule.mk
+###########################################################
+include $(CLEAR_VARS)
+LOCAL_MODULE              := $(AUDIO_CHIPSET)_aw87519_audio.ko
+LOCAL_MODULE_KBUILD_NAME  := aw87519_audio_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/AndroidKernelModule.mk
+###########################################################
+#include $(CLEAR_VARS)
+#LOCAL_MODULE              := $(AUDIO_CHIPSET)_wsa881x_analog.ko
+#LOCAL_MODULE_KBUILD_NAME  := wsa881x_analog_dlkm.ko
+#LOCAL_MODULE_TAGS         := optional
+#LOCAL_MODULE_DEBUG_ENABLE := true
+#LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+#include $(DLKM_DIR)/AndroidKernelModule.mk
 endif
 ###########################################################
 include $(CLEAR_VARS)
