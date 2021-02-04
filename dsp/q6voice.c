@@ -4058,13 +4058,19 @@ static int voice_send_cvp_channel_info_v2(struct voice_data *v,
 		break;
 
 	case EC_REF_PATH:
+ 		pr_debug("force to mono reference signal");
 		channel_info_param_data->param_id =
 			VSS_PARAM_VOCPROC_EC_REF_CHANNEL_INFO;
-		channel_info->num_channels = v->dev_rx.no_of_channels;
+
+		//force to mono
+		channel_info->num_channels = 1;
 		channel_info->bits_per_sample = v->dev_rx.bits_per_sample;
-		memcpy(&channel_info->channel_mapping,
-		       v->dev_rx.channel_mapping,
-		       VSS_NUM_CHANNELS_MAX * sizeof(uint8_t));
+		memset(&channel_info->channel_mapping,
+			   0,
+			   VSS_NUM_CHANNELS_MAX * sizeof(uint8_t));
+
+		channel_info->channel_mapping[0] = PCM_CHANNEL_FC;
+
 		break;
 	default:
 		pr_err("%s: Invalid param type\n",
