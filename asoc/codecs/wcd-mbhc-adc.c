@@ -1,4 +1,5 @@
 /* Copyright (c) 2017-2018, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -9,6 +10,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -966,7 +968,7 @@ static irqreturn_t wcd_mbhc_adc_hs_rem_irq(int irq, void *data)
 				WCD_MBHC_REG_UPDATE_BITS(
 					WCD_MBHC_HPHL_PA_EN, 0);
 				WCD_MBHC_REG_UPDATE_BITS(
-					WCD_MBHC_HPH_PA_EN, 0);
+					WCD_MBHC_HPHR_PA_EN, 0);
 			}
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_HPHR_GND, 1);
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_HPHL_GND, 1);
@@ -1010,7 +1012,7 @@ static irqreturn_t wcd_mbhc_adc_hs_rem_irq(int irq, void *data)
 		if (hphpa_on) {
 			hphpa_on = false;
 			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_HPHL_PA_EN, 1);
-			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_HPH_PA_EN, 1);
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_HPHR_PA_EN, 1);
 		}
 	}
 exit:

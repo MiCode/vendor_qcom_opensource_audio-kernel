@@ -1,4 +1,5 @@
 /* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -604,13 +605,26 @@ static int msm_pcm_mmap(struct snd_pcm_substream *substream,
 
 static int msm_pcm_prepare(struct snd_pcm_substream *substream)
 {
+	int rc = 0;
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct msm_audio *prtd = runtime->private_data;
+	struct asm_softvolume_params softvol = {
+		.period = SOFT_VOLUME_PERIOD,
+		.step = SOFT_VOLUME_STEP,
+		.rampingcurve = SOFT_VOLUME_CURVE_LINEAR,
+	};
 
 	if (!prtd || !prtd->mmap_flag)
 		return -EIO;
 
-	return 0;
+	if (prtd->audio_client) {
+		rc = q6asm_set_softvolume_v2(prtd->audio_client,
+						&softvol, SOFT_VOLUME_INSTANCE_1);
+		if (rc < 0)
+			pr_err("%s: Send SoftVolume command failed rc=%d\n",
+					__func__, rc);
+	}
+	return rc;
 }
 
 static int msm_pcm_close(struct snd_pcm_substream *substream)
