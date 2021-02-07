@@ -11,6 +11,7 @@
 | gram-q-oss | MI POCO M2 Pro,Redmi Note 9 Pro,Redmi Note 9 Pro Max | Android Q | LA.UM.8.9.r1-07100-SM6xx.0 | [gram-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/gram-q-oss) |
 | lmi-q-oss | Redmi K30 Pro| Android Q | LA.UM.8.12.r1-06000-sm8250.0 | [lmi-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/lmi-q-oss) |
 | olive-p-oss | Redmi 8, Redmi 8A | Android P | LA.UM.7.6.2.r1-08100-89xx.0 | [olive-p-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/olive-p-oss) |
+| olive-q-oss | Redmi 7A, Redmi 8, Redmi 8A, Redmi 8A | Android Q | LA.UM.8.6.2.r1-05300-89xx.0 | [olive-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/olive-q-oss) |
 | olivewood-p-oss | Redmi 8A Dual | Android P | LA.UM.7.6.2.r1-08100-89xx.0 | [olivewood-p-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/olivewood-p-oss) |
 | onc-q-oss | Redmi 7, Redmi Y3 | Android Q | LA.UM.8.6.2.r1-04900-89xx.0 | [onc-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/onc-q-oss) |
 | laurel-q-oss| Mi A3 | Android Q | LA.UM.8.11.r1-01200-NICOBAR.0 | [laurel-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/laurel-q-oss) |
