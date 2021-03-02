@@ -54,6 +54,8 @@ COMMON_INC :=	-I$(AUDIO_ROOT)/$(COMMON_DIR)
 
 ############ WCD937X ############
 
+CDEFINES += -DCONFIG_SND_SOC_FOR_ULTRASOUND_PATH
+
 # for WCD937X Codec
 ifdef CONFIG_SND_SOC_WCD937X
 	WCD937X_OBJS += wcd937x.o
@@ -110,6 +112,8 @@ endif
 ifeq ($(CONFIG_SND_SOC_GCOV), y)
 GCOV_PROFILE := y
 endif
+
+CDEFINES += -DCONFIG_SND_SOC_AWINIC_AW882XX
 
 # Module information used by KBuild framework
 obj-$(CONFIG_SND_SOC_WCD937X) += wcd937x_dlkm.o
