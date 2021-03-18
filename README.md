@@ -7,6 +7,7 @@
 | crux-p-oss | Mi9 Pro 5G | Android P | LA.UM.7.1.r1-15600-sm8150.0 | [crux-p-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/crux-p-oss) |
 | dipper-q-oss | MI 8, MIX2S, POCOPHONE F1, MI 8UD, MIX 3, MI 8 Explorer Edition | Android Q | LA.UM.8.3.r1-05800-sdm845.0 | [dipper-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/dipper-q-oss) |
 | gauguin-q-oss | Redmi Note 9 Pro | Android Q | LA.UM.8.13.r1-09200-SAIPAN.0 | [gauguin-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/gauguin-q-oss) |
+| gauguin-r-oss | Redmi Note 9 Pro | Android R | LA.UM.9.12.r1-08000-SMxx50.0 | [gauguin-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/gauguin-r-oss) |
 | ginkgo-q-oss | Redmi Note 8, Redmi Note 8T | Android Q | LA.UM.8.11.r1-02400-NICOBAR.0 | [ginkgo-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/ginkgo-q-oss) |
 | gram-q-oss | MI POCO M2 Pro,Redmi Note 9 Pro,Redmi Note 9 Pro Max | Android Q | LA.UM.8.9.r1-07100-SM6xx.0 | [gram-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/gram-q-oss) |
 | laurus-q-oss | MI CC 9e | Android Q | LA.UM.8.11.r1-01200-NICOBAR.0-2 | [laurus-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/laurus-q-oss) |
