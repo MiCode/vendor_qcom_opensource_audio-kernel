@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (C) 2021 XiaoMi, Inc.
  */
 
 #include <linux/gpio.h>
@@ -15,6 +16,7 @@
 #include <linux/types.h>
 #include <linux/clk.h>
 #include <linux/bitops.h>
+#include <linux/delay.h>
 #include <soc/snd_event.h>
 #include <dsp/digital-cdc-rsc-mgr.h>
 #include <linux/pm_runtime.h>
@@ -140,6 +142,17 @@ static const char *const lpi_gpio_functions[] = {
 	[LPI_GPIO_FUNC_INDEX_FUNC4]	= LPI_GPIO_FUNC_FUNC4,
 	[LPI_GPIO_FUNC_INDEX_FUNC5]	= LPI_GPIO_FUNC_FUNC5,
 };
+
+#define lpi_gpio_debug_output(m, c, fmt, ...)		\
+do {							\
+	if (m)						\
+		seq_printf(m, fmt, ##__VA_ARGS__);	\
+	else if (c)					\
+		pr_cont(fmt, ##__VA_ARGS__);		\
+	else						\
+		pr_info(fmt, ##__VA_ARGS__);		\
+} while (0)
+
 
 int lpi_pinctrl_runtime_suspend(struct device *dev);
 
@@ -489,6 +502,8 @@ static int lpi_notifier_service_cb(struct notifier_block *this,
 
 		/* Reset HW votes after SSR */
 		if (!lpi_dev_up) {
+			/* Add 100ms sleep to ensure AVS is up after SSR */
+			msleep(100);
 			if (state->lpass_core_hw_vote)
 				digital_cdc_rsc_mgr_hw_vote_reset(
 					state->lpass_core_hw_vote);
@@ -599,10 +614,10 @@ static void lpi_gpio_dbg_show_one(struct seq_file *s,
 		 LPI_GPIO_REG_OUT_STRENGTH_SHIFT;
 	pull = (ctl_reg & LPI_GPIO_REG_PULL_MASK) >> LPI_GPIO_REG_PULL_SHIFT;
 
-	seq_printf(s, " %-8s: %-3s %d",
+	lpi_gpio_debug_output(s,1, " %-8s: %-3s %d",
 		   pindesc.name, is_out ? "out" : "in", func);
-	seq_printf(s, " %dmA", lpi_regval_to_drive(drive));
-	seq_printf(s, " %s", pulls[pull]);
+	lpi_gpio_debug_output(s, 1," %dmA", lpi_regval_to_drive(drive));
+	lpi_gpio_debug_output(s,1, " %s", pulls[pull]);
 }
 
 static void lpi_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
@@ -612,7 +627,7 @@ static void lpi_gpio_dbg_show(struct seq_file *s, struct gpio_chip *chip)
 
 	for (i = 0; i < chip->ngpio; i++, gpio++) {
 		lpi_gpio_dbg_show_one(s, NULL, chip, i, gpio);
-		seq_puts(s, "\n");
+		lpi_gpio_debug_output(s, 1, "\n");
 	}
 }
 
