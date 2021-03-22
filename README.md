@@ -3,6 +3,7 @@
 | alioth-r-oss | Mi 10S, Redmi K40 | Android R | LA.UM.9.12.r1-08000-SMxx50.0 | [alioth-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/alioth-r-oss) |
 | apollo-q-oss | Redmi K30S Ultra | Android Q | LA.UM.8.12.r1-10600-sm8250.0 | [apollo-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/apollo-q-oss) |
 | cas-q-oss | Mi 10 Ultra, Mi 10 Pro, Mi 10, Redmi K30 Pro | Android Q | LA.UM.8.12.r1-10600-sm8250.0 | [cas-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/cas-q-oss) |
+| cmi-r-oss | Redmi K30S Ultra, Mi 10 Ultra, Mi 10 Pro, Redmi K30 Pro, Mi 10 | Android R | LA.UM.9.12.r1-08000-SMxx50.0 | [cmi-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/cmi-r-oss) |
 | curtana-q-oss | Redmi Note 9 Pro,Redmi Note 9 Pro Max | Android Q | LA.UM.8.9.r1-07100-SM6xx.0 | [curtana-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/curtana-q-oss) |
 | cepheus-q-oss | Mi 9, Redmi K20 Pro | Android Q | LA.UM.8.1.r1-08700-sm8150.0 | [cepheus-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/cepheus-q-oss) |
 | crux-p-oss | Mi9 Pro 5G | Android P | LA.UM.7.1.r1-15600-sm8150.0 | [crux-p-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/crux-p-oss) |
