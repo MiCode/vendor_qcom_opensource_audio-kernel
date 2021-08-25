@@ -11,6 +11,7 @@
  * GNU General Public License for more details.
  */
 
+#define DEBUG
 #include <linux/regmap.h>
 #include <linux/device.h>
 #include <asoc/wcd934x_registers.h>
