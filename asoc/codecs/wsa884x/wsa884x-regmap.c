@@ -302,7 +302,7 @@ static struct reg_default wsa884x_defaults[] = {
 	{WSA884X_CLSH_VTH14,                     0x00},
 	{WSA884X_CLSH_VTH15,                     0x00},
 	{WSA884X_DIG_CTRL1_PAGE,                 0x00},
-	{WSA884X_BST_CFG,                        0x00},
+	{WSA884X_VPHX_SYS_EN_STATUS,             0x00},
 	{WSA884X_ANA_WO_CTL_0,                   0xe9},
 	{WSA884X_ANA_WO_CTL_1,                   0x00},
 	{WSA884X_PIN_CTL,                        0x04},

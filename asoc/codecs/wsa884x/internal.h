@@ -30,7 +30,6 @@
 #define WSA884X_VARIANT_ENTRY_SIZE 32
 
 #define WSA884X_VERSION_1_0 0
-#define WSA884X_VERSION_1_1 1
 
 enum {
 	G_21DB = 0,

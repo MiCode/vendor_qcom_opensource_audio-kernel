@@ -53,15 +53,8 @@
 		SNDRV_PCM_FMTBIT_S24_3LE | SNDRV_PCM_FMTBIT_S32_LE)
 
 #define REG_FIELD_VALUE(register_name, field_name, value) \
-(WSA884X_##register_name, FIELD_MASK(register_name, field_name), \
-value << FIELD_SHIFT(register_name, field_name))
-
-enum {
-	WSA_4OHMS = 4,
-	WSA_8OHMS = 8,
-	WSA_16OHMS = 16,
-	WSA_32OHMS = 32,
-};
+WSA884X_##register_name, FIELD_MASK(register_name, field_name), \
+value << FIELD_SHIFT(register_name, field_name)
 
 struct wsa_temp_register {
 	u8 d1_msb;
@@ -87,24 +80,16 @@ struct wsa_reg_mask_val {
 };
 
 static const struct wsa_reg_mask_val reg_init[] = {
-	{REG_FIELD_VALUE(PA_FSM_BYP_CTL, PA_FSM_BYP, 0x00)},
-	{REG_FIELD_VALUE(ISENSE2, ISENSE_GAIN_CTL, 0x02)},
-	{REG_FIELD_VALUE(ADC_6, INTRLV_RST_OVRD, 0x01)},
-	{REG_FIELD_VALUE(CDC_SPK_DSM_A2_0, COEF_A2, 0x0A)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A2_0, COEF_A2, 0x0A)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A2_1, COEF_A2, 0x08)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A3_0, COEF_A3, 0xF3)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A3_1, COEF_A3, 0x07)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A4_0, COEF_A4, 0x79)},
-	{REG_FIELD_VALUE(CDC_SPK_DSM_A4_1, COEF_A4, 0x02)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A5_0, COEF_A5, 0x0B)},
-	{REG_FIELD_VALUE(CDC_SPK_DSM_A5_1, COEF_A5, 0x02)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A6_0, COEF_A6, 0x8A)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A7_0, COEF_A7, 0x9B)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_C_0, COEF_C3, 0x06)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_C_0, COEF_C2, 0x08)},
-	{REG_FIELD_VALUE(CDC_SPK_DSM_C_1, COEF_C5, 0x05)},
-	{REG_FIELD_VALUE(CDC_SPK_DSM_C_1, COEF_C4, 0x04)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_C_2, COEF_C7, 0x0F)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_C_3, COEF_C7, 0x20)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_R1, SAT_LIMIT_R1, 0x83)},
@@ -114,33 +99,15 @@ static const struct wsa_reg_mask_val reg_init[] = {
 	{REG_FIELD_VALUE(CDC_SPK_DSM_R5, SAT_LIMIT_R5, 0x8B)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_R6, SAT_LIMIT_R6, 0x9B)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_R7, SAT_LIMIT_R7, 0x3F)},
-	{REG_FIELD_VALUE(VBAT_SNS, BOP_FREQ, 0x01)},
-	{REG_FIELD_VALUE(DRE_CTL_0, PROG_DELAY, 0x09)},
-	{REG_FIELD_VALUE(DRE_IDLE_DET_CTL, DRE_IDLE_FORCE_EN, 0x00)},
-	{REG_FIELD_VALUE(CURRENT_LIMIT, CURRENT_LIMIT, 0x08)},
-	{REG_FIELD_VALUE(DRE_CTL_0, OFFSET, 0x02)},
-	{REG_FIELD_VALUE(VAGC_TIME, REL_TIME, 0x03)},
-	{REG_FIELD_VALUE(VAGC_TIME, HLD_TIME, 0x03)},
-	{REG_FIELD_VALUE(VAGC_ATTN_LVL_2, VBAT_ATTN_LVL, 0x01)},
-	{REG_FIELD_VALUE(VAGC_ATTN_LVL_3, VBAT_ATTN_LVL, 0x02)},
-	{REG_FIELD_VALUE(VAGC_CTL, VBAT_AGC_EN, 0x01)},
-	{REG_FIELD_VALUE(TAGC_CTL, THERMAL_THRESH, 0x05)},
-	{REG_FIELD_VALUE(TAGC_TIME, REL_TIME, 0x03)},
-	// {WSA884X_TAGC_E2E_GAIN, 0x1F, 0x02},???
-	{REG_FIELD_VALUE(TEMP_CONFIG0, CTL_THRD_SAF2WAR, 0x02)},
-	{REG_FIELD_VALUE(TEMP_CONFIG1, CTL_THRD_WAR2SAF, 0x02)},
-	{REG_FIELD_VALUE(OTP_REG_1, LOW_TEMP_MSB, 0x49)},
-	{REG_FIELD_VALUE(OTP_REG_2, LOW_TEMP_LSB, 0x02)},
-	{REG_FIELD_VALUE(OTP_REG_3, HIGH_TEMP_MSB, 0xC9)},
-	{REG_FIELD_VALUE(OTP_REG_4, HIGH_TEMP_LSB, 0x01)},
-	{REG_FIELD_VALUE(TAGC_CTL, THERMAL_AGC_EN, 0x01)},
-	{REG_FIELD_VALUE(ADC_2, ISNS_LOAD_STORED, 0x00)},
-	{REG_FIELD_VALUE(ADC_7, EN_AZ_REG, 0x01)},
-	{REG_FIELD_VALUE(ADC_7, EN_SAR_REG, 0x01)},
-	{REG_FIELD_VALUE(CKWD_CTL_0, CKWD_FDIV_SEL, 0x00)},
-	{REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN, 0x10)},
-	{REG_FIELD_VALUE(CKWD_CTL_1, CKWD_VCOMP_VREF_SEL, 0x1B)},
-	{REG_FIELD_VALUE(BOOST_MISC, SPKR_RDY_CTL, 0x03)},
+	{REG_FIELD_VALUE(DRE_CTL_0, PROG_DELAY, 0x00)},
+	{REG_FIELD_VALUE(BOP_DEGLITCH_CTL, BOP_DEGLITCH_SETTING, 0x08)},
+	{REG_FIELD_VALUE(GAIN_RAMPING_MIN, MIN_GAIN, 0x0E)},
+	{REG_FIELD_VALUE(CLSH_SOFT_MAX, SOFT_MAX,  0xFF)},
+	{REG_FIELD_VALUE(CLSH_VTH1, CLSH_VTH1,  0xFF)},
+	{REG_FIELD_VALUE(VSENSE1, GAIN_VSENSE_FE,  0x04)},
+	{REG_FIELD_VALUE(ADC_2, ISNS_LOAD_STORED,  0x00)},
+	{REG_FIELD_VALUE(ADC_7, EN_AZ_REG,  0x01)},
+	{REG_FIELD_VALUE(ADC_7, EN_SAR_REG,  0x01)}
 };
 
 static int wsa884x_handle_post_irq(void *data);
@@ -148,9 +115,8 @@ static int wsa884x_get_temperature(struct snd_soc_component *component,
 				   int *temp);
 enum {
 	WSA8840 = 0,
-	WSA8845,
-	WSA8842,
-	WSA8845_V2 = 5,
+	WSA8845 = 5,
+	WSA884H = 12,
 };
 
 enum {
@@ -674,9 +640,6 @@ static ssize_t wsa884x_codec_version_read(struct snd_info_entry *entry,
 	case WSA884X_VERSION_1_0:
 		len = snprintf(buffer, sizeof(buffer), "WSA884X_1_0\n");
 		break;
-	case WSA884X_VERSION_1_1:
-		len = snprintf(buffer, sizeof(buffer), "WSA884X_1_1\n");
-		break;
 	default:
 		len = snprintf(buffer, sizeof(buffer), "VER_UNDEFINED\n");
 		break;
@@ -710,11 +673,10 @@ static ssize_t wsa884x_variant_read(struct snd_info_entry *entry,
 		len = snprintf(buffer, sizeof(buffer), "WSA8840\n");
 		break;
 	case WSA8845:
-	case WSA8845_V2:
 		len = snprintf(buffer, sizeof(buffer), "WSA8845\n");
 		break;
-	case WSA8842:
-		len = snprintf(buffer, sizeof(buffer), "WSA8842\n");
+	case WSA884H:
+		len = snprintf(buffer, sizeof(buffer), "WSA884H\n");
 		break;
 	default:
 		len = snprintf(buffer, sizeof(buffer), "UNDEFINED\n");
@@ -1214,7 +1176,7 @@ static void wsa884x_codec_init(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, reg_init[i].reg,
 					reg_init[i].mask, reg_init[i].val);
 
-	if (wsa884x->variant == WSA8840 || wsa884x->variant == WSA8842) {
+	if (wsa884x->variant == WSA8840 || wsa884x->variant == WSA8845) {
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(DRE_CTL_0, OFFSET, 0x03));
 		wsa884x->comp_offset = COMP_OFFSET3;

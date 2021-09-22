@@ -320,7 +320,7 @@ enum {
 
 #define WSA884X_DIG_CTRL1_BASE                 (WSA884X_BASE+0x500)
 #define WSA884X_DIG_CTRL1_PAGE                 (WSA884X_DIG_CTRL1_BASE+0x00)
-#define WSA884X_BST_CFG                        (WSA884X_DIG_CTRL1_BASE+0x01)
+#define WSA884X_VPHX_SYS_EN_STATUS             (WSA884X_DIG_CTRL1_BASE+0x01)
 #define WSA884X_ANA_WO_CTL_0                   (WSA884X_DIG_CTRL1_BASE+0x04)
 #define WSA884X_ANA_WO_CTL_1                   (WSA884X_DIG_CTRL1_BASE+0x05)
 #define WSA884X_PIN_CTL                        (WSA884X_DIG_CTRL1_BASE+0x10)

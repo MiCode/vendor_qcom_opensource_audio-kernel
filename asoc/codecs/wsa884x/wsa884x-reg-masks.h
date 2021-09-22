@@ -9,79 +9,148 @@
 #include <linux/device.h>
 #include "wsa884x-registers.h"
 
+/*
+ * Use in conjunction with wsa884x-reg-shifts.c for field values.
+ * field_value = (register_value & field_mask) >> field_shift
+ */
+
 #define FIELD_MASK(register_name, field_name) \
 	WSA884X_##register_name##_##field_name##_MASK
 
-#define WSA884X_VBAT_SNS_BOP_FREQ_MASK 0x60
-#define WSA884X_ISENSE2_ISENSE_GAIN_CTL_MASK 0xe0
-#define WSA884X_ADC_2_ISNS_LOAD_STORED_MASK 0x40
-#define WSA884X_ADC_6_INTRLV_RST_OVRD_MASK 0x02
-#define WSA884X_ADC_7_EN_AZ_REG_MASK 0x04
-#define WSA884X_ADC_7_EN_SAR_REG_MASK 0x02
-#define WSA884X_CURRENT_LIMIT_CURRENT_LIMIT_OVRD_EN_MASK 0x80
-#define WSA884X_CURRENT_LIMIT_CURRENT_LIMIT_MASK 0x7c
-#define WSA884X_BOOST_MISC_SPKR_RDY_CTL_MASK 0x60
-#define WSA884X_CKWD_CTL_0_CKWD_FDIV_SEL_MASK 0x60
-#define WSA884X_CKWD_CTL_1_CKWD_VCOMP_VREF_SEL_MASK 0x1f
-#define WSA884X_CHIP_ID0_BYTE_0_MASK 0xff
-#define WSA884X_PA_FSM_EN_GLOBAL_PA_EN_MASK 0x01
-#define WSA884X_PA_FSM_BYP_CTL_PA_FSM_BYP_MASK 0x01
-#define WSA884X_PA_FSM_BYP0_TSADC_EN_MASK 0x80
-#define WSA884X_PA_FSM_BYP0_SPKR_PROT_EN_MASK 0x40
-#define WSA884X_PA_FSM_BYP0_D_UNMUTE_MASK 0x20
-#define WSA884X_PA_FSM_BYP0_BG_EN_MASK 0x04
-#define WSA884X_PA_FSM_BYP0_CLK_WD_EN_MASK 0x02
-#define WSA884X_PA_FSM_BYP0_DC_CAL_EN_MASK 0x01
-#define WSA884X_TADC_VALUE_CTL_TEMP_VALUE_RD_EN_MASK 0x01
-#define WSA884X_TEMP_CONFIG0_CTL_THRD_SAF2WAR_MASK 0x07
-#define WSA884X_TEMP_CONFIG1_CTL_THRD_WAR2SAF_MASK 0x07
-#define WSA884X_VBAT_THRM_FLT_CTL_VBAT_COEF_SEL_MASK 0x0e
-#define WSA884X_VBAT_THRM_FLT_CTL_VBAT_FLT_EN_MASK 0x01
-#define WSA884X_CDC_SPK_DSM_A2_0_COEF_A2_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_A2_1_COEF_A2_MASK 0x0f
-#define WSA884X_CDC_SPK_DSM_A3_0_COEF_A3_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_A3_1_COEF_A3_MASK 0x07
-#define WSA884X_CDC_SPK_DSM_A4_0_COEF_A4_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_A4_1_COEF_A4_MASK 0x03
-#define WSA884X_CDC_SPK_DSM_A5_0_COEF_A5_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_A5_1_COEF_A5_MASK 0x03
-#define WSA884X_CDC_SPK_DSM_A6_0_COEF_A6_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_A7_0_COEF_A7_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_C_0_COEF_C3_MASK 0xf0
-#define WSA884X_CDC_SPK_DSM_C_0_COEF_C2_MASK 0x0f
-#define WSA884X_CDC_SPK_DSM_C_1_COEF_C5_MASK 0xf0
-#define WSA884X_CDC_SPK_DSM_C_1_COEF_C4_MASK 0x0f
-#define WSA884X_CDC_SPK_DSM_C_2_COEF_C7_MASK 0xf0
-#define WSA884X_CDC_SPK_DSM_C_2_COEF_C6_MASK 0x0f
-#define WSA884X_CDC_SPK_DSM_C_3_COEF_C7_MASK 0x3f
-#define WSA884X_CDC_SPK_DSM_R1_SAT_LIMIT_R1_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_R2_SAT_LIMIT_R2_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_R3_SAT_LIMIT_R3_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_R4_SAT_LIMIT_R4_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_R5_SAT_LIMIT_R5_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_R6_SAT_LIMIT_R6_MASK 0xff
-#define WSA884X_CDC_SPK_DSM_R7_SAT_LIMIT_R7_MASK 0xff
-#define WSA884X_PDM_WD_CTL_PDM_WD_EN_MASK 0x01
-#define WSA884X_DRE_CTL_0_PROG_DELAY_MASK 0xf0
-#define WSA884X_DRE_CTL_0_OFFSET_MASK 0x07
-#define WSA884X_DRE_CTL_1_CSR_GAIN_MASK 0x3e
-#define WSA884X_DRE_CTL_1_CSR_GAIN_EN_MASK 0x01
-#define WSA884X_TAGC_CTL_THERMAL_THRESH_MASK 0x0e
-#define WSA884X_TAGC_CTL_THERMAL_AGC_EN_MASK 0x01
-#define WSA884X_TAGC_TIME_REL_TIME_MASK 0x30
-#define WSA884X_VAGC_CTL_VBAT_AGC_EN_MASK 0x01
-#define WSA884X_VAGC_TIME_REL_TIME_MASK 0x0c
-#define WSA884X_VAGC_TIME_HLD_TIME_MASK 0x03
-#define WSA884X_VAGC_ATTN_LVL_2_VBAT_ATTN_LVL_MASK 0x1f
-#define WSA884X_VAGC_ATTN_LVL_3_VBAT_ATTN_LVL_MASK 0x1f
-#define WSA884X_OTP_REG_0_WSA884X_ID_MASK 0x0f
-#define WSA884X_OTP_REG_1_LOW_TEMP_MSB_MASK 0xff
-#define WSA884X_OTP_REG_2_LOW_TEMP_LSB_MASK 0xc0
-#define WSA884X_OTP_REG_3_HIGH_TEMP_MSB_MASK 0xff
-#define WSA884X_OTP_REG_4_HIGH_TEMP_LSB_MASK 0xc0
-#define WSA884X_DRE_IDLE_DET_CTL_PA_OFF_FORCE_EN_MASK 0x40
-#define WSA884X_DRE_IDLE_DET_CTL_PDM_WD_FORCE_EN_MASK 0x20
-#define WSA884X_DRE_IDLE_DET_CTL_DRE_IDLE_FORCE_EN_MASK 0x10
-#define WSA884X_DRE_IDLE_DET_CTL_DRE_FORCE_VALUE_MASK 0x0f
+/* WSA884X_VSENSE1 Fields: */
+#define WSA884X_VSENSE1_GAIN_VSENSE_FE_MASK                              0xe0
+#define WSA884X_VSENSE1_VSENSE_AMP_IQ_CTL_1_MASK                         0x10
+#define WSA884X_VSENSE1_IDLE_MODE_CTL_MASK                               0x0c
+#define WSA884X_VSENSE1_VOCM_AMP_CTL_MASK                                0x03
+/* WSA884X_ADC_2 Fields: */
+#define WSA884X_ADC_2_ATEST_SEL_CAL_REF_MASK                             0x80
+#define WSA884X_ADC_2_ISNS_LOAD_STORED_MASK                              0x40
+#define WSA884X_ADC_2_EN_DET_MASK                                        0x20
+#define WSA884X_ADC_2_EN_ATEST_REF_MASK                                  0x10
+#define WSA884X_ADC_2_EN_ATEST_INT_MASK                                  0x0e
+#define WSA884X_ADC_2_D_ADC_REG_EN_MASK                                  0x01
+/* WSA884X_ADC_7 Fields: */
+#define WSA884X_ADC_7_CLAMPON_MASK                                       0x80
+#define WSA884X_ADC_7_CAL_LOOP_TRIM_MASK                                 0x70
+#define WSA884X_ADC_7_REG_TRIM_EN_MASK                                   0x08
+#define WSA884X_ADC_7_EN_AZ_REG_MASK                                     0x04
+#define WSA884X_ADC_7_EN_SAR_REG_MASK                                    0x02
+#define WSA884X_ADC_7_EN_SW_CURRENT_REG_MASK                             0x01
+/* WSA884X_BOP_DEGLITCH_CTL Fields: */
+#define WSA884X_BOP_DEGLITCH_CTL_BOP_DEGLITCH_SETTING_MASK               0x1e
+#define WSA884X_BOP_DEGLITCH_CTL_BOP_DEGLITCH_EN_MASK                    0x01
+/* WSA884X_CDC_SPK_DSM_A2_0 Fields: */
+#define WSA884X_CDC_SPK_DSM_A2_0_COEF_A2_MASK                            0xff
+/* WSA884X_CDC_SPK_DSM_A2_1 Fields: */
+#define WSA884X_CDC_SPK_DSM_A2_1_COEF_A2_MASK                            0x0f
+/* WSA884X_CDC_SPK_DSM_A3_0 Fields: */
+#define WSA884X_CDC_SPK_DSM_A3_0_COEF_A3_MASK                            0xff
+/* WSA884X_CDC_SPK_DSM_A3_1 Fields: */
+#define WSA884X_CDC_SPK_DSM_A3_1_COEF_A3_MASK                            0x07
+/* WSA884X_CDC_SPK_DSM_A4_0 Fields: */
+#define WSA884X_CDC_SPK_DSM_A4_0_COEF_A4_MASK                            0xff
+/* WSA884X_CDC_SPK_DSM_A5_0 Fields: */
+#define WSA884X_CDC_SPK_DSM_A5_0_COEF_A5_MASK                            0xff
+/* WSA884X_CDC_SPK_DSM_A6_0 Fields: */
+#define WSA884X_CDC_SPK_DSM_A6_0_COEF_A6_MASK                            0xff
+/* WSA884X_CDC_SPK_DSM_A7_0 Fields: */
+#define WSA884X_CDC_SPK_DSM_A7_0_COEF_A7_MASK                            0xff
+/* WSA884X_CDC_SPK_DSM_C_0 Fields: */
+#define WSA884X_CDC_SPK_DSM_C_0_COEF_C3_MASK                             0xf0
+#define WSA884X_CDC_SPK_DSM_C_0_COEF_C2_MASK                             0x0f
+/* WSA884X_CDC_SPK_DSM_C_2 Fields: */
+#define WSA884X_CDC_SPK_DSM_C_2_COEF_C7_MASK                             0xf0
+#define WSA884X_CDC_SPK_DSM_C_2_COEF_C6_MASK                             0x0f
+/* WSA884X_CDC_SPK_DSM_C_3 Fields: */
+#define WSA884X_CDC_SPK_DSM_C_3_COEF_C7_MASK                             0x3f
+/* WSA884X_CDC_SPK_DSM_R1 Fields: */
+#define WSA884X_CDC_SPK_DSM_R1_SAT_LIMIT_R1_MASK                         0xff
+/* WSA884X_CDC_SPK_DSM_R2 Fields: */
+#define WSA884X_CDC_SPK_DSM_R2_SAT_LIMIT_R2_MASK                         0xff
+/* WSA884X_CDC_SPK_DSM_R3 Fields: */
+#define WSA884X_CDC_SPK_DSM_R3_SAT_LIMIT_R3_MASK                         0xff
+/* WSA884X_CDC_SPK_DSM_R4 Fields: */
+#define WSA884X_CDC_SPK_DSM_R4_SAT_LIMIT_R4_MASK                         0xff
+/* WSA884X_CDC_SPK_DSM_R5 Fields: */
+#define WSA884X_CDC_SPK_DSM_R5_SAT_LIMIT_R5_MASK                         0xff
+/* WSA884X_CDC_SPK_DSM_R6 Fields: */
+#define WSA884X_CDC_SPK_DSM_R6_SAT_LIMIT_R6_MASK                         0xff
+/* WSA884X_CDC_SPK_DSM_R7 Fields: */
+#define WSA884X_CDC_SPK_DSM_R7_SAT_LIMIT_R7_MASK                         0xff
+/* WSA884X_DRE_CTL_0 Fields: */
+#define WSA884X_DRE_CTL_0_PROG_DELAY_MASK                                0xf0
+#define WSA884X_DRE_CTL_0_OFFSET_MASK                                    0x07
+/* WSA884X_GAIN_RAMPING_MIN Fields: */
+#define WSA884X_GAIN_RAMPING_MIN_MIN_GAIN_MASK                           0x1f
+/* WSA884X_CLSH_SOFT_MAX Fields: */
+#define WSA884X_CLSH_SOFT_MAX_SOFT_MAX_MASK                              0xff
+/* WSA884X_CLSH_VTH1 Fields: */
+#define WSA884X_CLSH_VTH1_CLSH_VTH1_MASK                                 0xff
+/* WSA884X_CLSH_VTH10 Fields: */
+#define WSA884X_CLSH_VTH10_CLSH_VTH10_MASK                               0xff
+/* WSA884X_CLSH_VTH11 Fields: */
+#define WSA884X_CLSH_VTH11_CLSH_VTH11_MASK                               0xff
+/* WSA884X_CLSH_VTH12 Fields: */
+#define WSA884X_CLSH_VTH12_CLSH_VTH12_MASK                               0xff
+/* WSA884X_CLSH_VTH13 Fields: */
+#define WSA884X_CLSH_VTH13_CLSH_VTH13_MASK                               0xff
+/* WSA884X_CLSH_VTH14 Fields: */
+#define WSA884X_CLSH_VTH14_CLSH_VTH14_MASK                               0xff
+/* WSA884X_CLSH_VTH15 Fields: */
+#define WSA884X_CLSH_VTH15_CLSH_VTH15_MASK                               0xff
+/* WSA884X_ANA_WO_CTL_0 Fields: */
+#define WSA884X_ANA_WO_CTL_0_VPHX_SYS_EN_MASK                            0xc0
+#define WSA884X_ANA_WO_CTL_0_PA_AUX_GAIN_MASK                            0x3c
+#define WSA884X_ANA_WO_CTL_0_PA_MIN_GAIN_BYP_MASK                        0x02
+#define WSA884X_ANA_WO_CTL_0_DAC_CM_CLAMP_EN_MASK                        0x01
+/* WSA884X_ANA_WO_CTL_1 Fields: */
+#define WSA884X_ANA_WO_CTL_1_BOOST_SHARE_EN_MASK                         0x08
+#define WSA884X_ANA_WO_CTL_1_EXT_VDDSPK_EN_MASK                          0x07
+/* WSA884X_DRE_CTL_1 Fields: */
+#define WSA884X_DRE_CTL_1_CSR_GAIN_MASK                                  0x3e
+#define WSA884X_DRE_CTL_1_CSR_GAIN_EN_MASK                               0x01
+/* WSA884X_VBAT_THRM_FLT_CTL Fields: */
+#define WSA884X_VBAT_THRM_FLT_CTL_THRM_COEF_SEL_MASK                     0xe0
+#define WSA884X_VBAT_THRM_FLT_CTL_THRM_FLT_EN_MASK                       0x10
+#define WSA884X_VBAT_THRM_FLT_CTL_VBAT_COEF_SEL_MASK                     0x0e
+#define WSA884X_VBAT_THRM_FLT_CTL_VBAT_FLT_EN_MASK                       0x01
+/* WSA884X_PDM_WD_CTL Fields: */
+#define WSA884X_PDM_WD_CTL_HOLD_OFF_MASK                                 0x04
+#define WSA884X_PDM_WD_CTL_TIME_OUT_SEL_MASK                             0x02
+#define WSA884X_PDM_WD_CTL_PDM_WD_EN_MASK                                0x01
+/* WSA884X_PA_FSM_BYP_CTL Fields: */
+#define WSA884X_PA_FSM_BYP_CTL_PA_FSM_BYP_MASK                           0x01
+/* WSA884X_TADC_VALUE_CTL Fields: */
+#define WSA884X_TADC_VALUE_CTL_VBAT_VALUE_RD_EN_MASK                     0x02
+#define WSA884X_TADC_VALUE_CTL_TEMP_VALUE_RD_EN_MASK                     0x01
+/* WSA884X_PA_FSM_BYP0 Fields: */
+#define WSA884X_PA_FSM_BYP0_TSADC_EN_MASK                                0x80
+#define WSA884X_PA_FSM_BYP0_SPKR_PROT_EN_MASK                            0x40
+#define WSA884X_PA_FSM_BYP0_D_UNMUTE_MASK                                0x20
+#define WSA884X_PA_FSM_BYP0_PA_EN_MASK                                   0x10
+#define WSA884X_PA_FSM_BYP0_BOOST_EN_MASK                                0x08
+#define WSA884X_PA_FSM_BYP0_BG_EN_MASK                                   0x04
+#define WSA884X_PA_FSM_BYP0_CLK_WD_EN_MASK                               0x02
+#define WSA884X_PA_FSM_BYP0_DC_CAL_EN_MASK                               0x01
+/* WSA884X_PA_FSM_BYP1 Fields: */
+#define WSA884X_PA_FSM_BYP1_NG_MODE_MASK                                 0xc0
+#define WSA884X_PA_FSM_BYP1_PWRSAV_CTL_MASK                              0x20
+#define WSA884X_PA_FSM_BYP1_RAMP_DOWN_MASK                               0x10
+#define WSA884X_PA_FSM_BYP1_RAMP_UP_MASK                                 0x08
+#define WSA884X_PA_FSM_BYP1_BLEEDER_EN_MASK                              0x04
+#define WSA884X_PA_FSM_BYP1_PA_MAIN_EN_MASK                              0x02
+#define WSA884X_PA_FSM_BYP1_PA_AUX_EN_MASK                               0x01
+/* WSA884X_PA_FSM_EN Fields: */
+#define WSA884X_PA_FSM_EN_GLOBAL_PA_EN_MASK                              0x01
+/* WSA884X_OTP_REG_0 Fields: */
+#define WSA884X_OTP_REG_0_WSA884X_ID_MASK                                0x0f
+/* WSA884X_CHIP_ID0 Fields: */
+#define WSA884X_CHIP_ID0_BYTE_0_MASK                                     0xff
+/* WSA884X_CHIP_ID1 Fields: */
+#define WSA884X_CHIP_ID1_BYTE_1_MASK                                     0xff
+/* WSA884X_CHIP_ID2 Fields: */
+#define WSA884X_CHIP_ID2_BYTE_2_MASK                                     0xff
+/* WSA884X_CHIP_ID3 Fields: */
+#define WSA884X_CHIP_ID3_BYTE_3_MASK                                     0xff
 
 #endif /* WSA884X_REG_MASKS_H */
