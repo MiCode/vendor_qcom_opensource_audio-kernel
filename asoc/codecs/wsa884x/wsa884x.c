@@ -907,6 +907,56 @@ static int wsa884x_set_visense(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+static int wsa884x_get_pbr(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				snd_soc_kcontrol_component(kcontrol);
+	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = wsa884x->pbr_enable;
+	return 0;
+}
+
+static int wsa884x_set_pbr(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				snd_soc_kcontrol_component(kcontrol);
+	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
+	int value = ucontrol->value.integer.value[0];
+
+	dev_dbg(component->dev, "%s: VIsense enable current %d, new %d\n",
+		 __func__, wsa884x->pbr_enable, value);
+	wsa884x->pbr_enable = value;
+	return 0;
+}
+
+static int wsa884x_get_cps(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				snd_soc_kcontrol_component(kcontrol);
+	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
+
+	ucontrol->value.integer.value[0] = wsa884x->cps_enable;
+	return 0;
+}
+
+static int wsa884x_set_cps(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				snd_soc_kcontrol_component(kcontrol);
+	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
+	int value = ucontrol->value.integer.value[0];
+
+	dev_dbg(component->dev, "%s: VIsense enable current %d, new %d\n",
+		 __func__, wsa884x->cps_enable, value);
+	wsa884x->cps_enable = value;
+	return 0;
+}
+
 static int wsa884x_get_ext_vdd_spk(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
@@ -958,6 +1008,12 @@ static const struct snd_kcontrol_new wsa884x_snd_controls[] = {
 
 	SOC_SINGLE_EXT("VISENSE Switch", SND_SOC_NOPM, 0, 1, 0,
 			wsa884x_get_visense, wsa884x_set_visense),
+
+	SOC_SINGLE_EXT("PBR Switch", SND_SOC_NOPM, 0, 1, 0,
+		wsa884x_get_pbr, wsa884x_set_pbr),
+
+	SOC_SINGLE_EXT("CPS Switch", SND_SOC_NOPM, 0, 1, 0,
+		wsa884x_get_cps, wsa884x_set_cps),
 
 	SOC_SINGLE_EXT("External VDD_SPK", SND_SOC_NOPM, 0, 1, 0,
 			wsa884x_get_ext_vdd_spk, wsa884x_put_ext_vdd_spk),
@@ -1014,8 +1070,22 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 					&port_type[num_port]);
 			++num_port;
 		}
+		if (wsa884x->pbr_enable) {
+			wsa884x_set_port(component, SWR_PBR_PORT,
+					&port_id[num_port], &num_ch[num_port],
+					&ch_mask[num_port], &ch_rate[num_port],
+					&port_type[num_port]);
+			++num_port;
+		}
 		if (wsa884x->visense_enable) {
 			wsa884x_set_port(component, SWR_VISENSE_PORT,
+					&port_id[num_port], &num_ch[num_port],
+					&ch_mask[num_port], &ch_rate[num_port],
+					&port_type[num_port]);
+			++num_port;
+		}
+		if (wsa884x->cps_enable) {
+			wsa884x_set_port(component, SWR_CPS_PORT,
 					&port_id[num_port], &num_ch[num_port],
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);
@@ -1042,8 +1112,22 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 					&port_type[num_port]);
 			++num_port;
 		}
+		if (wsa884x->pbr_enable) {
+			wsa884x_set_port(component, SWR_PBR_PORT,
+					&port_id[num_port], &num_ch[num_port],
+					&ch_mask[num_port], &ch_rate[num_port],
+					&port_type[num_port]);
+			++num_port;
+		}
 		if (wsa884x->visense_enable) {
 			wsa884x_set_port(component, SWR_VISENSE_PORT,
+					&port_id[num_port], &num_ch[num_port],
+					&ch_mask[num_port], &ch_rate[num_port],
+					&port_type[num_port]);
+			++num_port;
+		}
+		if (wsa884x->cps_enable) {
+			wsa884x_set_port(component, SWR_CPS_PORT,
 					&port_id[num_port], &num_ch[num_port],
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);

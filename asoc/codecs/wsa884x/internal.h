@@ -58,9 +58,9 @@ enum {
 	SWR_DAC_PORT,
 	SWR_COMP_PORT,
 	SWR_BOOST_PORT,
+	SWR_PBR_PORT,
 	SWR_VISENSE_PORT,
-	SWR_CPS_PORT,
-	SWR_PBRPORT
+	SWR_CPS_PORT
 };
 
 struct wsa_ctrl_platform_data {
@@ -91,6 +91,8 @@ struct wsa884x_priv {
 	struct snd_soc_component *component;
 	bool comp_enable;
 	bool visense_enable;
+	bool cps_enable;
+	bool pbr_enable;
 	bool ext_vdd_spk;
 	bool dapm_bias_off;
 	struct swr_port port[WSA884X_MAX_SWR_PORTS];

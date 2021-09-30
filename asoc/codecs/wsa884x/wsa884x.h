@@ -13,7 +13,7 @@
 #include "wsa884x-reg-shifts.h"
 
 
-#define WSA884X_MAX_SWR_PORTS   4
+#define WSA884X_MAX_SWR_PORTS   6
 
 #if IS_ENABLED(CONFIG_SND_SOC_WSA884X)
 int wsa884x_set_channel_map(struct snd_soc_component *component,

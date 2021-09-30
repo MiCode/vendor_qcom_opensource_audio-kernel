@@ -13,7 +13,7 @@ enum {
 	RD_WR_REG,
 };
 
-#define WSA884X_BASE 0x0
+#define WSA884X_BASE 0x3000
 #define WSA884X_REG(reg)  (reg - WSA884X_BASE)
 
 #define WSA884X_BG_TSADC_BASE                  (WSA884X_BASE+0x01)
