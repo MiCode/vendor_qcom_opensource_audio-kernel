@@ -820,6 +820,9 @@ static ssize_t lpass_cdc_version_read(struct snd_info_entry *entry,
 	case LPASS_CDC_VERSION_2_5:
 		len = snprintf(buffer, sizeof(buffer), "LPASS-CDC_2_5\n");
 		break;
+	case LPASS_CDC_VERSION_2_6:
+		len = snprintf(buffer, sizeof(buffer), "LPASS-CDC_2_6\n");
+		break;
 	default:
 		len = snprintf(buffer, sizeof(buffer), "VER_UNDEFINED\n");
 	}
@@ -1099,7 +1102,7 @@ static int lpass_cdc_soc_codec_probe(struct snd_soc_component *component)
 {
 	struct lpass_cdc_priv *priv = dev_get_drvdata(component->dev);
 	int macro_idx, ret = 0;
-	u8 core_id_0 = 0, core_id_1 = 0;
+	u8 core_id_0 = 0, core_id_1 = 0, core_id_2 = 0;
 
 	snd_soc_component_init_regmap(component, priv->regmap);
 
@@ -1124,12 +1127,16 @@ static int lpass_cdc_soc_codec_probe(struct snd_soc_component *component)
 					LPASS_CDC_VA_TOP_CSR_CORE_ID_0);
 	core_id_1 = snd_soc_component_read(component,
 					LPASS_CDC_VA_TOP_CSR_CORE_ID_1);
+	core_id_2 = snd_soc_component_read(component,
+					LPASS_CDC_VA_TOP_CSR_CORE_ID_2);
 	if ((core_id_0 == 0x01) && (core_id_1 == 0x0F))
 		priv->version = LPASS_CDC_VERSION_2_0;
 	if ((core_id_0 == 0x02) && (core_id_1 == 0x0E))
 		priv->version = LPASS_CDC_VERSION_2_1;
 	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F))
 		priv->version = LPASS_CDC_VERSION_2_5;
+	if ((core_id_0 == 0x02) && (core_id_1 == 0x0F) && (core_id_2 == 0x60 || core_id_2 == 0x61))
+		priv->version = LPASS_CDC_VERSION_2_6;
 
 	/* call init for supported macros */
 	for (macro_idx = START_MACRO; macro_idx < MAX_MACRO; macro_idx++) {
