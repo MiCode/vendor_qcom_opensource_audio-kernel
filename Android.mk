@@ -6,6 +6,10 @@ ifeq ($(call is-board-platform, taro),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_WAIPIO=m
 endif
 
+ifeq ($(call is-board-platform, kalama),true)
+AUDIO_SELECT  := CONFIG_SND_SOC_KALAMA=m
+endif
+
 # Build/Package only in case of supported target
 ifeq ($(call is-board-platform-in-list,taro kalama), true)
 
