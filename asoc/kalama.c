@@ -31,7 +31,7 @@
 #include "asoc/msm-cdc-pinctrl.h"
 #include "asoc/wcd-mbhc-v2.h"
 #include "codecs/wcd938x/wcd938x-mbhc.h"
-#include "codecs/wsa883x/wsa883x.h"
+#include "codecs/wsa884x/wsa884x.h"
 #include "codecs/wcd938x/wcd938x.h"
 #include "codecs/lpass-cdc/lpass-cdc.h"
 #include <bindings/audio-codec-port-types.h>
@@ -200,7 +200,7 @@ static void msm_parse_upd_configuration(struct platform_device *pdev,
 	}
 
 	if (!strcmp(pdata->upd_config.backend_used, "wsa"))
-		pdata->get_dev_num = wsa883x_codec_get_dev_num;
+		pdata->get_dev_num = wsa884x_codec_get_dev_num;
 	else
 		pdata->get_dev_num = wcd938x_codec_get_dev_num;
 
@@ -1439,18 +1439,24 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int w
 
 static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 {
-	u8 spkleft_ports[WSA883X_MAX_SWR_PORTS] = {0, 1, 2, 3};
-	u8 spkright_ports[WSA883X_MAX_SWR_PORTS] = {0, 1, 2, 3};
-	u8 spkleft_port_types[WSA883X_MAX_SWR_PORTS] = {SPKR_L, SPKR_L_COMP,
+	u8 spkleft_ports[WSA884X_MAX_SWR_PORTS] = {0, 1, 2, 3};
+	u8 spkright_ports[WSA884X_MAX_SWR_PORTS] = {0, 1, 2, 3};
+	u8 spkleft_port_types[WSA884X_MAX_SWR_PORTS] = {SPKR_L, SPKR_L_COMP,
 						SPKR_L_BOOST, SPKR_L_VI};
-	u8 spkright_port_types[WSA883X_MAX_SWR_PORTS] = {SPKR_R, SPKR_R_COMP,
+	u8 spkright_port_types[WSA884X_MAX_SWR_PORTS] = {SPKR_R, SPKR_R_COMP,
 						SPKR_R_BOOST, SPKR_R_VI};
-	unsigned int ch_rate[WSA883X_MAX_SWR_PORTS] = {SWR_CLK_RATE_2P4MHZ, SWR_CLK_RATE_0P6MHZ,
+	unsigned int ch_rate[WSA884X_MAX_SWR_PORTS] = {SWR_CLK_RATE_2P4MHZ, SWR_CLK_RATE_0P6MHZ,
 							SWR_CLK_RATE_0P3MHZ, SWR_CLK_RATE_1P2MHZ};
-	unsigned int ch_mask[WSA883X_MAX_SWR_PORTS] = {0x1, 0xF, 0x3, 0x3};
+	unsigned int ch_mask[WSA884X_MAX_SWR_PORTS] = {0x1, 0xF, 0x3, 0x3};
+
+
 	struct snd_soc_component *component = NULL;
 	struct msm_asoc_mach_data *pdata =
 				snd_soc_card_get_drvdata(rtd->card);
+
+	u8 wsa_rload[QUAD_SPEAKER] = {8, 8};
+	u8 wsa_bat_cfg[QUAD_SPEAKER] = {1, 1};
+	u8 wsa_system_gain[QUAD_SPEAKER] = {21, 21};
 
 	if (pdata->wsa_max_devs > 0) {
 		component = snd_soc_rtdcom_lookup(rtd, "wsa-codec.1");
@@ -1459,12 +1465,14 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 			return -EINVAL;
 		}
 
-		wsa883x_set_channel_map(component, &spkleft_ports[0],
-			WSA883X_MAX_SWR_PORTS, &ch_mask[0],
+		wsa884x_set_channel_map(component, &spkleft_ports[0],
+			WSA884X_MAX_SWR_PORTS, &ch_mask[0],
 			&ch_rate[0], &spkleft_port_types[0]);
 
-		wsa883x_codec_info_create_codec_entry(pdata->codec_root,
+		wsa884x_codec_info_create_codec_entry(pdata->codec_root,
 				component);
+		wsa884x_set_configuration(component, wsa_rload[0],
+			wsa_bat_cfg[0], wsa_system_gain[0]);
 	}
 
 	/* If current platform has more than one WSA */
@@ -1475,12 +1483,14 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 			return -EINVAL;
 		}
 
-		wsa883x_set_channel_map(component, &spkright_ports[0],
-			WSA883X_MAX_SWR_PORTS, &ch_mask[0],
+		wsa884x_set_channel_map(component, &spkright_ports[0],
+			WSA884X_MAX_SWR_PORTS, &ch_mask[0],
 			&ch_rate[0], &spkright_port_types[0]);
 
-		wsa883x_codec_info_create_codec_entry(pdata->codec_root,
+		wsa884x_codec_info_create_codec_entry(pdata->codec_root,
 			component);
+		wsa884x_set_configuration(component, wsa_rload[1],
+			wsa_bat_cfg[1], wsa_system_gain[1]);
 	}
 
 	if (pdata->wsa_max_devs > 2) {
@@ -1490,12 +1500,14 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 			return -EINVAL;
 		}
 
-		wsa883x_set_channel_map(component, &spkleft_ports[0],
-			WSA883X_MAX_SWR_PORTS, &ch_mask[0],
+		wsa884x_set_channel_map(component, &spkleft_ports[0],
+			WSA884X_MAX_SWR_PORTS, &ch_mask[0],
 			&ch_rate[0], &spkleft_port_types[0]);
 
-		wsa883x_codec_info_create_codec_entry(pdata->codec_root,
+		wsa884x_codec_info_create_codec_entry(pdata->codec_root,
 			component);
+		wsa884x_set_configuration(component, wsa_rload[2],
+			wsa_bat_cfg[2], wsa_system_gain[2]);
 	}
 
 	if (pdata->wsa_max_devs > 3) {
@@ -1505,12 +1517,14 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 			return -EINVAL;
 		}
 
-		wsa883x_set_channel_map(component, &spkright_ports[0],
-			WSA883X_MAX_SWR_PORTS, &ch_mask[0],
+		wsa884x_set_channel_map(component, &spkright_ports[0],
+			WSA884X_MAX_SWR_PORTS, &ch_mask[0],
 			&ch_rate[0], &spkright_port_types[0]);
 
-		wsa883x_codec_info_create_codec_entry(pdata->codec_root,
+		wsa884x_codec_info_create_codec_entry(pdata->codec_root,
 			component);
+		wsa884x_set_configuration(component, wsa_rload[3],
+			wsa_bat_cfg[3], wsa_system_gain[3]);
 	}
 
 	msm_common_dai_link_init(rtd);

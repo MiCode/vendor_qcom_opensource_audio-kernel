@@ -788,6 +788,13 @@ int wsa884x_codec_info_create_codec_entry(struct snd_info_entry *codec_root,
 }
 EXPORT_SYMBOL(wsa884x_codec_info_create_codec_entry);
 
+int wsa884x_set_configuration(struct snd_soc_component *component,
+				     u8 rload, u8 bat_cfg, u8 system_gain)
+{
+	return 0;
+}
+EXPORT_SYMBOL(wsa884x_set_configuration);
+
 /*
  * wsa884x_codec_get_dev_num - returns swr device number
  * @component: Codec instance
