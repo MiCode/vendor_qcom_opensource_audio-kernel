@@ -1381,7 +1381,8 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int w
 	if (card) {
 		card->dai_link = dailink;
 		card->num_links = total_links;
-		card->late_probe = msm_snd_card_late_probe;
+		if (!strcmp(match->data, "codec"))
+			card->late_probe = msm_snd_card_late_probe;
 	}
 
 	return card;
@@ -1747,6 +1748,7 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	struct msm_asoc_mach_data *pdata = NULL;
 	int ret = 0;
 	struct clk *lpass_audio_hw_vote = NULL;
+	const struct of_device_id *match;
 
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "%s: No platform supplied from device tree\n", __func__);
@@ -1778,6 +1780,14 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	match = of_match_node(kalama_asoc_machine_of_match, pdev->dev.of_node);
+	if (!match) {
+		dev_err(&pdev->dev, "%s: No DT match found for sound card\n",
+			__func__);
+		ret = -EINVAL;
+		goto err;
+	}
+
 	card->dev = &pdev->dev;
 	platform_set_drvdata(pdev, card);
 	snd_soc_card_set_drvdata(card, pdata);
@@ -1789,11 +1799,13 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	ret = snd_soc_of_parse_audio_routing(card, "qcom,audio-routing");
-	if (ret) {
-		dev_err(&pdev->dev, "%s: parse audio routing failed, err:%d\n",
-			__func__, ret);
-		goto err;
+	if(!strcmp(match->data, "codec")) {
+		ret = snd_soc_of_parse_audio_routing(card, "qcom,audio-routing");
+		if (ret) {
+			dev_err(&pdev->dev, "%s: parse audio routing failed, err:%d\n",
+				__func__, ret);
+			goto err;
+		}
 	}
 
 	ret = msm_populate_dai_link_component_of_node(card);
