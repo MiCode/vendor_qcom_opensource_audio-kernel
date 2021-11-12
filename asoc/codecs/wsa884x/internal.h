@@ -165,7 +165,6 @@ struct wsa884x_priv {
 	int num_supplies;
 	struct regulator_bulk_data *supplies;
 	unsigned long status_mask;
-	char *wsa884x_name_prefix;
 	struct snd_soc_dai_driver *dai_driver;
 	struct snd_soc_component_driver *driver;
 };

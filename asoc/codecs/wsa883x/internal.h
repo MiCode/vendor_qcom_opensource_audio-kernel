@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2019-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef WSA883X_INTERNAL_H
@@ -123,7 +123,6 @@ struct wsa883x_priv {
 	int num_supplies;
 	struct regulator_bulk_data *supplies;
 	unsigned long status_mask;
-	char *wsa883x_name_prefix;
 	struct snd_soc_dai_driver *dai_driver;
 	struct snd_soc_component_driver *driver;
 };
