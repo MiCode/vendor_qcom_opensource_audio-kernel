@@ -73,6 +73,96 @@ enum {
 	COMP_OFFSET4,
 };
 
+enum {
+	EXT_ABOVE_3S,
+	CONFIG_1S,
+	CONFIG_2S,
+	CONFIG_3S,
+	EXT_1S,
+	EXT_2S,
+	EXT_3S,
+};
+
+enum {
+	WSA_4OHMS = 0,
+	WSA_6OHMS,
+	WSA_8OHMS,
+	WSA_32OHMS,
+	WSA_MAXOHMS,
+};
+
+/* Aux gain from system gain */
+static const u8 pa_aux_no_comp[G_MAX_DB] = {
+	PA_AUX_18_DB,  /* G_21_DB   */
+	PA_AUX_18_DB,  /* G_19P5_DB */
+	PA_AUX_18_DB,  /* G_18_DB   */
+	PA_AUX_18_DB,  /* G_16P5_DB */
+	PA_AUX_18_DB,  /* G_15_DB   */
+	PA_AUX_12_DB,  /* G_13P5_DB */
+	PA_AUX_12_DB,  /* G_12_DB   */
+	PA_AUX_12_DB,  /* G_10P5_DB */
+	PA_AUX_7P5_DB, /* G_9_DB    */
+	PA_AUX_7P5_DB, /* G_7P5_DB  */
+	PA_AUX_7P5_DB, /* G_6_DB    */
+	PA_AUX_7P5_DB, /* G_4P5_DB  */
+	PA_AUX_0_DB,   /* G_3_DB    */
+	PA_AUX_0_DB,   /* G_1P5_DB  */
+	PA_AUX_0_DB,   /* G_0_DB    */
+	PA_AUX_M1P5_DB,/* G_M1P5_DB */
+	PA_AUX_M3_DB,  /* G_M3_DB   */
+	PA_AUX_M4P5_DB,/* G_M4P5_DB */
+	PA_AUX_M6_DB   /* G_M6_DB   */
+};
+
+/*
+ * Isense data indexed by system_gain and rload
+ * WSA_4OHMS, WSA_6OHMS, WSA_8OHMS, WSA_32OHMS
+ */
+static const u8 isense_gain_data[G_MAX_DB][WSA_MAXOHMS] = {
+	{ISENSE_18_DB, ISENSE_6_DB, ISENSE_12_DB, ISENSE_18_DB},  /*G_21_DB   */
+	{ISENSE_18_DB, ISENSE_6_DB, ISENSE_12_DB, ISENSE_18_DB},  /*G_19P5_DB */
+	{ISENSE_18_DB, ISENSE_6_DB, ISENSE_15_DB, ISENSE_18_DB},  /*G_18_DB   */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_15_DB, ISENSE_18_DB}, /*G_16P5_DB */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_15_DB   */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_13P5_DB */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_12_DB   */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_10P5_DB */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_9_DB    */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_7P5_DB  */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_6_DB    */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_4P5_DB  */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_3_DB    */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_1P5_DB  */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_0_DB    */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M1P5_DB */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M3_DB   */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M4P5_DB */
+	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M6_DB   */
+};
+
+/* Vsense gain from system gain */
+static const u8 vsense_gain_data[G_MAX_DB] = {
+	VSENSE_M24_DB, /* G_21_DB   */
+	VSENSE_M24_DB, /* G_19P5_DB */
+	VSENSE_M21_DB, /* G_18_DB   */
+	VSENSE_M18_DB, /* G_16P5_DB */
+	VSENSE_M18_DB, /* G_15_DB   */
+	VSENSE_M15_DB, /* G_13P5_DB */
+	VSENSE_M15_DB, /* G_12_DB   */
+	VSENSE_M12_DB, /* G_10P5_DB */
+	VSENSE_M12_DB, /* G_9_DB    */
+	VSENSE_M12_DB, /* G_7P5_DB  */
+	VSENSE_M12_DB, /* G_6_DB    */
+	VSENSE_M12_DB, /* G_4P5_DB  */
+	VSENSE_M12_DB, /* G_3_DB    */
+	VSENSE_M12_DB, /* G_1P5_DB  */
+	VSENSE_M12_DB, /* G_0_DB    */
+	VSENSE_M12_DB, /* G_M1P5_DB */
+	VSENSE_M12_DB, /* G_M3_DB   */
+	VSENSE_M12_DB, /* G_M4P5_DB */
+	VSENSE_M12_DB  /* G_M6_DB   */
+};
+
 struct wsa_reg_mask_val {
 	u16 reg;
 	u8 mask;
@@ -80,6 +170,7 @@ struct wsa_reg_mask_val {
 };
 
 static const struct wsa_reg_mask_val reg_init[] = {
+	{REG_FIELD_VALUE(CKWD_CTL_1, VPP_SW_CTL, 0x00)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A2_0, COEF_A2, 0x0A)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A2_1, COEF_A2, 0x08)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_A3_0, COEF_A3, 0xF3)},
@@ -99,15 +190,14 @@ static const struct wsa_reg_mask_val reg_init[] = {
 	{REG_FIELD_VALUE(CDC_SPK_DSM_R5, SAT_LIMIT_R5, 0x8B)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_R6, SAT_LIMIT_R6, 0x9B)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_R7, SAT_LIMIT_R7, 0x3F)},
-	{REG_FIELD_VALUE(DRE_CTL_0, PROG_DELAY, 0x00)},
 	{REG_FIELD_VALUE(BOP_DEGLITCH_CTL, BOP_DEGLITCH_SETTING, 0x08)},
-	{REG_FIELD_VALUE(GAIN_RAMPING_MIN, MIN_GAIN, 0x0E)},
-	{REG_FIELD_VALUE(CLSH_SOFT_MAX, SOFT_MAX,  0xFF)},
-	{REG_FIELD_VALUE(CLSH_VTH1, CLSH_VTH1,  0xFF)},
-	{REG_FIELD_VALUE(VSENSE1, GAIN_VSENSE_FE,  0x04)},
-	{REG_FIELD_VALUE(ADC_2, ISNS_LOAD_STORED,  0x00)},
-	{REG_FIELD_VALUE(ADC_7, EN_AZ_REG,  0x01)},
-	{REG_FIELD_VALUE(ADC_7, EN_SAR_REG,  0x01)}
+	{REG_FIELD_VALUE(CLSH_CTL_0, DLY_CODE, 0x06)},
+	{REG_FIELD_VALUE(CLSH_SOFT_MAX, SOFT_MAX, 0xFF)},
+	{REG_FIELD_VALUE(OTP_REG_38, BOOST_ILIM_TUNE, 0x00)},
+	{REG_FIELD_VALUE(OTP_REG_40, ISENSE_RESCAL, 0x08)},
+	{REG_FIELD_VALUE(STB_CTRL1, SLOPE_COMP_CURRENT, 0x0D)},
+	{REG_FIELD_VALUE(ILIM_CTRL1, ILIM_OFFSET_PB, 0x03)},
+	{REG_FIELD_VALUE(CKWD_CTL_1, CKWD_VCOMP_VREF_SEL, 0x13)},
 };
 
 static int wsa884x_handle_post_irq(void *data);
@@ -116,7 +206,7 @@ static int wsa884x_get_temperature(struct snd_soc_component *component,
 enum {
 	WSA8840 = 0,
 	WSA8845 = 5,
-	WSA884H = 12,
+	WSA8845H = 0xC,
 };
 
 enum {
@@ -504,6 +594,13 @@ static const char * const wsa_dev_mode_text[] = {
 	"speaker", "receiver", "ultrasound"
 };
 
+enum {
+	SPEAKER,
+	RECEIVER,
+	ULTRASOUND,
+};
+
+
 static const struct soc_enum wsa_dev_mode_enum =
 	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(wsa_dev_mode_text), wsa_dev_mode_text);
 
@@ -675,8 +772,8 @@ static ssize_t wsa884x_variant_read(struct snd_info_entry *entry,
 	case WSA8845:
 		len = snprintf(buffer, sizeof(buffer), "WSA8845\n");
 		break;
-	case WSA884H:
-		len = snprintf(buffer, sizeof(buffer), "WSA884H\n");
+	case WSA8845H:
+		len = snprintf(buffer, sizeof(buffer), "WSA8845H\n");
 		break;
 	default:
 		len = snprintf(buffer, sizeof(buffer), "UNDEFINED\n");
@@ -791,6 +888,11 @@ EXPORT_SYMBOL(wsa884x_codec_info_create_codec_entry);
 int wsa884x_set_configuration(struct snd_soc_component *component,
 				     u8 rload, u8 bat_cfg, u8 system_gain)
 {
+	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
+
+	wsa884x->rload = rload;
+	wsa884x->bat_cfg = bat_cfg;
+	wsa884x->system_gain = system_gain;
 	return 0;
 }
 EXPORT_SYMBOL(wsa884x_set_configuration);
@@ -933,9 +1035,16 @@ static int wsa884x_set_pbr(struct snd_kcontrol *kcontrol,
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
 	int value = ucontrol->value.integer.value[0];
 
-	dev_dbg(component->dev, "%s: VIsense enable current %d, new %d\n",
+	dev_dbg(component->dev, "%s: PBR enable current %d, new %d\n",
 		 __func__, wsa884x->pbr_enable, value);
 	wsa884x->pbr_enable = value;
+
+	if (value) {
+		snd_soc_component_update_bits(component,
+			WSA884X_CLSH_VTH1,
+			0xFF, 0xFF);
+	}
+
 	return 0;
 }
 
@@ -1158,12 +1267,82 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static int wsa884x_set_gain_parameters(struct snd_soc_component *component)
+{
+	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
+
+	switch (wsa884x->bat_cfg) {
+	case CONFIG_1S:
+	case EXT_1S:
+		switch (wsa884x->system_gain) {
+		case G_21_DB:
+			wsa884x->comp_offset = COMP_OFFSET0;
+			wsa884x->min_gain = G_0_DB;
+			wsa884x->pa_aux_gain = PA_AUX_0_DB;
+			break;
+		case G_19P5_DB:
+			wsa884x->comp_offset = COMP_OFFSET1;
+			wsa884x->min_gain = G_M1P5_DB;
+			wsa884x->pa_aux_gain =  PA_AUX_M1P5_DB;
+			break;
+		case G_18_DB:
+			wsa884x->comp_offset = COMP_OFFSET2;
+			wsa884x->min_gain = G_M3_DB;
+			wsa884x->pa_aux_gain =  PA_AUX_M3_DB;
+			break;
+		case G_16P5_DB:
+			wsa884x->comp_offset = COMP_OFFSET3;
+			wsa884x->min_gain = G_M4P5_DB;
+			wsa884x->pa_aux_gain =  PA_AUX_M4P5_DB;
+			break;
+		default:
+			wsa884x->comp_offset = COMP_OFFSET4;
+			wsa884x->min_gain = G_M6_DB;
+			wsa884x->pa_aux_gain =  PA_AUX_M6_DB;
+			break;
+		}
+		break;
+	case CONFIG_3S:
+	case EXT_3S:
+		wsa884x->comp_offset = COMP_OFFSET0;
+		wsa884x->min_gain = G_7P5_DB;
+		wsa884x->pa_aux_gain =  PA_AUX_7P5_DB;
+		break;
+	case EXT_ABOVE_3S:
+		wsa884x->comp_offset = COMP_OFFSET0;
+		wsa884x->min_gain = G_12_DB;
+		wsa884x->pa_aux_gain =  PA_AUX_12_DB;
+		break;
+	default:
+		wsa884x->comp_offset = COMP_OFFSET0;
+		wsa884x->min_gain = G_0_DB;
+		wsa884x->pa_aux_gain = PA_AUX_0_DB;
+		break;
+	}
+
+	if (!wsa884x->comp_enable)
+		wsa884x->pa_aux_gain = pa_aux_no_comp[wsa884x->system_gain];
+
+	snd_soc_component_update_bits(component,
+		REG_FIELD_VALUE(GAIN_RAMPING_MIN, MIN_GAIN, wsa884x->min_gain));
+	if (wsa884x->comp_enable)
+		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(DRE_CTL_0, OFFSET,
+					wsa884x->comp_offset));
+	return 0;
+}
+
 static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol, int event)
 {
 	struct snd_soc_component *component =
 			snd_soc_dapm_to_component(w->dapm);
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
+	u8 igain;
+	u8 vgain;
+	u8 ana_wo_ctl_0_value;
+	u8 pa_aux_shift = 0x02;
+	u8 vphx_shift = 0x06;
 
 	dev_dbg(component->dev, "%s: %s %d\n", __func__, w->name, event);
 	switch (event) {
@@ -1171,24 +1350,51 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 		swr_slvdev_datapath_control(wsa884x->swr_slave,
 					    wsa884x->swr_slave->dev_num,
 					    true);
-		/* Added delay as per HW sequence */
-		usleep_range(250, 300);
+		wsa884x_set_gain_parameters(component);
+		/* Must write WO registers in a single write */
+		ana_wo_ctl_0_value = ((wsa884x->bat_cfg & 0x03) << vphx_shift) |
+				     (wsa884x->pa_aux_gain << pa_aux_shift)    |
+				     wsa884x->dev_mode;
 		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x01));
-		/* Added delay as per HW sequence */
-		usleep_range(250, 300);
-		if (wsa884x->comp_enable)
+			WSA884X_ANA_WO_CTL_0, 0xFF, ana_wo_ctl_0_value);
+		snd_soc_component_update_bits(component,
+			WSA884X_ANA_WO_CTL_1, 0xFF, 0);
+		if (wsa884x->rload == WSA_4OHMS ||
+		    wsa884x->rload == WSA_6OHMS)
 			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(DRE_CTL_0, OFFSET,
-						wsa884x->comp_offset));
+				REG_FIELD_VALUE(OCP_CTL, OCP_CURR_LIMIT, 0x07));
+		if (wsa884x->dev_mode == SPEAKER) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(DRE_CTL_0, PROG_DELAY, 0x0F));
+		} else {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(DRE_CTL_0, PROG_DELAY, 0x03));
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CDC_PATH_MODE, RXD_MODE, 0x01));
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(PWM_CLK_CTL,
+				PWM_CLK_FREQ_SEL, 0x01));
+		}
+		if (!wsa884x->pbr_enable) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CURRENT_LIMIT,
+				CURRENT_LIMIT_OVRD_EN, 0x01));
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CURRENT_LIMIT,
+				CURRENT_LIMIT, 0x09));
+		}
+		igain = isense_gain_data[wsa884x->system_gain][wsa884x->rload];
+		vgain = vsense_gain_data[wsa884x->system_gain];
+		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(ISENSE2, ISENSE_GAIN_CTL, igain));
+		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(VSENSE1, GAIN_VSENSE_FE, vgain));
 		wcd_enable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO);
 		/* Force remove group */
 		swr_remove_from_group(wsa884x->swr_slave,
 				      wsa884x->swr_slave->dev_num);
 		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(VBAT_THRM_FLT_CTL, VBAT_COEF_SEL, 0x03));
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(VBAT_THRM_FLT_CTL, VBAT_FLT_EN, 0x01));
+			REG_FIELD_VALUE(VBAT_THRM_FLT_CTL, VBAT_COEF_SEL, 0x04));
 		if (test_bit(SPKR_ADIE_LB, &wsa884x->status_mask))
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x01));
@@ -1197,10 +1403,6 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 		if (!test_bit(SPKR_ADIE_LB, &wsa884x->status_mask))
 			wcd_disable_irq(&wsa884x->irq_info,
 					WSA884X_IRQ_INT_PDM_WD);
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(VBAT_THRM_FLT_CTL, VBAT_FLT_EN, 0x00));
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(VBAT_THRM_FLT_CTL, VBAT_COEF_SEL, 0x00));
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x00));
 		snd_soc_component_update_bits(component,
@@ -1267,11 +1469,10 @@ static void wsa884x_codec_init(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, reg_init[i].reg,
 					reg_init[i].mask, reg_init[i].val);
 
-	if (wsa884x->variant == WSA8840 || wsa884x->variant == WSA8845) {
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(DRE_CTL_0, OFFSET, 0x03));
-		wsa884x->comp_offset = COMP_OFFSET3;
-	}
+	if (wsa884x->variant == WSA8845H)
+		snd_soc_component_update_bits(wsa884x->component,
+		REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x01));
+
 }
 
 static int32_t wsa884x_temp_reg_read(struct snd_soc_component *component,
@@ -1422,6 +1623,9 @@ static int wsa884x_codec_probe(struct snd_soc_component *component)
 	wsa884x->version = version;
 
 	wsa884x->comp_offset = COMP_OFFSET2;
+	wsa884x->bat_cfg = CONFIG_1S;
+	wsa884x->rload = WSA_8OHMS;
+	wsa884x->system_gain = G_19P5_DB;
 	wsa884x_codec_init(component);
 	wsa884x->global_pa_cnt = 0;
 

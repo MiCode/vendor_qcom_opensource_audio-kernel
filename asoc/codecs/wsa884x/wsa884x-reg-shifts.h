@@ -22,6 +22,10 @@
 #define WSA884X_VSENSE1_VSENSE_AMP_IQ_CTL_1_SHIFT                         0x04
 #define WSA884X_VSENSE1_IDLE_MODE_CTL_SHIFT                               0x02
 #define WSA884X_VSENSE1_VOCM_AMP_CTL_SHIFT                                0x00
+/* WSA884X_ISENSE2 Fields: */
+#define WSA884X_ISENSE2_ISENSE_GAIN_CTL_SHIFT                             0x05
+#define WSA884X_ISENSE2_SUMAMP_IQ_CTL_SHIFT                               0x04
+#define WSA884X_ISENSE2_SPARE_BITS_3_0_SHIFT                              0x00
 /* WSA884X_ADC_2 Fields: */
 #define WSA884X_ADC_2_ATEST_SEL_CAL_REF_SHIFT                             0x07
 #define WSA884X_ADC_2_ISNS_LOAD_STORED_SHIFT                              0x06
@@ -123,6 +127,9 @@
 /* WSA884X_TADC_VALUE_CTL Fields: */
 #define WSA884X_TADC_VALUE_CTL_VBAT_VALUE_RD_EN_SHIFT                     0x01
 #define WSA884X_TADC_VALUE_CTL_TEMP_VALUE_RD_EN_SHIFT                     0x00
+/* WSA884X_CDC_PATH_MODE Fields: */
+#define WSA884X_CDC_PATH_MODE_RXD_MODE_SHIFT                              0x01
+#define WSA884X_CDC_PATH_MODE_TXD_MODE_SHIFT                              0x00
 /* WSA884X_PA_FSM_BYP0 Fields: */
 #define WSA884X_PA_FSM_BYP0_TSADC_EN_SHIFT                                0x07
 #define WSA884X_PA_FSM_BYP0_SPKR_PROT_EN_SHIFT                            0x06
@@ -142,4 +149,48 @@
 #define WSA884X_PA_FSM_BYP1_PA_AUX_EN_SHIFT                               0x00
 /* WSA884X_PA_FSM_EN Fields: */
 #define WSA884X_PA_FSM_EN_GLOBAL_PA_EN_SHIFT                              0x00
+/* WSA884X_OCP_CTL Fields: */
+#define WSA884X_OCP_CTL_OCP_EN_SHIFT                                      0x07
+#define WSA884X_OCP_CTL_OCP_CURR_LIMIT_SHIFT                              0x04
+#define WSA884X_OCP_CTL_GLITCH_FILTER_SHIFT                               0x02
+#define WSA884X_OCP_CTL_OCP_P_HS_DLY_CTL_SHIFT                            0x00
+/* WSA884X_ILIM_CTRL1 Fields: */
+#define WSA884X_ILIM_CTRL1_EN_AUTO_MAXD_SEL_SHIFT                         0x07
+#define WSA884X_ILIM_CTRL1_EN_ILIM_SW_CLH_SHIFT                           0x06
+#define WSA884X_ILIM_CTRL1_ILIM_OFFSET_CLH_SHIFT                          0x03
+#define WSA884X_ILIM_CTRL1_ILIM_OFFSET_PB_SHIFT                           0x00
+/* WSA884X_CLSH_CTL_0 Fields: */
+#define WSA884X_CLSH_CTL_0_CSR_GAIN_EN_SHIFT                              0x07
+#define WSA884X_CLSH_CTL_0_DLY_CODE_SHIFT                                 0x04
+#define WSA884X_CLSH_CTL_0_DLY_RST_SHIFT                                  0x03
+#define WSA884X_CLSH_CTL_0_DLY_EN_SHIFT                                   0x02
+#define WSA884X_CLSH_CTL_0_INPUT_EN_SHIFT                                 0x01
+#define WSA884X_CLSH_CTL_0_CLSH_EN_SHIFT                                  0x00
+/* WSA884X_STB_CTRL1 Fields: */
+#define WSA884X_STB_CTRL1_SLOPE_COMP_CURRENT_SHIFT                        0x03
+#define WSA884X_STB_CTRL1_VOUT_FS_SHIFT                                   0x00
+/* WSA884X_OTP_REG_38 Fields: */
+#define WSA884X_OTP_REG_38_RESERVER_SHIFT                                 0x04
+#define WSA884X_OTP_REG_38_BST_CFG_SEL_SHIFT                              0x03
+#define WSA884X_OTP_REG_38_BOOST_ILIM_TUNE_SHIFT                          0x00
+/* WSA884X_OTP_REG_40 Fields: */
+#define WSA884X_OTP_REG_40_SPARE_TYPE2_SHIFT                              0x06
+#define WSA884X_OTP_REG_40_ISENSE_RESCAL_SHIFT                            0x02
+#define WSA884X_OTP_REG_40_ATE_BOOST_RDSON_TEST_SHIFT                     0x01
+#define WSA884X_OTP_REG_40_ATE_CLASSD_RDSON_TEST_SHIFT                    0x00
+/* WSA884X_CURRENT_LIMIT Fields: */
+#define WSA884X_CURRENT_LIMIT_CURRENT_LIMIT_OVRD_EN_SHIFT                 0x07
+#define WSA884X_CURRENT_LIMIT_CURRENT_LIMIT_SHIFT                         0x02
+#define WSA884X_CURRENT_LIMIT_CLK_PHASE_SHIFT                             0x00
+/* WSA884X_PWM_CLK_CTL Fields: */
+#define WSA884X_PWM_CLK_CTL_VCMO_INT1_IDLE_MODE_OVRT_SHIFT                0x07
+#define WSA884X_PWM_CLK_CTL_REG_MCLK_DIV_RATIO_SHIFT                      0x06
+#define WSA884X_PWM_CLK_CTL_PWM_DEGLITCH_CLK_DELAY_CTRL_SHIFT             0x04
+#define WSA884X_PWM_CLK_CTL_PWM_CLK_FREQ_SEL_SHIFT                        0x03
+#define WSA884X_PWM_CLK_CTL_PWM_CLK_DIV_RATIO_SHIFT                       0x01
+#define WSA884X_PWM_CLK_CTL_PWM_CLK_DIV_BYPASS_SHIFT                      0x00
+/* WSA884X_CKWD_CTL_1 Fields: */
+#define WSA884X_CKWD_CTL_1_SPARE_BITS_7_6_SHIFT                           0x06
+#define WSA884X_CKWD_CTL_1_VPP_SW_CTL_SHIFT                               0x05
+#define WSA884X_CKWD_CTL_1_CKWD_VCOMP_VREF_SEL_SHIFT                      0x00
 #endif /* WSA884X_REG_SHIFTS_H */
