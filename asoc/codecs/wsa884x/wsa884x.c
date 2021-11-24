@@ -1938,6 +1938,8 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 		goto dev_err;
 	}
 
+	wsa884x->swr_slave->slave_irq = wsa884x->virq;
+
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_SAF2WAR,
 			"WSA SAF2WAR", wsa884x_saf2war_handle_irq, NULL);
 
