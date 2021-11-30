@@ -15,7 +15,7 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
-#define SWR_MSTR_MAX_REG_ADDR	0x6B160A8
+#define SWR_MSTR_MAX_REG_ADDR	0x60A8
 #define SWR_MSTR_START_REG_ADDR	0x00
 #define SWR_MSTR_MAX_BUF_LEN     32
 #define BYTES_PER_LINE          12
@@ -32,7 +32,7 @@
 
 #define SWR_WCD_NAME	"swr-wcd"
 
-#define SWR_MSTR_PORT_LEN	8 /* Number of master ports */
+#define SWR_MSTR_PORT_LEN	13 /* Number of master ports */
 
 #define SWRM_VERSION_1_0 0x01010000
 #define SWRM_VERSION_1_2 0x01030000

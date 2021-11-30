@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
  */
 
 #ifndef _LINUX_SOUNDWIRE_H
@@ -19,6 +19,8 @@ enum {
 	SWR_UC_MAX,
 };
 
+#define SWR_CLK_RATE_24KHZ        24000
+#define SWR_CLK_RATE_48KHZ        48000
 #define SWR_CLK_RATE_0P3MHZ       300000
 #define SWR_CLK_RATE_0P6MHZ       600000
 #define SWR_CLK_RATE_1P2MHZ      1200000

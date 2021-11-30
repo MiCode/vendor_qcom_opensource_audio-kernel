@@ -37,6 +37,7 @@
 
 static int swr_master_channel_map[] = {
 	ZERO,
+	SWRM_TX_PCM_OUT,
 	SWRM_TX1_CH1,
 	SWRM_TX1_CH2,
 	SWRM_TX1_CH3,
@@ -49,7 +50,7 @@ static int swr_master_channel_map[] = {
 	SWRM_TX3_CH2,
 	SWRM_TX3_CH3,
 	SWRM_TX3_CH4,
-	SWRM_PCM_IN,
+	SWRM_TX_PCM_IN,
 };
 
 /*
@@ -364,10 +365,10 @@ err_port_map:
 }
 
 static const char * const tx_master_port_text[] = {
-	"ZERO", "SWRM_TX1_CH1", "SWRM_TX1_CH2", "SWRM_TX1_CH3", "SWRM_TX1_CH4",
-	"SWRM_TX2_CH1", "SWRM_TX2_CH2", "SWRM_TX2_CH3", "SWRM_TX2_CH4",
-	"SWRM_TX3_CH1", "SWRM_TX3_CH2", "SWRM_TX3_CH3", "SWRM_TX3_CH4",
-	"SWRM_PCM_IN",
+	"ZERO", "SWRM_PCM_OUT", "SWRM_TX1_CH1", "SWRM_TX1_CH2", "SWRM_TX1_CH3",
+	"SWRM_TX1_CH4", "SWRM_TX2_CH1", "SWRM_TX2_CH2", "SWRM_TX2_CH3",
+	"SWRM_TX2_CH4", "SWRM_TX3_CH1", "SWRM_TX3_CH2", "SWRM_TX3_CH3",
+	"SWRM_TX3_CH4", "SWRM_PCM_IN",
 };
 
 static const struct soc_enum tx_master_port_enum =

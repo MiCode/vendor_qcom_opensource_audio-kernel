@@ -1439,15 +1439,16 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int w
 
 static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 {
-	u8 spkleft_ports[WSA884X_MAX_SWR_PORTS] = {0, 1, 2, 3};
-	u8 spkright_ports[WSA884X_MAX_SWR_PORTS] = {0, 1, 2, 3};
+	u8 spkleft_ports[WSA884X_MAX_SWR_PORTS] = {0, 1, 2, 3, 4, 5};
+	u8 spkright_ports[WSA884X_MAX_SWR_PORTS] = {0, 1, 2, 3, 4, 5};
 	u8 spkleft_port_types[WSA884X_MAX_SWR_PORTS] = {SPKR_L, SPKR_L_COMP,
-						SPKR_L_BOOST, SPKR_L_VI};
+						SPKR_L_BOOST, PBR, SPKR_L_VI, CPS};
 	u8 spkright_port_types[WSA884X_MAX_SWR_PORTS] = {SPKR_R, SPKR_R_COMP,
-						SPKR_R_BOOST, SPKR_R_VI};
+						SPKR_R_BOOST, PBR, SPKR_R_VI, CPS};
 	unsigned int ch_rate[WSA884X_MAX_SWR_PORTS] = {SWR_CLK_RATE_2P4MHZ, SWR_CLK_RATE_0P6MHZ,
-							SWR_CLK_RATE_0P3MHZ, SWR_CLK_RATE_1P2MHZ};
-	unsigned int ch_mask[WSA884X_MAX_SWR_PORTS] = {0x1, 0xF, 0x3, 0x3};
+							SWR_CLK_RATE_0P3MHZ, SWR_CLK_RATE_48KHZ,
+							SWR_CLK_RATE_1P2MHZ, SWR_CLK_RATE_24KHZ};
+	unsigned int ch_mask[WSA884X_MAX_SWR_PORTS] = {0x1, 0xF, 0x3, 0x3, 0x3, 0x3};
 
 
 	struct snd_soc_component *component = NULL;

@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
- * Copyright (c) 2015, 2017-2020 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2015, 2017-2021 The Linux Foundation. All rights reserved.
  */
 
 #ifndef _LINUX_SWR_COMMON_H
@@ -36,6 +36,6 @@ struct swr_mstr_port_map {
 	struct port_params *swr_port_params;
 };
 
-#define SWR_MSTR_PORT_LEN      8 /* Number of master ports */
+#define SWR_MSTR_PORT_LEN      13 /* Number of master ports */
 
 #endif /* _LINUX_SWR_COMMON_H */
