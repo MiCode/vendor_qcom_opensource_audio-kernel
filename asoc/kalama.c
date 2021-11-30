@@ -1454,9 +1454,9 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 	struct msm_asoc_mach_data *pdata =
 				snd_soc_card_get_drvdata(rtd->card);
 
-	u8 wsa_rload[QUAD_SPEAKER] = {8, 8};
-	u8 wsa_bat_cfg[QUAD_SPEAKER] = {1, 1};
-	u8 wsa_system_gain[QUAD_SPEAKER] = {21, 21};
+	u8 wsa_rload[QUAD_SPEAKER] = {0x2, 0x2};
+	u8 wsa_bat_cfg[QUAD_SPEAKER] = {0x1, 0x1};
+	u8 wsa_system_gain[QUAD_SPEAKER] = {0x0, 0x0};
 
 	if (pdata->wsa_max_devs > 0) {
 		component = snd_soc_rtdcom_lookup(rtd, "wsa-codec.1");

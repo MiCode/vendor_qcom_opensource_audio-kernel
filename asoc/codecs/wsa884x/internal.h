@@ -32,21 +32,53 @@
 #define WSA884X_VERSION_1_0 0
 
 enum {
-	G_21DB = 0,
-	G_19P5DB,
-	G_18DB,
-	G_16P5DB,
-	G_15DB,
-	G_13P5DB,
-	G_12DB,
-	G_10P5DB,
-	G_9DB,
-	G_7P5DB,
-	G_6DB,
-	G_4P5DB,
-	G_3DB,
-	G_1P5DB,
-	G_0DB,
+	G_21_DB = 0,
+	G_19P5_DB,
+	G_18_DB,
+	G_16P5_DB,
+	G_15_DB,
+	G_13P5_DB,
+	G_12_DB,
+	G_10P5_DB,
+	G_9_DB,
+	G_7P5_DB,
+	G_6_DB,
+	G_4P5_DB,
+	G_3_DB,
+	G_1P5_DB,
+	G_0_DB,
+	G_M1P5_DB,
+	G_M3_DB,
+	G_M4P5_DB,
+	G_M6_DB,
+	G_MAX_DB,
+};
+
+enum {
+	PA_AUX_DISABLE = 0,
+	PA_AUX_M6_DB =   3,
+	PA_AUX_M4P5_DB = 4,
+	PA_AUX_M3_DB =   5,
+	PA_AUX_M1P5_DB = 6,
+	PA_AUX_0_DB =    7,
+	PA_AUX_7P5_DB =  8,
+	PA_AUX_12_DB =   9,
+	PA_AUX_18_DB = 0xA,
+};
+
+enum {
+	ISENSE_6_DB = 0,
+	ISENSE_12_DB,
+	ISENSE_15_DB,
+	ISENSE_18_DB
+};
+
+enum {
+	VSENSE_M12_DB = 0,
+	VSENSE_M15_DB,
+	VSENSE_M18_DB,
+	VSENSE_M21_DB,
+	VSENSE_M24_DB
 };
 
 enum {
@@ -55,7 +87,7 @@ enum {
 };
 
 enum {
-	SWR_DAC_PORT,
+	SWR_DAC_PORT = 0,
 	SWR_COMP_PORT,
 	SWR_BOOST_PORT,
 	SWR_PBR_PORT,
@@ -109,6 +141,11 @@ struct wsa884x_priv {
 	int variant;
 	int version;
 	u8 pa_gain;
+	u8 bat_cfg;
+	u8 rload;
+	u8 system_gain;
+	int min_gain;
+	int pa_aux_gain;
 	struct irq_domain *virq;
 	struct wcd_irq_info irq_info;
 #ifdef CONFIG_DEBUG_FS

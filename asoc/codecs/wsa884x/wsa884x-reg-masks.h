@@ -22,6 +22,10 @@
 #define WSA884X_VSENSE1_VSENSE_AMP_IQ_CTL_1_MASK                         0x10
 #define WSA884X_VSENSE1_IDLE_MODE_CTL_MASK                               0x0c
 #define WSA884X_VSENSE1_VOCM_AMP_CTL_MASK                                0x03
+/* WSA884X_ISENSE2 Fields: */
+#define WSA884X_ISENSE2_ISENSE_GAIN_CTL_MASK                             0xe0
+#define WSA884X_ISENSE2_SUMAMP_IQ_CTL_MASK                               0x10
+#define WSA884X_ISENSE2_SPARE_BITS_3_0_MASK                              0x0f
 /* WSA884X_ADC_2 Fields: */
 #define WSA884X_ADC_2_ATEST_SEL_CAL_REF_MASK                             0x80
 #define WSA884X_ADC_2_ISNS_LOAD_STORED_MASK                              0x40
@@ -123,6 +127,9 @@
 /* WSA884X_TADC_VALUE_CTL Fields: */
 #define WSA884X_TADC_VALUE_CTL_VBAT_VALUE_RD_EN_MASK                     0x02
 #define WSA884X_TADC_VALUE_CTL_TEMP_VALUE_RD_EN_MASK                     0x01
+/* WSA884X_CDC_PATH_MODE Fields: */
+#define WSA884X_CDC_PATH_MODE_RXD_MODE_MASK                              0x02
+#define WSA884X_CDC_PATH_MODE_TXD_MODE_MASK                              0x01
 /* WSA884X_PA_FSM_BYP0 Fields: */
 #define WSA884X_PA_FSM_BYP0_TSADC_EN_MASK                                0x80
 #define WSA884X_PA_FSM_BYP0_SPKR_PROT_EN_MASK                            0x40
@@ -152,5 +159,48 @@
 #define WSA884X_CHIP_ID2_BYTE_2_MASK                                     0xff
 /* WSA884X_CHIP_ID3 Fields: */
 #define WSA884X_CHIP_ID3_BYTE_3_MASK                                     0xff
-
+/* WSA884X_OCP_CTL Fields: */
+#define WSA884X_OCP_CTL_OCP_EN_MASK                                      0x80
+#define WSA884X_OCP_CTL_OCP_CURR_LIMIT_MASK                              0x70
+#define WSA884X_OCP_CTL_GLITCH_FILTER_MASK                               0x0c
+#define WSA884X_OCP_CTL_OCP_P_HS_DLY_CTL_MASK                            0x03
+/* WSA884X_ILIM_CTRL1 Fields: */
+#define WSA884X_ILIM_CTRL1_EN_AUTO_MAXD_SEL_MASK                         0x80
+#define WSA884X_ILIM_CTRL1_EN_ILIM_SW_CLH_MASK                           0x40
+#define WSA884X_ILIM_CTRL1_ILIM_OFFSET_CLH_MASK                          0x38
+#define WSA884X_ILIM_CTRL1_ILIM_OFFSET_PB_MASK                           0x07
+/* WSA884X_CLSH_CTL_0 Fields: */
+#define WSA884X_CLSH_CTL_0_CSR_GAIN_EN_MASK                              0x80
+#define WSA884X_CLSH_CTL_0_DLY_CODE_MASK                                 0x70
+#define WSA884X_CLSH_CTL_0_DLY_RST_MASK                                  0x08
+#define WSA884X_CLSH_CTL_0_DLY_EN_MASK                                   0x04
+#define WSA884X_CLSH_CTL_0_INPUT_EN_MASK                                 0x02
+#define WSA884X_CLSH_CTL_0_CLSH_EN_MASK                                  0x01
+/* WSA884X_STB_CTRL1 Fields: */
+#define WSA884X_STB_CTRL1_SLOPE_COMP_CURRENT_MASK                        0xf8
+#define WSA884X_STB_CTRL1_VOUT_FS_MASK                                   0x07
+/* WSA884X_OTP_REG_38 Fields: */
+#define WSA884X_OTP_REG_38_RESERVER_MASK                                 0xf0
+#define WSA884X_OTP_REG_38_BST_CFG_SEL_MASK                              0x08
+#define WSA884X_OTP_REG_38_BOOST_ILIM_TUNE_MASK                          0x07
+/* WSA884X_OTP_REG_40 Fields: */
+#define WSA884X_OTP_REG_40_SPARE_TYPE2_MASK                              0xc0
+#define WSA884X_OTP_REG_40_ISENSE_RESCAL_MASK                            0x3c
+#define WSA884X_OTP_REG_40_ATE_BOOST_RDSON_TEST_MASK                     0x02
+#define WSA884X_OTP_REG_40_ATE_CLASSD_RDSON_TEST_MASK                    0x01
+/* WSA884X_CURRENT_LIMIT Fields: */
+#define WSA884X_CURRENT_LIMIT_CURRENT_LIMIT_OVRD_EN_MASK                 0x80
+#define WSA884X_CURRENT_LIMIT_CURRENT_LIMIT_MASK                         0x7c
+#define WSA884X_CURRENT_LIMIT_CLK_PHASE_MASK                             0x03
+/* WSA884X_PWM_CLK_CTL Fields: */
+#define WSA884X_PWM_CLK_CTL_VCMO_INT1_IDLE_MODE_OVRT_MASK                0x80
+#define WSA884X_PWM_CLK_CTL_REG_MCLK_DIV_RATIO_MASK                      0x40
+#define WSA884X_PWM_CLK_CTL_PWM_DEGLITCH_CLK_DELAY_CTRL_MASK             0x30
+#define WSA884X_PWM_CLK_CTL_PWM_CLK_FREQ_SEL_MASK                        0x08
+#define WSA884X_PWM_CLK_CTL_PWM_CLK_DIV_RATIO_MASK                       0x06
+#define WSA884X_PWM_CLK_CTL_PWM_CLK_DIV_BYPASS_MASK                      0x01
+/* WSA884X_CKWD_CTL_1 Fields: */
+#define WSA884X_CKWD_CTL_1_SPARE_BITS_7_6_MASK                           0xc0
+#define WSA884X_CKWD_CTL_1_VPP_SW_CTL_MASK                               0x20
+#define WSA884X_CKWD_CTL_1_CKWD_VCOMP_VREF_SEL_MASK                      0x1f
 #endif /* WSA884X_REG_MASKS_H */
