@@ -774,25 +774,13 @@ static int swrm_pcm_port_config(struct swr_mstr_ctrl *swrm, u8 port_num,
 		return -EINVAL;
 	}
 
-	switch (stream_type) {
-	case SWR_PCM:
-		reg_addr = ((dir) ? SWRM_DIN_DP_PCM_PORT_CTRL(port_num) : \
-				SWRM_DOUT_DP_PCM_PORT_CTRL(port_num));
-		swr_master_write(swrm, reg_addr, enable);
-		reg_val = 1;
-		break;
-	case SWR_PDM_32:
-		break;
-	case SWR_PDM:
-	default:
+	if (stream_type == SWR_PDM)
 		return 0;
-	}
-	if (enable) {
-		reg_addr = ((dir) ? SWRM_DIN_DP_PCM_PORT_CTRL(port_num) : \
-				SWRM_DOUT_DP_PCM_PORT_CTRL(port_num));
-		/* Ungate Clock Bit */
-		swr_master_write(swrm, reg_addr, reg_val |= 0x02);
-	}
+
+	reg_addr = ((dir) ? SWRM_DIN_DP_PCM_PORT_CTRL(port_num) : \
+			SWRM_DOUT_DP_PCM_PORT_CTRL(port_num));
+	reg_val = enable ? 0x3 : 0x0;
+	swr_master_write(swrm, reg_addr, reg_val);
 
 	return 0;
 }
@@ -926,7 +914,9 @@ retry_read:
 			usleep_range(500, 505);
 			if (retry_attempt == (MAX_FIFO_RD_FAIL_RETRY - 1)) {
 				swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
-				swr_master_write(swrm, SWRM_CMD_FIFO_RD_CMD(swrm->ee_val), val);
+				swr_master_write(swrm,
+					SWRM_CMD_FIFO_RD_CMD(swrm->ee_val),
+					val);
 			}
 			retry_attempt++;
 			goto retry_read;
@@ -2196,7 +2186,8 @@ handle_irq:
 					__func__);
 			swrm->intr_mask &= ~SWRM_INTERRUPT_STATUS_DOUT_PORT_COLLISION;
 			swr_master_write(swrm,
-				SWRM_INTERRUPT_EN(swrm->ee_val), swrm->intr_mask);
+				SWRM_INTERRUPT_EN(swrm->ee_val),
+				swrm->intr_mask);
 			break;
 		case SWRM_INTERRUPT_STATUS_READ_EN_RD_VALID_MISMATCH:
 			dev_dbg(swrm->dev,
@@ -2205,7 +2196,8 @@ handle_irq:
 			swrm->intr_mask &=
 				~SWRM_INTERRUPT_STATUS_READ_EN_RD_VALID_MISMATCH;
 			swr_master_write(swrm,
-				SWRM_INTERRUPT_EN(swrm->ee_val), swrm->intr_mask);
+				SWRM_INTERRUPT_EN(swrm->ee_val),
+				swrm->intr_mask);
 			break;
 		case SWRM_INTERRUPT_STATUS_SPECIAL_CMD_ID_FINISHED:
 			complete(&swrm->broadcast);
@@ -2573,7 +2565,7 @@ static int swrm_master_init(struct swr_mstr_ctrl *swrm)
 		reg[len] = SWRM_LINK_MANAGER_EE;
 		value[len++] = swrm->ee_val;
 	}
-	reg[len] = SWRM_MCP_BUS_CTRL;
+	reg[len] = SWRM_CLK_CTRL(swrm->ee_val);
 	if (swrm->version < SWRM_VERSION_1_7)
 		value[len++] = 0x2;
 	else
@@ -3145,7 +3137,8 @@ static int swrm_clk_pause(struct swr_mstr_ctrl *swrm)
 	u32 val;
 
 	dev_dbg(swrm->dev, "%s: state: %d\n", __func__, swrm->state);
-	swr_master_write(swrm, SWRM_INTERRUPT_EN(swrm->ee_val), SWRM_INTERRUPT_STATUS_MASK);
+	swr_master_write(swrm, SWRM_INTERRUPT_EN(swrm->ee_val),
+			 SWRM_INTERRUPT_STATUS_MASK);
 	val = swr_master_read(swrm, SWRM_MCP_CFG);
 	val |= 0x02;
 	swr_master_write(swrm, SWRM_MCP_CFG, val);
@@ -3244,7 +3237,8 @@ static int swrm_runtime_resume(struct device *dev)
 			}
 			swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
 			swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
-			swr_master_write(swrm, SWRM_MCP_BUS_CTRL, 0x01);
+			swr_master_write(swrm,
+				SWRM_CLK_CTRL(swrm->ee_val), 0x01);
 			swrm_master_init(swrm);
 			/* wait for hw enumeration to complete */
 			usleep_range(100, 105);
@@ -3269,9 +3263,11 @@ static int swrm_runtime_resume(struct device *dev)
 			else
 				val = 0x2 << swrm->ee_val;
 			/*wake up from clock stop*/
-			swr_master_write(swrm, SWRM_MCP_BUS_CTRL, val);
+			swr_master_write(swrm,
+				SWRM_CLK_CTRL(swrm->ee_val), val);
 			/* clear and enable bus clash interrupt */
-			swr_master_write(swrm, SWRM_INTERRUPT_CLEAR(swrm->ee_val), 0x08);
+			swr_master_write(swrm,
+				SWRM_INTERRUPT_CLEAR(swrm->ee_val), 0x08);
 			swrm->intr_mask |= 0x08;
 			swr_master_write(swrm, SWRM_INTERRUPT_EN(swrm->ee_val),
 					 swrm->intr_mask);
