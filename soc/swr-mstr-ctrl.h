@@ -15,7 +15,7 @@
 #include <linux/debugfs.h>
 #include <linux/uaccess.h>
 
-#define SWR_MSTR_MAX_REG_ADDR	0x1740
+#define SWR_MSTR_MAX_REG_ADDR	0x6B160A8
 #define SWR_MSTR_START_REG_ADDR	0x00
 #define SWR_MSTR_MAX_BUF_LEN     32
 #define BYTES_PER_LINE          12
@@ -65,13 +65,6 @@ enum swrm_pm_state {
 enum {
 	SWR_IRQ_FREE,
 	SWR_IRQ_REGISTER,
-};
-
-enum {
-	SWR_DAC_PORT,
-	SWR_COMP_PORT,
-	SWR_BOOST_PORT,
-	SWR_VISENSE_PORT,
 };
 
 enum {
