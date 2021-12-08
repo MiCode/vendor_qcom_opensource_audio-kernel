@@ -119,25 +119,25 @@ static const u8 pa_aux_no_comp[G_MAX_DB] = {
  * WSA_4OHMS, WSA_6OHMS, WSA_8OHMS, WSA_32OHMS
  */
 static const u8 isense_gain_data[G_MAX_DB][WSA_MAXOHMS] = {
-	{ISENSE_18_DB, ISENSE_6_DB, ISENSE_12_DB, ISENSE_18_DB},  /*G_21_DB   */
-	{ISENSE_18_DB, ISENSE_6_DB, ISENSE_12_DB, ISENSE_18_DB},  /*G_19P5_DB */
-	{ISENSE_18_DB, ISENSE_6_DB, ISENSE_15_DB, ISENSE_18_DB},  /*G_18_DB   */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_15_DB, ISENSE_18_DB}, /*G_16P5_DB */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_15_DB   */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_13P5_DB */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_12_DB   */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_10P5_DB */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_9_DB    */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_7P5_DB  */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_6_DB    */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_4P5_DB  */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_3_DB    */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_1P5_DB  */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_0_DB    */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M1P5_DB */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M3_DB   */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M4P5_DB */
-	{ISENSE_18_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M6_DB   */
+	{ISENSE_6_DB, ISENSE_6_DB, ISENSE_12_DB, ISENSE_18_DB},  /*G_21_DB   */
+	{ISENSE_6_DB, ISENSE_6_DB, ISENSE_12_DB, ISENSE_18_DB},  /*G_19P5_DB */
+	{ISENSE_6_DB, ISENSE_6_DB, ISENSE_15_DB, ISENSE_18_DB},  /*G_18_DB   */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_15_DB, ISENSE_18_DB}, /*G_16P5_DB */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_15_DB   */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_13P5_DB */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_12_DB   */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_10P5_DB */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_9_DB    */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_7P5_DB  */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_6_DB    */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_4P5_DB  */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_3_DB    */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_1P5_DB  */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_0_DB    */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M1P5_DB */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M3_DB   */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M4P5_DB */
+	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M6_DB   */
 };
 
 /* Vsense gain from system gain */
@@ -145,11 +145,11 @@ static const u8 vsense_gain_data[G_MAX_DB] = {
 	VSENSE_M24_DB, /* G_21_DB   */
 	VSENSE_M24_DB, /* G_19P5_DB */
 	VSENSE_M21_DB, /* G_18_DB   */
-	VSENSE_M18_DB, /* G_16P5_DB */
+	VSENSE_M21_DB, /* G_16P5_DB */
 	VSENSE_M18_DB, /* G_15_DB   */
-	VSENSE_M15_DB, /* G_13P5_DB */
+	VSENSE_M18_DB, /* G_13P5_DB */
 	VSENSE_M15_DB, /* G_12_DB   */
-	VSENSE_M12_DB, /* G_10P5_DB */
+	VSENSE_M15_DB, /* G_10P5_DB */
 	VSENSE_M12_DB, /* G_9_DB    */
 	VSENSE_M12_DB, /* G_7P5_DB  */
 	VSENSE_M12_DB, /* G_6_DB    */
@@ -191,6 +191,7 @@ static const struct wsa_reg_mask_val reg_init[] = {
 	{REG_FIELD_VALUE(CDC_SPK_DSM_R6, SAT_LIMIT_R6, 0x9B)},
 	{REG_FIELD_VALUE(CDC_SPK_DSM_R7, SAT_LIMIT_R7, 0x3F)},
 	{REG_FIELD_VALUE(BOP_DEGLITCH_CTL, BOP_DEGLITCH_SETTING, 0x08)},
+	{REG_FIELD_VALUE(VBAT_THRM_FLT_CTL, VBAT_COEF_SEL, 0x04)},
 	{REG_FIELD_VALUE(CLSH_CTL_0, DLY_CODE, 0x06)},
 	{REG_FIELD_VALUE(CLSH_SOFT_MAX, SOFT_MAX, 0xFF)},
 	{REG_FIELD_VALUE(OTP_REG_38, BOOST_ILIM_TUNE, 0x00)},
@@ -591,13 +592,12 @@ static irqreturn_t wsa884x_pa_on_err_handle_irq(int irq, void *data)
 }
 
 static const char * const wsa_dev_mode_text[] = {
-	"speaker", "receiver", "ultrasound"
+	"speaker", "receiver"
 };
 
 enum {
 	SPEAKER,
 	RECEIVER,
-	ULTRASOUND,
 };
 
 
@@ -1342,7 +1342,6 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 	u8 vgain;
 	u8 ana_wo_ctl_0_value;
 	u8 pa_aux_shift = 0x02;
-	u8 vphx_shift = 0x06;
 
 	dev_dbg(component->dev, "%s: %s %d\n", __func__, w->name, event);
 	switch (event) {
@@ -1352,9 +1351,9 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 					    true);
 		wsa884x_set_gain_parameters(component);
 		/* Must write WO registers in a single write */
-		ana_wo_ctl_0_value = ((wsa884x->bat_cfg & 0x03) << vphx_shift) |
-				     (wsa884x->pa_aux_gain << pa_aux_shift)    |
-				     wsa884x->dev_mode;
+		ana_wo_ctl_0_value = (0xC |
+				     (wsa884x->pa_aux_gain << pa_aux_shift) |
+				     !wsa884x->dev_mode);
 		snd_soc_component_update_bits(component,
 			WSA884X_ANA_WO_CTL_0, 0xFF, ana_wo_ctl_0_value);
 		snd_soc_component_update_bits(component,
@@ -1393,8 +1392,6 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 		/* Force remove group */
 		swr_remove_from_group(wsa884x->swr_slave,
 				      wsa884x->swr_slave->dev_num);
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(VBAT_THRM_FLT_CTL, VBAT_COEF_SEL, 0x04));
 		if (test_bit(SPKR_ADIE_LB, &wsa884x->status_mask))
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x01));

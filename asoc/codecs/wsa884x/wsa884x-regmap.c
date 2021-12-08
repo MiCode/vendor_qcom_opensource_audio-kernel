@@ -523,6 +523,9 @@ static bool wsa884x_volatile_register(struct device *dev, unsigned int reg)
 	if (reg <= WSA884X_BASE)
 		return 0;
 
+	if (reg == WSA884X_ANA_WO_CTL_0 || reg == WSA884X_ANA_WO_CTL_1)
+		return 1;
+
 	return ((wsa884x_reg_access[WSA884X_REG(reg)] & RD_REG) &&
 		!(wsa884x_reg_access[WSA884X_REG(reg)] & WR_REG));
 }
