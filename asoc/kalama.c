@@ -1406,10 +1406,6 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 	struct msm_asoc_mach_data *pdata =
 				snd_soc_card_get_drvdata(rtd->card);
 
-	u8 wsa_rload[QUAD_SPEAKER] = {0x2, 0x2};
-	u8 wsa_bat_cfg[QUAD_SPEAKER] = {0x1, 0x1};
-	u8 wsa_system_gain[QUAD_SPEAKER] = {0x0, 0x0};
-
 	if (pdata->wsa_max_devs > 0) {
 		component = snd_soc_rtdcom_lookup(rtd, "wsa-codec.1");
 		if (!component) {
@@ -1423,8 +1419,6 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 
 		wsa884x_codec_info_create_codec_entry(pdata->codec_root,
 				component);
-		wsa884x_set_configuration(component, wsa_rload[0],
-			wsa_bat_cfg[0], wsa_system_gain[0]);
 	}
 
 	/* If current platform has more than one WSA */
@@ -1441,8 +1435,6 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 
 		wsa884x_codec_info_create_codec_entry(pdata->codec_root,
 			component);
-		wsa884x_set_configuration(component, wsa_rload[1],
-			wsa_bat_cfg[1], wsa_system_gain[1]);
 	}
 
 	if (pdata->wsa_max_devs > 2) {
@@ -1458,8 +1450,6 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 
 		wsa884x_codec_info_create_codec_entry(pdata->codec_root,
 			component);
-		wsa884x_set_configuration(component, wsa_rload[2],
-			wsa_bat_cfg[2], wsa_system_gain[2]);
 	}
 
 	if (pdata->wsa_max_devs > 3) {
@@ -1475,8 +1465,6 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 
 		wsa884x_codec_info_create_codec_entry(pdata->codec_root,
 			component);
-		wsa884x_set_configuration(component, wsa_rload[3],
-			wsa_bat_cfg[3], wsa_system_gain[3]);
 	}
 
 	msm_common_dai_link_init(rtd);

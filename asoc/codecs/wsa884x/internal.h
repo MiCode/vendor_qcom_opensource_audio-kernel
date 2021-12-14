@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef WSA884X_INTERNAL_H
@@ -87,6 +88,12 @@ enum {
 };
 
 enum {
+	SPEAKER,
+	RECEIVER,
+	MAX_DEV_MODE
+};
+
+enum {
 	SWR_DAC_PORT = 0,
 	SWR_COMP_PORT,
 	SWR_BOOST_PORT,
@@ -142,10 +149,13 @@ struct wsa884x_priv {
 	int version;
 	u8 pa_gain;
 	u8 bat_cfg;
-	u8 rload;
+	u32 rload;
 	u8 system_gain;
+	u32 sys_gains[MAX_DEV_MODE * 2];
+	bool default_dev_mode;
 	int min_gain;
 	int pa_aux_gain;
+	u8 dev_index;
 	struct irq_domain *virq;
 	struct wcd_irq_info irq_info;
 #ifdef CONFIG_DEBUG_FS
@@ -156,7 +166,9 @@ struct wsa884x_priv {
 	unsigned int read_data;
 #endif
 	struct device_node *parent_np;
+	struct device_node *macro_np;
 	struct platform_device *parent_dev;
+	struct platform_device *macro_dev;
 	struct notifier_block parent_nblock;
 	void *handle;
 	int (*register_notifier)(void *handle,

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -251,6 +252,8 @@ enum {
  * @active_ch_cnt: channel count of all AIF DAIs
  * @rx_port_value: mixer ctl value of WSA RX MUXes
  * @wsa_io_base: Base address of WSA macro addr space
+ * @wsa_sys_gain System gain value, see wsa driver
+ * @wsa_rload Resistor load value for WSA Speaker, see wsa driver
  */
 struct lpass_cdc_wsa_macro_priv {
 	struct device *dev;
@@ -294,6 +297,11 @@ struct lpass_cdc_wsa_macro_priv {
 	uint32_t thermal_cur_state;
 	uint32_t thermal_max_state;
 	struct work_struct lpass_cdc_wsa_macro_cooling_work;
+	u32 wsa_rload[LPASS_CDC_WSA_MACRO_RX1 + 1];
+	u32 wsa_sys_gain[2 * (LPASS_CDC_WSA_MACRO_RX1 + 1)];
+	u32 wsa_bat_cfg[LPASS_CDC_WSA_MACRO_RX1 + 1];
+
+
 };
 
 static struct snd_soc_dai_driver lpass_cdc_wsa_macro_dai[];
@@ -3154,6 +3162,31 @@ static void lpass_cdc_wsa_macro_cooling_adjust_gain(struct work_struct *work)
 	return;
 }
 
+static int lpass_cdc_wsa_macro_read_array(struct platform_device *pdev,
+					  const char *name, int size,
+					  u32 *output)
+{
+	u32 len, ret;
+
+	if (!of_find_property(pdev->dev.of_node, name, &size)) {
+		dev_info(&pdev->dev, "%s: missing %s\n", __func__, name);
+		return 0;
+	}
+
+	len = size / sizeof(u32);
+	if (len != size) {
+		dev_info(&pdev->dev, "%s: invalid number of %s\n", __func__, name);
+		return -EINVAL;
+	}
+
+	ret = of_property_read_u32_array(pdev->dev.of_node, name, output, size);
+	if (ret)
+		dev_info(&pdev->dev, "%s: Failed to read %s\n", __func__, name);
+
+	return 0;
+
+}
+
 static void lpass_cdc_wsa_macro_init_ops(struct macro_ops *ops,
 			       char __iomem *wsa_io_base)
 {
@@ -3175,6 +3208,7 @@ static int lpass_cdc_wsa_macro_probe(struct platform_device *pdev)
 	char __iomem *wsa_io_base;
 	int ret = 0;
 	u32 is_used_wsa_swr_gpio = 1;
+
 	const char *is_used_wsa_swr_gpio_dt = "qcom,is-used-swr-gpio";
 
 	if (!lpass_cdc_is_va_macro_registered(&pdev->dev)) {
@@ -3229,6 +3263,15 @@ static int lpass_cdc_wsa_macro_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "%s: ioremap failed\n", __func__);
 		return -EINVAL;
 	}
+
+	lpass_cdc_wsa_macro_read_array(pdev, "qcom,wsa-rloads",
+		LPASS_CDC_WSA_MACRO_RX1 + 1, wsa_priv->wsa_rload);
+	lpass_cdc_wsa_macro_read_array(pdev, "qcom,wsa-system-gains",
+		2 * (LPASS_CDC_WSA_MACRO_RX1 + 1), wsa_priv->wsa_sys_gain);
+	lpass_cdc_wsa_macro_read_array(pdev, "qcom,wsa-bat-cfgs",
+		LPASS_CDC_WSA_MACRO_RX1 + 1, wsa_priv->wsa_bat_cfg);
+
+
 	wsa_priv->wsa_io_base = wsa_io_base;
 	wsa_priv->reset_swr = true;
 	INIT_WORK(&wsa_priv->lpass_cdc_wsa_macro_add_child_devices_work,
