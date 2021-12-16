@@ -1076,6 +1076,23 @@ static int wsa884x_get_compander(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
+/*
+ * wsa884x_validate_dt_configuration_params - returns 1 or 0
+ * Return: 0 Valid configuration, 1 Invalid configuration
+ */
+static bool wsa884x_validate_dt_configuration_params(u8 irload, u8 ibat_cfg,
+					u8 isystem_gain)
+{
+	bool is_invalid_flag = true;
+
+	if ((WSA_4_OHMS <= irload && irload < WSA_MAX_OHMS) &&
+		(G_21_DB <= isystem_gain && isystem_gain < G_MAX_DB) &&
+		(EXT_ABOVE_3S <= ibat_cfg && ibat_cfg < CONFIG_MAX))
+			is_invalid_flag = false;
+
+          return is_invalid_flag;
+}
+
 static int wsa884x_set_compander(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
@@ -2175,7 +2192,14 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 						  WSA884X_VPHX_SYS_EN_STATUS);
 	dev_dbg(component->dev,
 		"%s: Bat_cfg: 0x%x rload: 0x%x, sys_gain: 0x%x %x\n", __func__,
-		wsa884x->bat_cfg, wsa884x->rload, wsa884x->bat_cfg);
+		wsa884x->bat_cfg, wsa884x->rload, wsa884x->system_gain);
+	ret = wsa884x_validate_dt_configuration_params(wsa884x->rload,
+		wsa884x->bat_cfg, wsa884x->system_gain);
+	if (ret) {
+		dev_err(&pdev->dev, "%s: invalid dt parameter\n", __func__);
+		ret = -EINVAL;
+		goto err_mem;
+	}
 	wsa884x_set_gain_parameters(component);
 	wsa884x_set_pbr_parameters(component);
 	/* Must write WO registers in a single write */

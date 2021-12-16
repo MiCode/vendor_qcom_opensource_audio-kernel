@@ -45,7 +45,6 @@ static int wsa884x_codec_get_dev_num(struct snd_soc_component *component)
 {
 	return 0;
 }
-
 #endif
 
 #endif /* _WSA884X_H */
