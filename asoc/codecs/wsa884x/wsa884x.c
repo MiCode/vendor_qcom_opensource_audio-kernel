@@ -1389,9 +1389,6 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 		swr_slvdev_datapath_control(wsa884x->swr_slave,
 					    wsa884x->swr_slave->dev_num,
 					    true);
-		wcd_enable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR);
-		wcd_enable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO);
-
 		wsa884x_set_gain_parameters(component);
 		if (wsa884x->dev_mode == SPEAKER) {
 			snd_soc_component_update_bits(component,
@@ -1405,7 +1402,6 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 				REG_FIELD_VALUE(PWM_CLK_CTL,
 				PWM_CLK_FREQ_SEL, 0x01));
 		}
-
 		/* Force remove group */
 		swr_remove_from_group(wsa884x->swr_slave,
 				      wsa884x->swr_slave->dev_num);
@@ -1414,15 +1410,10 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 				REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x01));
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
-		if (!test_bit(SPKR_ADIE_LB, &wsa884x->status_mask))
-			wcd_disable_irq(&wsa884x->irq_info,
-					WSA884X_IRQ_INT_PDM_WD);
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x00));
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(PDM_WD_CTL, PDM_WD_EN, 0x00));
-		wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO);
-		wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR);
 		clear_bit(SPKR_STATUS, &wsa884x->status_mask);
 		clear_bit(SPKR_ADIE_LB, &wsa884x->status_mask);
 		break;
@@ -1804,8 +1795,6 @@ static int wsa884x_event_notify(struct notifier_block *nb,
 				REG_FIELD_VALUE(PDM_WD_CTL, PDM_WD_EN, 0x01));
 			snd_soc_component_update_bits(wsa884x->component,
 				REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x01));
-			wcd_enable_irq(&wsa884x->irq_info,
-					WSA884X_IRQ_INT_PDM_WD);
 		}
 		break;
 	case BOLERO_SLV_EVT_PA_ON_POST_FSCLK_ADIE_LB:
@@ -1869,7 +1858,7 @@ static struct snd_soc_dai_driver wsa_dai[] = {
 
 static int wsa884x_swr_probe(struct swr_device *pdev)
 {
-	int ret = 0, i = 0;
+	int ret = 0;
 	struct wsa884x_priv *wsa884x;
 	u8 devnum = 0;
 	bool pin_state_current = false;
@@ -1938,10 +1927,6 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 
 	devm_regmap_qti_debugfs_register(&pdev->dev, wsa884x->regmap);
 
-	/* Set all interrupts as edge triggered */
-	for (i = 0; i < wsa884x_sub_regmap_irq_chip->num_regs; i++)
-		regmap_write(wsa884x->regmap, (WSA884X_INTR_LEVEL0 + i), 0);
-
 	wsa884x_sub_regmap_irq_chip->irq_drv_data = wsa884x;
 	wsa884x->irq_info.wcd_regmap_irq_chip = wsa884x_sub_regmap_irq_chip;
 	wsa884x->irq_info.codec_name = "WSA884X";
@@ -1960,22 +1945,14 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_SAF2WAR,
 			"WSA SAF2WAR", wsa884x_saf2war_handle_irq, wsa884x);
 
-	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_SAF2WAR);
-
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_WAR2SAF,
 			"WSA WAR2SAF", wsa884x_war2saf_handle_irq, wsa884x);
-
-	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_WAR2SAF);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_DISABLE,
 			"WSA OTP", wsa884x_otp_handle_irq, wsa884x);
 
-	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_DISABLE);
-
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_OCP,
 			"WSA OCP", wsa884x_ocp_handle_irq, wsa884x);
-
-	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_OCP);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLIP,
 			"WSA CLIP", wsa884x_clip_handle_irq, wsa884x);
@@ -1985,12 +1962,8 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PDM_WD,
 			"WSA PDM WD", wsa884x_pdm_wd_handle_irq, wsa884x);
 
-	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PDM_WD);
-
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLK_WD,
 			"WSA CLK WD", wsa884x_clk_wd_handle_irq, wsa884x);
-
-	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLK_WD);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_INTR_PIN,
 			"WSA EXT INT", wsa884x_ext_int_handle_irq, wsa884x);
@@ -2001,12 +1974,8 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO,
 			"WSA UVLO", wsa884x_uvlo_handle_irq, wsa884x);
 
-	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO);
-
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR,
 			"WSA PA ERR", wsa884x_pa_on_err_handle_irq, wsa884x);
-
-	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR);
 
 	wsa884x->driver = devm_kzalloc(&pdev->dev,
 			sizeof(struct snd_soc_component_driver), GFP_KERNEL);
