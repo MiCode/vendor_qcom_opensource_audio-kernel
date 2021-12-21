@@ -366,7 +366,7 @@ int mi2s_tdm_hw_vote_req(struct msm_common_pdata *pdata, int enable)
 
 	if (enable) {
 		if (atomic_read(&pdata->lpass_audio_hw_vote_ref_cnt) == 0) {
-			ret = digital_cdc_rsc_mgr_hw_vote_enable(pdata->lpass_audio_hw_vote);
+			ret = digital_cdc_rsc_mgr_hw_vote_enable(pdata->lpass_audio_hw_vote, NULL);
 			if (ret < 0) {
 				pr_err("%s lpass audio hw vote enable failed %d\n",
 					__func__, ret);
@@ -377,7 +377,7 @@ int mi2s_tdm_hw_vote_req(struct msm_common_pdata *pdata, int enable)
 	} else {
 		atomic_dec(&pdata->lpass_audio_hw_vote_ref_cnt);
 		if (atomic_read(&pdata->lpass_audio_hw_vote_ref_cnt) == 0)
-			digital_cdc_rsc_mgr_hw_vote_disable(pdata->lpass_audio_hw_vote);
+			digital_cdc_rsc_mgr_hw_vote_disable(pdata->lpass_audio_hw_vote, NULL);
 		else if (atomic_read(&pdata->lpass_audio_hw_vote_ref_cnt) < 0)
 			atomic_set(&pdata->lpass_audio_hw_vote_ref_cnt, 0);
 	}
