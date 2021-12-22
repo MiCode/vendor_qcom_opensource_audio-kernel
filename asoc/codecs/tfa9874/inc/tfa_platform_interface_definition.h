@@ -26,11 +26,7 @@
 
 
 #ifdef AUDIO_SM8250_FLAG
-#ifdef CONFIG_TARGET_PRODUCT_POUSSIN
-#define TFA_USING_TERTIARY_MI2S
-#else
 #define TFA_USING_PRIMARY_MI2S
-#endif
 #else
 #define TFA_USING_SECONDARY_MI2S
 #endif

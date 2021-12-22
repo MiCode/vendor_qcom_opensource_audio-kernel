@@ -41,11 +41,7 @@
 #include "kona-port-config.h"
 #include <soc/qcom/socinfo.h>
 #ifdef CONFIG_SND_SOC_TFA9874
-#ifdef CONFIG_TARGET_PRODUCT_POUSSIN
-#include "codecs/tfa9874/inc/tfa_platform_interface_definition.h"
-#else
 #include "codecs/tfa98xx/inc/tfa_platform_interface_definition.h"
-#endif
 #endif
 
 
@@ -110,22 +106,6 @@
 #define CS35L41_RECEIVER_NAME "cs35l41.2-0042"
 #endif
 
-#ifdef CONFIG_TARGET_PRODUCT_POUSSIN
-#define TFA98xx_RECEIVER_NAME "tfa98xx.1-0034"
-#define TFA98xx_SPEAKER_NAME "tfa98xx.1-0035"
-static struct snd_soc_dai_link_component tfa98xx_codec_components[]=
-{
-	{
-		.name = TFA98xx_RECEIVER_NAME,
-		.dai_name = "tfa98xx-aif-1-34",
-	},
-
-	{
-		.name = TFA98xx_SPEAKER_NAME,
-		.dai_name = "tfa98xx-aif-1-35",
-	},
-};
-#endif
 
 #if defined(CONFIG_TARGET_PRODUCT_ENUMA) || defined(CONFIG_TARGET_PRODUCT_ELISH)
 struct snd_soc_dai_link_component cs35l41_codec_components[] = {
@@ -179,19 +159,6 @@ struct snd_soc_dai_link_component cs35l41_codec_components[] = {
 };
 #endif
 
-#ifdef CONFIG_TARGET_PRODUCT_POUSSIN
-static struct snd_soc_codec_conf tfa98xx_codec_conf[] = {
-	{
-		.dev_name	= TFA98xx_RECEIVER_NAME,
-		.name_prefix	= "RCV",
-	},
-
-	{
-		.dev_name	= TFA98xx_SPEAKER_NAME,
-		.name_prefix	= "SPK",
-	},
-};
-#else
 static struct snd_soc_codec_conf cs35l41_codec_conf[] = {
 	{
 		.dev_name	= CS35L41_SPEAKER_NAME,
@@ -204,7 +171,6 @@ static struct snd_soc_codec_conf cs35l41_codec_conf[] = {
 	},
 #endif
 };
-#endif
 
 enum {
 	RX_PATH = 0,
@@ -5561,12 +5527,6 @@ static int cs35l41_init(struct snd_soc_pcm_runtime *rtd)
 	return 0;
 }
 
-#if defined(CONFIG_TARGET_PRODUCT_POUSSIN)
-static int tfa98xx_init(struct snd_soc_pcm_runtime *rtd)
-{
-	return 0;
-}
-#endif
 
 static struct snd_soc_ops msm_fe_qos_ops = {
 	.prepare = msm_fe_qos_prepare,
@@ -6923,13 +6883,8 @@ static struct snd_soc_dai_link msm_tdm_be_dai_links[] = {
 		.stream_name = "Tertiary TDM0 Capture",
 		.cpu_dai_name = "msm-dai-q6-tdm.36897",
 		.platform_name = "msm-pcm-routing",
-#if defined(CONFIG_TARGET_PRODUCT_POUSSIN)
-		.codecs = tfa98xx_codec_components,
-		.num_codecs = ARRAY_SIZE(tfa98xx_codec_components),
-#else
 		.codec_name = "msm-stub-codec.1",
 		.codec_dai_name = "msm-stub-tx",
-#endif
 		.no_pcm = 1,
 		.dpcm_capture = 1,
 		.id = MSM_BACKEND_DAI_TERT_TDM_TX_0,
@@ -7389,24 +7344,6 @@ static struct snd_soc_dai_link tert_mi2s_rx_cs35l41_dai_links[] = {
 };
 
 static struct snd_soc_dai_link pri_mi2s_rx_tfa9874_dai_links[] = {
-#if defined(CONFIG_TARGET_PRODUCT_POUSSIN)
-	{
-		.name = LPASS_BE_TERT_MI2S_RX,
-		.stream_name = "Tertiary MI2S Playback",
-		.cpu_dai_name = "msm-dai-q6-mi2s.2",
-		.platform_name = "msm-pcm-routing",
-		.codecs = tfa98xx_codec_components,
-		.num_codecs = ARRAY_SIZE(tfa98xx_codec_components),
-		.no_pcm = 1,
-		.dpcm_playback = 1,
-		.id = MSM_BACKEND_DAI_TERTIARY_MI2S_RX,
-		.be_hw_params_fixup = msm_be_hw_params_fixup,
-		.ops = &msm_mi2s_be_ops,
-		.ignore_suspend = 1,
-		.ignore_pmdown_time = 1,
-		.init = &tfa98xx_init,
-	},
-#else
 	{
 		.name = LPASS_BE_PRI_MI2S_RX,
 		.stream_name = "Primary MI2S Playback",
@@ -7422,7 +7359,6 @@ static struct snd_soc_dai_link pri_mi2s_rx_tfa9874_dai_links[] = {
 		.ignore_suspend = 1,
 		.ignore_pmdown_time = 1,
 	},
-#endif
 };
 #else //g7a
 
@@ -7994,13 +7930,8 @@ static struct snd_soc_ops msm_stub_be_ops = {
 
 struct snd_soc_card snd_soc_card_stub_msm = {
 	.name		= "kona-stub-snd-card",
-#if defined(CONFIG_TARGET_PRODUCT_POUSSIN)
-	.codec_conf	= tfa98xx_codec_conf,
-	.num_configs	= ARRAY_SIZE(tfa98xx_codec_conf),
-#else
 	.codec_conf	= cs35l41_codec_conf,
 	.num_configs	= ARRAY_SIZE(cs35l41_codec_conf),
-#endif
 };
 
 static struct snd_soc_dai_link msm_stub_fe_dai_links[] = {

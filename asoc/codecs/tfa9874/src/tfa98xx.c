@@ -81,11 +81,6 @@ static TfaContainer_t *tfa98xx_container = NULL;
 static int tfa98xx_kmsg_regs = 0;
 static int tfa98xx_ftrace_regs = 0;
 
-#if defined(CONFIG_TARGET_PRODUCT_POUSSIN)
-static char *fw_name = "tfa98xx.cnt";
-module_param(fw_name, charp, S_IRUGO | S_IWUSR);
-MODULE_PARM_DESC(fw_name, "TFA98xx DSP firmware (container file) name.");
-#endif
 
 static int trace_level = 0;
 module_param(trace_level, int, S_IRUGO);
@@ -3162,11 +3157,6 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 		 */
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK){
 			tfa98xx->pstream = 0;
-#if defined(CONFIG_TARGET_PRODUCT_POUSSIN)
-			if(gpio_is_valid(tfa98xx->spk_sw_gpio)){
-				gpio_direction_output(tfa98xx->spk_sw_gpio, 0);
-			}
-#endif
 		} else
 			tfa98xx->cstream = 0;
 		if (tfa98xx->pstream != 0 || tfa98xx->cstream != 0)
@@ -3183,16 +3173,9 @@ static int tfa98xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 			return 0;
 		mutex_lock(&tfa98xx->dsp_lock);
 #ifdef TFA_NON_DSP_SOLUTION
-#if defined(CONFIG_TARGET_PRODUCT_POUSSIN)
-		if (strcmp (tfa_cont_profile_name (tfa98xx, tfa98xx_mixer_profile), "handset") != 0
-				&& !(strstr(tfaContProfileName(tfa98xx->tfa->cnt, tfa98xx->tfa->dev_idx, tfa98xx_mixer_profile), ".standby") != NULL)) {
-			tfa98xx_send_mute_cmd(TFA_KCONTROL_VALUE_ENABLED);
-			msleep(60);
-		}
-else
+
 		tfa98xx_send_mute_cmd(TFA_KCONTROL_VALUE_ENABLED);
 		msleep(60);
-#endif
 #endif
 		tfa_dev_stop(tfa98xx->tfa);
 		tfa98xx->dsp_init = TFA98XX_DSP_INIT_STOPPED;
@@ -3203,27 +3186,8 @@ else
 	else {
 		if (stream == SNDRV_PCM_STREAM_PLAYBACK) {
 			tfa98xx->pstream = 1;
-#if defined(CONFIG_TARGET_PRODUCT_POUSSIN)
-			if(1 == tfa98xx_mixer_profile){
-				if(gpio_is_valid(tfa98xx->spk_sw_gpio)){
-					gpio_direction_output(tfa98xx->spk_sw_gpio, 1);
-				}
-			} else {
-				if(gpio_is_valid(tfa98xx->spk_sw_gpio)){
-					gpio_direction_output(tfa98xx->spk_sw_gpio, 0);
-				}
-			}
-#endif
 #ifdef TFA_NON_DSP_SOLUTION
-#if defined(CONFIG_TARGET_PRODUCT_POUSSIN)
-			if (tfa98xx->tfa->is_probus_device
-					&& (strcmp (tfa_cont_profile_name (tfa98xx, tfa98xx_mixer_profile), "handset") != 0)
-					&& !(strstr(tfaContProfileName(tfa98xx->tfa->cnt, tfa98xx->tfa->dev_idx, tfa98xx_mixer_profile), ".standby") != NULL)) {
-				tfa98xx_adsp_send_calib_values();
-			}
-else
 			tfa98xx_adsp_send_calib_values();
-#endif
 #endif
 		} else {
 			tfa98xx->cstream = 1;
