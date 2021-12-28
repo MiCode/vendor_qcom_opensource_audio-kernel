@@ -29,6 +29,7 @@
 | phoenix-r-oss | Redmi K20, Redmi K30, MI Note 10 Lite, MI CC9 Pro | Android R | LA.UM.9.1.r1-06700-SMxxx0.0-1 | [phoenix-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/phoenix-r-oss) |
 | picasso-q-oss | Redmi K30 5G | Android Q | LA.UM.8.13.r1-03300-SAIPAN.0 | [picasso-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/picasso-q-oss) |
 | picasso-r-oss | Mi 10 Lite 5G, Redmi K30 5G, Mi 10 Lite Zoom | Android R | LA.UM.9.12.r1-08000-SMxx50.0 | [picasso-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/picasso-r-oss) |
+| psyche-r-oss | Mi 12X | Android R | LA.UM.9.12.r1-08000-SMxx50.0 | [psyche-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/psyche-r-oss) |
 | sirius-q-oss | MI 8SE, MI 9SE, MI CC 9 and MI CC 9 Meitu Edition | Android Q | LA.UM.8.8.r1-05100-SDM710.0 | [sirius-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/sirius-q-oss) |
 | surya-q-oss | Redmi POCO X3 | Android Q | LA.UM.8.9.r1-09300-SM6xx.0 | [surya-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/surya-q-oss) |
 | sweet-r-oss | Redmi Note 10 Pro | Android R | LA.UM.9.1.r1-06700-SMxxx0.0-1 | [sweet-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/sweet-r-oss) |
@@ -40,3 +41,4 @@
 | vayu-r-oss | Redmi POCO X3 Pro | Android R | LA.UM.9.1.r1-07000-SMxxx0.0 | [vayu-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/vayu-r-oss) |
 | violet-q-oss | Redmi Note 7 Pro | Android Q | LA.UM.8.9.r1-04400-SM6xx.0-1 | [violet-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/violet-q-oss) |
 | willow-p-oss | Redmi Note 8T | Android P | LA.UM.7.11.r1-02700-NICOBAR.0 | [willow-p-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/willow-p-oss) |
+| zeus-s-oss | Mi 12, Mi 12 Pro | Android S | LA.VENDOR.1.0.r1-09100-r1.0.r1 | [zeus-s-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/zeus-s-oss) |
