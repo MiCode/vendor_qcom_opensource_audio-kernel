@@ -39,7 +39,8 @@
 #define HIGH_TEMP_THRESHOLD 45
 #define TEMP_INVALID	0xFFFF
 #define WSA884X_TEMP_RETRY 3
-
+#define PBR_MAX_VOLTAGE 20
+#define PBR_MAX_CODE 255
 #define MAX_NAME_LEN	40
 #define WSA884X_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
@@ -74,95 +75,8 @@ enum {
 	COMP_OFFSET4,
 };
 
-enum {
-	EXT_ABOVE_3S,
-	CONFIG_1S,
-	CONFIG_2S,
-	CONFIG_3S,
-	EXT_1S,
-	EXT_2S,
-	EXT_3S,
-};
-
-enum {
-	WSA_4OHMS = 0,
-	WSA_6OHMS,
-	WSA_8OHMS,
-	WSA_32OHMS,
-	WSA_MAXOHMS,
-};
-
-/* Aux gain from system gain */
-static const u8 pa_aux_no_comp[G_MAX_DB] = {
-	PA_AUX_18_DB,  /* G_21_DB   */
-	PA_AUX_18_DB,  /* G_19P5_DB */
-	PA_AUX_18_DB,  /* G_18_DB   */
-	PA_AUX_18_DB,  /* G_16P5_DB */
-	PA_AUX_18_DB,  /* G_15_DB   */
-	PA_AUX_12_DB,  /* G_13P5_DB */
-	PA_AUX_12_DB,  /* G_12_DB   */
-	PA_AUX_12_DB,  /* G_10P5_DB */
-	PA_AUX_7P5_DB, /* G_9_DB    */
-	PA_AUX_7P5_DB, /* G_7P5_DB  */
-	PA_AUX_7P5_DB, /* G_6_DB    */
-	PA_AUX_7P5_DB, /* G_4P5_DB  */
-	PA_AUX_0_DB,   /* G_3_DB    */
-	PA_AUX_0_DB,   /* G_1P5_DB  */
-	PA_AUX_0_DB,   /* G_0_DB    */
-	PA_AUX_M1P5_DB,/* G_M1P5_DB */
-	PA_AUX_M3_DB,  /* G_M3_DB   */
-	PA_AUX_M4P5_DB,/* G_M4P5_DB */
-	PA_AUX_M6_DB   /* G_M6_DB   */
-};
-
-/*
- * Isense data indexed by system_gain and rload
- * WSA_4OHMS, WSA_6OHMS, WSA_8OHMS, WSA_32OHMS
- */
-static const u8 isense_gain_data[G_MAX_DB][WSA_MAXOHMS] = {
-	{ISENSE_6_DB, ISENSE_6_DB, ISENSE_12_DB, ISENSE_18_DB},  /*G_21_DB   */
-	{ISENSE_6_DB, ISENSE_6_DB, ISENSE_12_DB, ISENSE_18_DB},  /*G_19P5_DB */
-	{ISENSE_6_DB, ISENSE_6_DB, ISENSE_15_DB, ISENSE_18_DB},  /*G_18_DB   */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_15_DB, ISENSE_18_DB}, /*G_16P5_DB */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_15_DB   */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_13P5_DB */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_12_DB   */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_10P5_DB */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_9_DB    */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_7P5_DB  */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_6_DB    */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_4P5_DB  */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_3_DB    */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_1P5_DB  */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_0_DB    */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M1P5_DB */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M3_DB   */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M4P5_DB */
-	{ISENSE_12_DB, ISENSE_12_DB, ISENSE_18_DB, ISENSE_18_DB}, /*G_M6_DB   */
-};
-
-/* Vsense gain from system gain */
-static const u8 vsense_gain_data[G_MAX_DB] = {
-	VSENSE_M24_DB, /* G_21_DB   */
-	VSENSE_M24_DB, /* G_19P5_DB */
-	VSENSE_M21_DB, /* G_18_DB   */
-	VSENSE_M21_DB, /* G_16P5_DB */
-	VSENSE_M18_DB, /* G_15_DB   */
-	VSENSE_M18_DB, /* G_13P5_DB */
-	VSENSE_M15_DB, /* G_12_DB   */
-	VSENSE_M15_DB, /* G_10P5_DB */
-	VSENSE_M12_DB, /* G_9_DB    */
-	VSENSE_M12_DB, /* G_7P5_DB  */
-	VSENSE_M12_DB, /* G_6_DB    */
-	VSENSE_M12_DB, /* G_4P5_DB  */
-	VSENSE_M12_DB, /* G_3_DB    */
-	VSENSE_M12_DB, /* G_1P5_DB  */
-	VSENSE_M12_DB, /* G_0_DB    */
-	VSENSE_M12_DB, /* G_M1P5_DB */
-	VSENSE_M12_DB, /* G_M3_DB   */
-	VSENSE_M12_DB, /* G_M4P5_DB */
-	VSENSE_M12_DB  /* G_M6_DB   */
-};
+#define WSA884X_VTH_TO_REG(vth) \
+	((vth) != 0 ? (((vth) - 150 / PBR_MAX_VOLTAGE) * PBR_MAX_CODE / 100) : 0)
 
 struct wsa_reg_mask_val {
 	u16 reg;
@@ -700,6 +614,77 @@ static int wsa884x_set_gain_parameters(struct snd_soc_component *component)
 	return 0;
 }
 
+static int wsa884x_set_pbr_parameters(struct snd_soc_component *component)
+{
+	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
+	int vth1_reg_val;
+	int vth2_reg_val;
+	int vth3_reg_val;
+	int vth4_reg_val;
+	int vth5_reg_val;
+	int vth6_reg_val;
+	int vth7_reg_val;
+	int vth8_reg_val;
+	int vth9_reg_val;
+	int vth10_reg_val;
+	int vth11_reg_val;
+	int vth12_reg_val;
+	int vth13_reg_val;
+	int vth14_reg_val;
+	int vth15_reg_val;
+
+
+	int vth1_val = pbr_vth1_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth2_val = pbr_vth2_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth3_val = pbr_vth3_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth4_val = pbr_vth4_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth5_val = pbr_vth5_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth6_val = pbr_vth6_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth7_val = pbr_vth7_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth8_val = pbr_vth8_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth9_val = pbr_vth9_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth10_val = pbr_vth10_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth11_val = pbr_vth11_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth12_val = pbr_vth12_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth13_val = pbr_vth13_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth14_val = pbr_vth14_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+	int vth15_val = pbr_vth15_data[wsa884x->system_gain][wsa884x->bat_cfg][wsa884x->rload];
+
+	vth1_reg_val = WSA884X_VTH_TO_REG(vth1_val);
+	vth2_reg_val = WSA884X_VTH_TO_REG(vth2_val);
+	vth3_reg_val = WSA884X_VTH_TO_REG(vth3_val);
+	vth4_reg_val = WSA884X_VTH_TO_REG(vth4_val);
+	vth5_reg_val = WSA884X_VTH_TO_REG(vth5_val);
+	vth6_reg_val = WSA884X_VTH_TO_REG(vth6_val);
+	vth7_reg_val = WSA884X_VTH_TO_REG(vth7_val);
+	vth8_reg_val = WSA884X_VTH_TO_REG(vth8_val);
+	vth9_reg_val = WSA884X_VTH_TO_REG(vth9_val);
+	vth10_reg_val = WSA884X_VTH_TO_REG(vth10_val);
+	vth11_reg_val = WSA884X_VTH_TO_REG(vth11_val);
+	vth12_reg_val = WSA884X_VTH_TO_REG(vth12_val);
+	vth13_reg_val = WSA884X_VTH_TO_REG(vth13_val);
+	vth14_reg_val = WSA884X_VTH_TO_REG(vth14_val);
+	vth15_reg_val = WSA884X_VTH_TO_REG(vth15_val);
+
+	snd_soc_component_write(component, WSA884X_CLSH_VTH1, vth1_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH2, vth2_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH3, vth3_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH4, vth4_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH5, vth5_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH6, vth6_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH7, vth7_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH8, vth8_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH9, vth9_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH10, vth10_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH11, vth11_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH12, vth12_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH13, vth13_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH14, vth14_reg_val);
+	snd_soc_component_write(component, WSA884X_CLSH_VTH15, vth15_reg_val);
+
+	return 0;
+}
+
 static const char * const wsa_dev_mode_text[] = {
 	"speaker", "receiver"
 };
@@ -1138,20 +1123,6 @@ static int wsa884x_set_pbr(struct snd_kcontrol *kcontrol,
 	dev_dbg(component->dev, "%s: PBR enable current %d, new %d\n",
 		 __func__, wsa884x->pbr_enable, value);
 	wsa884x->pbr_enable = value;
-
-	if (value) {
-		snd_soc_component_update_bits(component,
-			WSA884X_CLSH_VTH1,
-			0xFF, 0xFF);
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(CURRENT_LIMIT,
-			CURRENT_LIMIT_OVRD_EN, 0x00));
-	} else {
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(CURRENT_LIMIT,
-			CURRENT_LIMIT_OVRD_EN, 0x01));
-	}
-
 	return 0;
 }
 
@@ -1174,7 +1145,7 @@ static int wsa884x_set_cps(struct snd_kcontrol *kcontrol,
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
 	int value = ucontrol->value.integer.value[0];
 
-	dev_dbg(component->dev, "%s: VIsense enable current %d, new %d\n",
+	dev_dbg(component->dev, "%s: CPS enable current %d, new %d\n",
 		 __func__, wsa884x->cps_enable, value);
 	wsa884x->cps_enable = value;
 	return 0;
@@ -1402,6 +1373,14 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 				REG_FIELD_VALUE(PWM_CLK_CTL,
 				PWM_CLK_FREQ_SEL, 0x01));
 		}
+		if (wsa884x->pbr_enable)
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CURRENT_LIMIT,
+				CURRENT_LIMIT_OVRD_EN, 0x00));
+		else
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CURRENT_LIMIT,
+				CURRENT_LIMIT_OVRD_EN, 0x01));
 		/* Force remove group */
 		swr_remove_from_group(wsa884x->swr_slave,
 				      wsa884x->swr_slave->dev_num);
@@ -2118,13 +2097,12 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 		"%s: Bat_cfg: 0x%x rload: 0x%x, sys_gain: 0x%x %x\n", __func__,
 		wsa884x->bat_cfg, wsa884x->rload, wsa884x->bat_cfg);
 	wsa884x_set_gain_parameters(component);
+	wsa884x_set_pbr_parameters(component);
 	/* Must write WO registers in a single write */
 	wo0_val = (0xC | (wsa884x->pa_aux_gain << 0x02) | !wsa884x->dev_mode);
-	snd_soc_component_update_bits(component,
-		WSA884X_ANA_WO_CTL_0, 0xFF, wo0_val);
-	snd_soc_component_update_bits(component,
-		WSA884X_ANA_WO_CTL_1, 0xFF, 0);
-	if (wsa884x->rload == WSA_4OHMS || wsa884x->rload == WSA_6OHMS)
+	snd_soc_component_write(component, WSA884X_ANA_WO_CTL_0, wo0_val);
+	snd_soc_component_write(component, WSA884X_ANA_WO_CTL_1, 0x0);
+	if (wsa884x->rload == WSA_4_OHMS || wsa884x->rload == WSA_6_OHMS)
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(OCP_CTL, OCP_CURR_LIMIT, 0x07));
 
