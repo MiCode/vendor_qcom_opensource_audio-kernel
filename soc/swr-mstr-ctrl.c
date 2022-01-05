@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/irq.h>
@@ -83,6 +84,9 @@
 #define SWR_OVERFLOW_RETRY_COUNT 30
 
 #define CPU_IDLE_LATENCY 10
+
+#define SWRM_REG_GAP_START 0x2C54
+#define SWRM_REG_GAP_END 0x4000
 
 /* pm runtime auto suspend timer in msecs */
 static int auto_suspend_timer = 500;
@@ -215,6 +219,9 @@ static ssize_t swrm_reg_show(struct swr_mstr_ctrl *swrm, char __user *ubuf,
 	i = ((int) *ppos + SWRM_BASE);
 
 	for (; i <= SWRM_MAX_REGISTER; i += 4) {
+		/* No registers between SWRM_REG_GAP_START to SWRM_REG_GAP_END */
+		if (i > SWRM_REG_GAP_START && i < SWRM_REG_GAP_END)
+			continue;
 		usleep_range(100, 150);
 		reg_val = swr_master_read(swrm, i);
 		len = snprintf(tmp_buf, 25, "0x%.3x: 0x%.2x\n", i, reg_val);
@@ -2566,10 +2573,7 @@ static int swrm_master_init(struct swr_mstr_ctrl *swrm)
 		value[len++] = swrm->ee_val;
 	}
 	reg[len] = SWRM_CLK_CTRL(swrm->ee_val);
-	if (swrm->version < SWRM_VERSION_1_7)
-		value[len++] = 0x2;
-	else
-		value[len++] = 0x2 << swrm->ee_val;
+	value[len++] = 0x01;
 
 	/* Set IRQ to PULSE */
 	reg[len] = SWRM_COMP_CFG;
@@ -3156,7 +3160,7 @@ static int swrm_runtime_resume(struct device *dev)
 	bool hw_core_err = false, aud_core_err = false;
 	struct swr_master *mstr = &swrm->master;
 	struct swr_device *swr_dev;
-	u32 temp = 0, val = 0;
+	u32 temp = 0;
 
 	dev_dbg(dev, "%s: pm_runtime: resume, state:%d\n",
 		__func__, swrm->state);
@@ -3237,8 +3241,7 @@ static int swrm_runtime_resume(struct device *dev)
 			}
 			swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
 			swr_master_write(swrm, SWRM_COMP_SW_RESET, 0x01);
-			swr_master_write(swrm,
-				SWRM_CLK_CTRL(swrm->ee_val), 0x01);
+			swr_master_write(swrm, SWRM_MCP_BUS_CTRL, 0x01);
 			swrm_master_init(swrm);
 			/* wait for hw enumeration to complete */
 			usleep_range(100, 105);
@@ -3258,13 +3261,9 @@ static int swrm_runtime_resume(struct device *dev)
 				temp &= 0xFFFFFFFD;
 				iowrite32(temp, swrm->swrm_hctl_reg);
 			}
-			if (swrm->version < SWRM_VERSION_1_7)
-				val = 0x2;
-			else
-				val = 0x2 << swrm->ee_val;
 			/*wake up from clock stop*/
 			swr_master_write(swrm,
-				SWRM_CLK_CTRL(swrm->ee_val), val);
+				SWRM_CLK_CTRL(swrm->ee_val), 0x01);
 			/* clear and enable bus clash interrupt */
 			swr_master_write(swrm,
 				SWRM_INTERRUPT_CLEAR(swrm->ee_val), 0x08);
