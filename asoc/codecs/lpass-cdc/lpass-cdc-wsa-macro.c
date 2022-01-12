@@ -189,6 +189,8 @@ static int lpass_cdc_wsa_macro_get_channel_map(struct snd_soc_dai *dai,
 				unsigned int *tx_num, unsigned int *tx_slot,
 				unsigned int *rx_num, unsigned int *rx_slot);
 static int lpass_cdc_wsa_macro_mute_stream(struct snd_soc_dai *dai, int mute, int stream);
+
+#define LPASS_CDC_WSA_MACRO_VTH_TO_REG(vth) ((vth) == 0 ? 255 : (vth))
 /* Hold instance to soundwire platform device */
 struct lpass_cdc_wsa_macro_swr_ctrl_data {
 	struct platform_device *wsa_swr_pdev;
@@ -229,6 +231,7 @@ enum {
 	LPASS_CDC_WSA_MACRO_MAX_DAIS,
 };
 
+
 #define LPASS_CDC_WSA_MACRO_CHILD_DEVICES_MAX 3
 
 /*
@@ -253,6 +256,7 @@ enum {
  * @rx_port_value: mixer ctl value of WSA RX MUXes
  * @wsa_io_base: Base address of WSA macro addr space
  * @wsa_sys_gain System gain value, see wsa driver
+ * @wsa_bat_cfg Battery Configuration value, see wsa driver
  * @wsa_rload Resistor load value for WSA Speaker, see wsa driver
  */
 struct lpass_cdc_wsa_macro_priv {
@@ -297,10 +301,10 @@ struct lpass_cdc_wsa_macro_priv {
 	uint32_t thermal_cur_state;
 	uint32_t thermal_max_state;
 	struct work_struct lpass_cdc_wsa_macro_cooling_work;
-	u32 wsa_rload[LPASS_CDC_WSA_MACRO_RX1 + 1];
+	bool pbr_enable;
 	u32 wsa_sys_gain[2 * (LPASS_CDC_WSA_MACRO_RX1 + 1)];
 	u32 wsa_bat_cfg[LPASS_CDC_WSA_MACRO_RX1 + 1];
-
+	u32 wsa_rload[LPASS_CDC_WSA_MACRO_RX1 + 1];
 
 };
 
@@ -1393,6 +1397,52 @@ static int lpass_cdc_wsa_macro_config_softclip(struct snd_soc_component *compone
 	return 0;
 }
 
+static int lpass_cdc_was_macro_config_pbr(struct snd_soc_component *component,
+					  int path, int event)
+{
+	u16 reg1, reg2;
+	struct device *wsa_dev = NULL;
+	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+
+	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
+		return -EINVAL;
+
+	if (path == LPASS_CDC_WSA_MACRO_COMP1) {
+		reg1 = LPASS_CDC_WSA_COMPANDER0_CTL0;
+		reg2 = LPASS_CDC_WSA_RX0_RX_PATH_CFG3;
+	} else if (path == LPASS_CDC_WSA_MACRO_COMP2) {
+		reg1 = LPASS_CDC_WSA_COMPANDER1_CTL0;
+		reg2 = LPASS_CDC_WSA_RX1_RX_PATH_CFG3;
+	}
+	if (!wsa_priv->pbr_enable || wsa_priv->wsa_bat_cfg[path] ||
+	    wsa_priv->wsa_sys_gain[path * 2] >= G_12_DB ||
+	    wsa_priv->wsa_spkrrecv)
+		return 0;
+
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
+		snd_soc_component_update_bits(component,
+			reg1, 0x08, 0x08);
+		snd_soc_component_update_bits(component,
+			reg2, 0x40, 0x40);
+
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_PBR_PATH_CTL,
+			0x01, 0x01);
+	}
+
+	if (SND_SOC_DAPM_EVENT_OFF(event)) {
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_PBR_PATH_CTL,
+			0x01, 0x00);
+		snd_soc_component_update_bits(component,
+			reg1, 0x08, 0x00);
+		snd_soc_component_update_bits(component,
+			reg2, 0x40, 0x00);
+	}
+
+	return 0;
+}
+
 static bool lpass_cdc_wsa_macro_adie_lb(struct snd_soc_component *component,
 			      int interp_idx)
 {
@@ -1596,6 +1646,7 @@ static int lpass_cdc_wsa_macro_enable_interpolator(struct snd_soc_dapm_widget *w
 
 		lpass_cdc_wsa_macro_config_compander(component, w->shift, event);
 		lpass_cdc_wsa_macro_config_softclip(component, w->shift, event);
+		lpass_cdc_was_macro_config_pbr(component, w->shift, event);
 		if(wsa_priv->wsa_spkrrecv)
 			snd_soc_component_update_bits(component,
 					LPASS_CDC_WSA_RX0_RX_PATH_CFG1,
@@ -1606,6 +1657,7 @@ static int lpass_cdc_wsa_macro_enable_interpolator(struct snd_soc_dapm_widget *w
 				LPASS_CDC_WSA_RX0_RX_PATH_CFG1,	0x08, 0x08);
 		lpass_cdc_wsa_macro_config_compander(component, w->shift, event);
 		lpass_cdc_wsa_macro_config_softclip(component, w->shift, event);
+		lpass_cdc_was_macro_config_pbr(component, w->shift, event);
 		lpass_cdc_wsa_macro_enable_prim_interpolator(component, reg, event);
 		break;
 	}
@@ -2300,6 +2352,40 @@ static int lpass_cdc_wsa_macro_soft_clip_enable_put(struct snd_kcontrol *kcontro
 	return 0;
 }
 
+static int lpass_cdc_wsa_macro_pbr_enable_get(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct device *wsa_dev = NULL;
+	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+
+
+	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
+		return -EINVAL;
+
+	ucontrol->value.integer.value[0] = wsa_priv->pbr_enable;
+	return 0;
+}
+
+static int lpass_cdc_wsa_macro_pbr_enable_put(struct snd_kcontrol *kcontrol,
+					  struct snd_ctl_elem_value *ucontrol)
+{
+
+	struct snd_soc_component *component =
+			snd_soc_kcontrol_component(kcontrol);
+	struct device *wsa_dev = NULL;
+	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+
+	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
+		return -EINVAL;
+
+	wsa_priv->pbr_enable = ucontrol->value.integer.value[0];
+	return 0;
+
+}
+
+
 static const struct snd_kcontrol_new lpass_cdc_wsa_macro_snd_controls[] = {
 	SOC_ENUM_EXT("WSA SPKRRECV", lpass_cdc_wsa_macro_ear_spkrrecv_enum,
 			lpass_cdc_wsa_macro_ear_spkrrecv_get,
@@ -2347,6 +2433,9 @@ static const struct snd_kcontrol_new lpass_cdc_wsa_macro_snd_controls[] = {
 			1, 0, lpass_cdc_wsa_macro_get_ec_hq, lpass_cdc_wsa_macro_set_ec_hq),
 	SOC_SINGLE_EXT("WSA_RX1 EC_HQ Switch", SND_SOC_NOPM, LPASS_CDC_WSA_MACRO_RX1,
 			1, 0, lpass_cdc_wsa_macro_get_ec_hq, lpass_cdc_wsa_macro_set_ec_hq),
+	SOC_SINGLE_EXT("WSA PBR Enable", SND_SOC_NOPM, 0, 1,
+			0, lpass_cdc_wsa_macro_pbr_enable_get,
+			lpass_cdc_wsa_macro_pbr_enable_put),
 };
 
 static const struct soc_enum rx_mux_enum =
@@ -2720,14 +2809,150 @@ static const struct snd_soc_dapm_route wsa_audio_map[] = {
 	{"WSA_SPK2 OUT", NULL, "WSA_MCLK"},
 };
 
+static void lpass_cdc_wsa_macro_init_pbr(struct snd_soc_component *component)
+{
+	int sys_gain, bat_cfg, rload;
+	int vth1, vth2, vth3, vth4, vth5, vth6, vth7, vth8, vth9;
+	int vth10, vth11, vth12, vth13, vth14, vth15;
+	struct device *wsa_dev = NULL;
+	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+
+	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
+		return;
+
+	/* RX0 */
+	sys_gain = wsa_priv->wsa_sys_gain[0];
+	bat_cfg = wsa_priv->wsa_bat_cfg[0];
+	rload = wsa_priv->wsa_rload[0];
+	/* ILIM */
+	switch (rload) {
+	case WSA_4_OHMS:
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_ILIM_CFG0, 0xE0, 0x40);
+		break;
+	case WSA_6_OHMS:
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_ILIM_CFG0, 0xE0, 0x80);
+		break;
+	case WSA_8_OHMS:
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_ILIM_CFG0, 0xE0, 0xC0);
+		break;
+	case WSA_32_OHMS:
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_ILIM_CFG0, 0xE0, 0xE0);
+		break;
+	default:
+		break;
+	}
+	snd_soc_component_update_bits(component,
+		LPASS_CDC_WSA_ILIM_CFG1, 0x0F, sys_gain);
+	snd_soc_component_update_bits(component,
+		LPASS_CDC_WSA_ILIM_CFG9, 0xC0, bat_cfg << 0x7);
+	/* Thesh */
+	vth1 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth1_data[sys_gain][bat_cfg][rload]);
+	vth2 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth2_data[sys_gain][bat_cfg][rload]);
+	vth3 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth3_data[sys_gain][bat_cfg][rload]);
+	vth4 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth4_data[sys_gain][bat_cfg][rload]);
+	vth5 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth5_data[sys_gain][bat_cfg][rload]);
+	vth6 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth6_data[sys_gain][bat_cfg][rload]);
+	vth7 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth7_data[sys_gain][bat_cfg][rload]);
+	vth8 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth8_data[sys_gain][bat_cfg][rload]);
+	vth9 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth9_data[sys_gain][bat_cfg][rload]);
+	vth10 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth10_data[sys_gain][bat_cfg][rload]);
+	vth11 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth11_data[sys_gain][bat_cfg][rload]);
+	vth12 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth12_data[sys_gain][bat_cfg][rload]);
+	vth13 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth13_data[sys_gain][bat_cfg][rload]);
+	vth14 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth14_data[sys_gain][bat_cfg][rload]);
+	vth15 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth15_data[sys_gain][bat_cfg][rload]);
+
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG1, vth1);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG2, vth2);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG3, vth3);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG4, vth4);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG5, vth5);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG6, vth6);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG7, vth7);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG8, vth8);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG9, vth9);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG10, vth10);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG11, vth11);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG12, vth12);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG13, vth13);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG14, vth14);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG15, vth15);
+
+	/* RX1 */
+	sys_gain = wsa_priv->wsa_sys_gain[2];
+	bat_cfg = wsa_priv->wsa_bat_cfg[1];
+	rload = wsa_priv->wsa_rload[1];
+	/* ILIM */
+	switch (rload) {
+	case WSA_4_OHMS:
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_ILIM_CFG0_1, 0xE0, 0x40);
+		break;
+	case WSA_6_OHMS:
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_ILIM_CFG0_1, 0xE0, 0x80);
+		break;
+	case WSA_8_OHMS:
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_ILIM_CFG0_1, 0xE0, 0xC0);
+		break;
+	case WSA_32_OHMS:
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_ILIM_CFG0_1, 0xE0, 0xE0);
+		break;
+	default:
+		break;
+	}
+	snd_soc_component_update_bits(component,
+		LPASS_CDC_WSA_ILIM_CFG1_1, 0x0F, sys_gain);
+	snd_soc_component_update_bits(component,
+		LPASS_CDC_WSA_ILIM_CFG9, 0x30, bat_cfg << 0x5);
+	/* Thesh */
+	vth1 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth1_data[sys_gain][bat_cfg][rload]);
+	vth2 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth2_data[sys_gain][bat_cfg][rload]);
+	vth3 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth3_data[sys_gain][bat_cfg][rload]);
+	vth4 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth4_data[sys_gain][bat_cfg][rload]);
+	vth5 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth5_data[sys_gain][bat_cfg][rload]);
+	vth6 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth6_data[sys_gain][bat_cfg][rload]);
+	vth7 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth7_data[sys_gain][bat_cfg][rload]);
+	vth8 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth8_data[sys_gain][bat_cfg][rload]);
+	vth9 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth9_data[sys_gain][bat_cfg][rload]);
+	vth10 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth10_data[sys_gain][bat_cfg][rload]);
+	vth11 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth11_data[sys_gain][bat_cfg][rload]);
+	vth12 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth12_data[sys_gain][bat_cfg][rload]);
+	vth13 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth13_data[sys_gain][bat_cfg][rload]);
+	vth14 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth14_data[sys_gain][bat_cfg][rload]);
+	vth15 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth15_data[sys_gain][bat_cfg][rload]);
+
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG1_1, vth1);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG2_1, vth2);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG3_1, vth3);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG4_1, vth4);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG5_1, vth5);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG6_1, vth6);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG7_1, vth7);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG8_1, vth8);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG9_1, vth9);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG10_1, vth10);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG11_1, vth11);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG12_1, vth12);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG13_1, vth13);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG14_1, vth14);
+	snd_soc_component_write(component, LPASS_CDC_WSA_PBR_CFG15_1, vth15);
+}
+
 static const struct lpass_cdc_wsa_macro_reg_mask_val
 				lpass_cdc_wsa_macro_reg_init[] = {
 	{LPASS_CDC_WSA_BOOST0_BOOST_CFG1, 0x3F, 0x12},
 	{LPASS_CDC_WSA_BOOST0_BOOST_CFG2, 0x1C, 0x08},
-	{LPASS_CDC_WSA_COMPANDER0_CTL7, 0x1E, 0x18},
+	{LPASS_CDC_WSA_COMPANDER0_CTL7, 0x2E, 0x38},
 	{LPASS_CDC_WSA_BOOST1_BOOST_CFG1, 0x3F, 0x12},
 	{LPASS_CDC_WSA_BOOST1_BOOST_CFG2, 0x1C, 0x08},
-	{LPASS_CDC_WSA_COMPANDER1_CTL7, 0x1E, 0x18},
+	{LPASS_CDC_WSA_COMPANDER1_CTL7, 0x2E, 0x38},
 	{LPASS_CDC_WSA_BOOST0_BOOST_CTL, 0x70, 0x58},
 	{LPASS_CDC_WSA_BOOST1_BOOST_CTL, 0x70, 0x58},
 	{LPASS_CDC_WSA_RX0_RX_PATH_CFG1, 0x08, 0x08},
@@ -2738,12 +2963,27 @@ static const struct lpass_cdc_wsa_macro_reg_mask_val
 	{LPASS_CDC_WSA_TX1_SPKR_PROT_PATH_CFG0, 0x01, 0x01},
 	{LPASS_CDC_WSA_TX2_SPKR_PROT_PATH_CFG0, 0x01, 0x01},
 	{LPASS_CDC_WSA_TX3_SPKR_PROT_PATH_CFG0, 0x01, 0x01},
-	{LPASS_CDC_WSA_COMPANDER0_CTL7, 0x01, 0x01},
-	{LPASS_CDC_WSA_COMPANDER1_CTL7, 0x01, 0x01},
 	{LPASS_CDC_WSA_RX0_RX_PATH_CFG0, 0x01, 0x01},
 	{LPASS_CDC_WSA_RX1_RX_PATH_CFG0, 0x01, 0x01},
 	{LPASS_CDC_WSA_RX0_RX_PATH_MIX_CFG, 0x01, 0x01},
 	{LPASS_CDC_WSA_RX1_RX_PATH_MIX_CFG, 0x01, 0x01},
+	{LPASS_CDC_WSA_LA_CFG, 0x3F, 0xF},
+	{LPASS_CDC_WSA_PBR_CFG16, 0xFF, 0x42},
+	{LPASS_CDC_WSA_PBR_CFG19, 0xFF, 0xFC},
+	{LPASS_CDC_WSA_PBR_CFG20, 0xF0, 0x60},
+	{LPASS_CDC_WSA_ILIM_CFG1, 0x70, 0x40},
+	{LPASS_CDC_WSA_ILIM_CFG0, 0x03, 0x01},
+	{LPASS_CDC_WSA_ILIM_CFG3, 0x1F, 0x15},
+	{LPASS_CDC_WSA_LA_CFG_1, 0x3F, 0x0F},
+	{LPASS_CDC_WSA_PBR_CFG16_1, 0xFF, 0x42},
+	{LPASS_CDC_WSA_PBR_CFG21, 0xFF, 0xFC},
+	{LPASS_CDC_WSA_PBR_CFG22, 0xF0, 0x60},
+	{LPASS_CDC_WSA_ILIM_CFG1_1, 0x70, 0x40},
+	{LPASS_CDC_WSA_ILIM_CFG0_1, 0x03, 0x01},
+	{LPASS_CDC_WSA_ILIM_CFG4, 0x1F, 0x15},
+	{LPASS_CDC_WSA_ILIM_CFG2_1, 0xFF, 0x2A},
+	{LPASS_CDC_WSA_ILIM_CFG2, 0x3F, 0x1B},
+	{LPASS_CDC_WSA_ILIM_CFG9, 0x0F, 0x05},
 };
 
 static void lpass_cdc_wsa_macro_init_reg(struct snd_soc_component *component)
@@ -2755,6 +2995,7 @@ static void lpass_cdc_wsa_macro_init_reg(struct snd_soc_component *component)
 				lpass_cdc_wsa_macro_reg_init[i].reg,
 				lpass_cdc_wsa_macro_reg_init[i].mask,
 				lpass_cdc_wsa_macro_reg_init[i].val);
+	lpass_cdc_wsa_macro_init_pbr(component);
 }
 
 static int lpass_cdc_wsa_macro_core_vote(void *handle, bool enable)
