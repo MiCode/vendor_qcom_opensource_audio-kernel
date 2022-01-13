@@ -146,6 +146,13 @@ enum {
 };
 
 enum {
+	IDLE_DETECT,
+	NG1,
+	NG2,
+	NG3,
+};
+
+enum {
 	INTERP_MAIN_PATH,
 	INTERP_MIX_PATH,
 };
@@ -329,6 +336,7 @@ struct lpass_cdc_wsa_macro_priv {
 	u32 wsa_bat_cfg[LPASS_CDC_WSA_MACRO_RX1 + 1];
 	u32 wsa_rload[LPASS_CDC_WSA_MACRO_RX1 + 1];
 	struct lpass_cdc_macro_idle_detect_config idle_detect_cfg;
+	int noise_gate_mode;
 };
 
 static struct snd_soc_dai_driver lpass_cdc_wsa_macro_dai[];
@@ -1763,21 +1771,28 @@ static void lpass_cdc_macro_idle_detect_control(struct snd_soc_component *compon
 					 struct lpass_cdc_wsa_macro_priv *wsa_priv,
 					 int interp, int event)
 {
-	int reg = 0, mask = 0, val = 0;
+	int reg = 0, mask = 0, val = 0, source_reg = 0;
 
 	if (!wsa_priv->idle_detect_cfg.idle_detect_en)
 		return;
 
 	if (interp == INTERP_RX0) {
+		source_reg = LPASS_CDC_WSA_RX0_RX_PATH_CFG3;
 		reg = LPASS_CDC_WSA_IDLE_DETECT_PATH_CTL;
 		mask = 0x01;
 		val = 0x01;
 	}
 	if (interp == INTERP_RX1) {
+		source_reg = LPASS_CDC_WSA_RX1_RX_PATH_CFG3;
 		reg = LPASS_CDC_WSA_IDLE_DETECT_PATH_CTL;
 		mask = 0x02;
 		val = 0x02;
 	}
+
+	if(wsa_priv->noise_gate_mode == NG2)
+		snd_soc_component_update_bits(component, source_reg, 0x80, 0x80);
+	else
+		snd_soc_component_update_bits(component, source_reg, 0x80, 0x00);
 
 	if (reg && SND_SOC_DAPM_EVENT_ON(event))
 		snd_soc_component_update_bits(component, reg, mask, val);
@@ -3699,7 +3714,7 @@ static int lpass_cdc_wsa_macro_probe(struct platform_device *pdev)
 	char __iomem *wsa_io_base;
 	int ret = 0;
 	u32 is_used_wsa_swr_gpio = 1;
-
+	u32 noise_gate_mode;
 	const char *is_used_wsa_swr_gpio_dt = "qcom,is-used-swr-gpio";
 
 	if (!lpass_cdc_is_va_macro_registered(&pdev->dev)) {
@@ -3823,6 +3838,19 @@ static int lpass_cdc_wsa_macro_probe(struct platform_device *pdev)
 				__func__);
 			wsa_priv->tcdev = NULL;
 		}
+	}
+
+	ret = of_property_read_u32(pdev->dev.of_node,
+				"qcom,noise-gate-mode", &noise_gate_mode);
+	if (ret) {
+		dev_info(&pdev->dev, "%s: could not find %s entry in dt\n",
+			__func__, "qcom,noise-gate-mode");
+		wsa_priv->noise_gate_mode = IDLE_DETECT;
+	} else {
+		if(IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
+			wsa_priv->noise_gate_mode = noise_gate_mode;
+		else
+			wsa_priv->noise_gate_mode = IDLE_DETECT;
 	}
 
 	pm_runtime_set_autosuspend_delay(&pdev->dev, AUTO_SUSPEND_DELAY);
