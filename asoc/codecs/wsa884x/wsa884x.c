@@ -233,14 +233,20 @@ static bool is_swr_slave_reg_readable(int reg)
 	    ((reg > 0x205) && (reg < 0x220)) ||
 	    ((reg > 0x305) && (reg < 0x320)) ||
 	    ((reg > 0x405) && (reg < 0x420)) ||
-	    ((reg > 0x128) && (reg < 0x130)) ||
-	    ((reg > 0x228) && (reg < 0x230)) ||
-	    ((reg > 0x328) && (reg < 0x330)) ||
-	    ((reg > 0x428) && (reg < 0x430)) ||
-	    ((reg > 0x138) && (reg < 0x205)) ||
-	    ((reg > 0x238) && (reg < 0x305)) ||
-	    ((reg > 0x338) && (reg < 0x405)) ||
-	    ((reg > 0x405) && (reg < 0xF00)) ||
+	    ((reg > 0x505) && (reg < 0x520)) ||
+	    ((reg > 0x605) && (reg < 0x620)) ||
+	    ((reg > 0x127) && (reg < 0x130)) ||
+	    ((reg > 0x227) && (reg < 0x230)) ||
+	    ((reg > 0x327) && (reg < 0x330)) ||
+	    ((reg > 0x427) && (reg < 0x430)) ||
+	    ((reg > 0x527) && (reg < 0x530)) ||
+	    ((reg > 0x627) && (reg < 0x630)) ||
+	    ((reg > 0x137) && (reg < 0x200)) ||
+	    ((reg > 0x237) && (reg < 0x300)) ||
+	    ((reg > 0x337) && (reg < 0x400)) ||
+	    ((reg > 0x437) && (reg < 0x500)) ||
+	    ((reg > 0x537) && (reg < 0x600)) ||
+	    ((reg > 0x637) && (reg < 0xF00)) ||
 	    ((reg > 0xF05) && (reg < 0xF20)) ||
 	    ((reg > 0xF25) && (reg < 0xF30)) ||
 	    ((reg > 0xF35) && (reg < 0x2000)))
