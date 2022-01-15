@@ -41,6 +41,7 @@
 #define WSA884X_TEMP_RETRY 3
 #define PBR_MAX_VOLTAGE 20
 #define PBR_MAX_CODE 255
+#define WSA884X_IDLE_DETECT_NG_BLOCK_MASK	0x38
 #define MAX_NAME_LEN	40
 #define WSA884X_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 			SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
@@ -57,6 +58,13 @@
 #define REG_FIELD_VALUE(register_name, field_name, value) \
 WSA884X_##register_name, FIELD_MASK(register_name, field_name), \
 value << FIELD_SHIFT(register_name, field_name)
+
+enum {
+	IDLE_DETECT,
+	NG1,
+	NG2,
+	NG3,
+};
 
 struct wsa_temp_register {
 	u8 d1_msb;
@@ -691,6 +699,29 @@ static int wsa884x_set_pbr_parameters(struct snd_soc_component *component)
 	snd_soc_component_write(component, WSA884X_CLSH_VTH15, vth15_reg_val);
 
 	return 0;
+}
+
+static void wsa_noise_gate_write(struct snd_soc_component *component,
+			int imode)
+{
+	switch (imode) {
+	case NG1:
+		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,
+			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x30);
+		break;
+	case NG2:
+		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,
+			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x28);
+		break;
+	case NG3:
+		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,
+			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x18);
+		break;
+	default:
+		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,
+			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x8);
+		break;
+	}
 }
 
 static const char * const wsa_dev_mode_text[] = {
@@ -1491,6 +1522,7 @@ static void wsa884x_codec_init(struct snd_soc_component *component)
 	if (wsa884x->variant == WSA8845H)
 		snd_soc_component_update_bits(wsa884x->component,
 		REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x01));
+	wsa_noise_gate_write(component, wsa884x->noise_gate_mode);
 
 }
 
@@ -1877,6 +1909,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	bool pin_state_current = false;
 	struct wsa_ctrl_platform_data *plat_data = NULL;
 	struct snd_soc_component *component;
+	u32 noise_gate_mode;
 	char buffer[MAX_NAME_LEN];
 	int dev_index = 0;
 	struct regmap_irq_chip *wsa884x_sub_regmap_irq_chip = NULL;
@@ -2092,6 +2125,20 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 				goto err_mem;
 			}
 
+			ret = of_property_read_u32(wsa884x->macro_dev->dev.of_node,
+				"qcom,noise-gate-mode", &noise_gate_mode);
+			if (ret) {
+				dev_info(&pdev->dev,
+					"%s: Failed to read wsa noise gate mode\n",
+						__func__);
+				wsa884x->noise_gate_mode = IDLE_DETECT;
+			} else {
+				if(IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
+					wsa884x->noise_gate_mode = noise_gate_mode;
+				else
+					wsa884x->noise_gate_mode = IDLE_DETECT;
+			}
+
 			if (!of_find_property(wsa884x->macro_dev->dev.of_node,
 				"qcom,wsa-system-gains", &sys_gain_size)) {
 				dev_err(&pdev->dev,
@@ -2114,7 +2161,6 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 			}
 			wsa884x->system_gain = wsa884x->sys_gains[
 				wsa884x->dev_mode + (dev_index - 1) * 2];
-
 		} else {
 			dev_err(&pdev->dev, "%s: parent dev not found\n",
 				__func__);
