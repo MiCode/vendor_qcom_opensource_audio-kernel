@@ -586,8 +586,33 @@ static irqreturn_t wsa884x_uvlo_handle_irq(int irq, void *data)
 
 static irqreturn_t wsa884x_pa_on_err_handle_irq(int irq, void *data)
 {
+	u8 pa_fsm_sta = 0, pa_fsm_err = 0;
+	struct wsa884x_priv *wsa884x = data;
+	struct snd_soc_component *component = NULL;
+
+	if (!wsa884x)
+		return IRQ_NONE;
+
+	component = wsa884x->component;
+	if (!component)
+		return IRQ_NONE;
+
+	pa_fsm_sta = (snd_soc_component_read(component, WSA884X_PA_FSM_STA1)
+			& 0x1F);
+	if (pa_fsm_sta)
+		pa_fsm_err = snd_soc_component_read(component,
+				WSA884X_PA_FSM_ERR_COND0);
+
 	pr_err_ratelimited("%s: interrupt for irq =%d triggered\n",
 			   __func__, irq);
+
+	snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL0,
+				0x10, 0x00);
+	snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL0,
+				0x10, 0x10);
+	snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL0,
+				0x10, 0x00);
+
 	return IRQ_HANDLED;
 }
 
@@ -1388,6 +1413,7 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 			REG_FIELD_VALUE(ISENSE2, ISENSE_GAIN_CTL, igain));
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(VSENSE1, GAIN_VSENSE_FE, vgain));
+		wcd_enable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR);
 		wcd_enable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO);
 		/* Force remove group */
 		swr_remove_from_group(wsa884x->swr_slave,
@@ -1405,6 +1431,7 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(PDM_WD_CTL, PDM_WD_EN, 0x00));
 		wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO);
+		wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR);
 		clear_bit(SPKR_STATUS, &wsa884x->status_mask);
 		clear_bit(SPKR_ADIE_LB, &wsa884x->status_mask);
 		break;
@@ -1946,53 +1973,53 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	wsa884x->swr_slave->slave_irq = wsa884x->virq;
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_SAF2WAR,
-			"WSA SAF2WAR", wsa884x_saf2war_handle_irq, NULL);
+			"WSA SAF2WAR", wsa884x_saf2war_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_SAF2WAR);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_WAR2SAF,
-			"WSA WAR2SAF", wsa884x_war2saf_handle_irq, NULL);
+			"WSA WAR2SAF", wsa884x_war2saf_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_WAR2SAF);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_DISABLE,
-			"WSA OTP", wsa884x_otp_handle_irq, NULL);
+			"WSA OTP", wsa884x_otp_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_DISABLE);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_OCP,
-			"WSA OCP", wsa884x_ocp_handle_irq, NULL);
+			"WSA OCP", wsa884x_ocp_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_OCP);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLIP,
-			"WSA CLIP", wsa884x_clip_handle_irq, NULL);
+			"WSA CLIP", wsa884x_clip_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLIP);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PDM_WD,
-			"WSA PDM WD", wsa884x_pdm_wd_handle_irq, NULL);
+			"WSA PDM WD", wsa884x_pdm_wd_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PDM_WD);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLK_WD,
-			"WSA CLK WD", wsa884x_clk_wd_handle_irq, NULL);
+			"WSA CLK WD", wsa884x_clk_wd_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLK_WD);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_INTR_PIN,
-			"WSA EXT INT", wsa884x_ext_int_handle_irq, NULL);
+			"WSA EXT INT", wsa884x_ext_int_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_INTR_PIN);
 
 	/* Under Voltage Lock out (UVLO) interrupt handle */
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO,
-			"WSA UVLO", wsa884x_uvlo_handle_irq, NULL);
+			"WSA UVLO", wsa884x_uvlo_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO);
 
 	wcd_request_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR,
-			"WSA PA ERR", wsa884x_pa_on_err_handle_irq, NULL);
+			"WSA PA ERR", wsa884x_pa_on_err_handle_irq, wsa884x);
 
 	wcd_disable_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR);
 
