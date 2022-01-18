@@ -15,6 +15,7 @@
 #include <soc/soundwire.h>
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
+#include <linux/soc/qcom/battery_charger.h>
 
 #define HAPTICS_RATES (SNDRV_PCM_RATE_8000 | SNDRV_PCM_RATE_16000 |\
 		SNDRV_PCM_RATE_32000 | SNDRV_PCM_RATE_48000 |\
@@ -89,11 +90,13 @@ struct swr_haptics_dev {
 	struct swr_port			port;
 	struct regulator		*slave_vdd;
 	struct regulator		*hpwr_vreg;
+	struct notifier_block		hboost_nb;
 	u32				hpwr_voltage_mv;
 	bool				slave_enabled;
 	bool				hpwr_vreg_enabled;
 	bool				ssr_recovery;
 	u8				vmax;
+	u8				clamped_vmax;
 	u8				flags;
 };
 
@@ -254,6 +257,7 @@ static int hap_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 		snd_soc_dapm_to_component(w->dapm);
 	struct swr_haptics_dev *swr_hap;
 	u8 port_id, ch_mask, num_ch, port_type, num_port;
+	u8 vmax;
 	u32 ch_rate;
 	unsigned int val;
 	int rc;
@@ -287,7 +291,11 @@ static int hap_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 			swr_hap->ssr_recovery = false;
 		}
 
-		rc = regmap_write(swr_hap->regmap, SWR_VMAX_REG, swr_hap->vmax);
+		vmax = swr_hap->vmax;
+		if ((swr_hap->clamped_vmax != 0) && (swr_hap->vmax > swr_hap->clamped_vmax))
+			vmax = swr_hap->clamped_vmax;
+
+		rc = regmap_write(swr_hap->regmap, SWR_VMAX_REG, vmax);
 		if (rc) {
 			dev_err_ratelimited(swr_hap->dev, "%s: SWR_VMAX update failed, rc=%d\n",
 				__func__, rc);
@@ -488,6 +496,33 @@ static int swr_haptics_parse_port_mapping(struct swr_device *sdev)
 	return 0;
 }
 
+#define MAX_HAPTICS_VMAX_MV		10000
+#define VMAX_STEP_MV			50
+static int hboost_notifier(struct notifier_block *nb, unsigned long event, void *val)
+{
+	struct swr_haptics_dev *swr_hap = container_of(nb, struct swr_haptics_dev, hboost_nb);
+	u32 vmax_mv;
+
+	switch (event) {
+	case VMAX_CLAMP:
+		vmax_mv = *(u32 *)val;
+		if (vmax_mv > MAX_HAPTICS_VMAX_MV) {
+			dev_err_ratelimited(swr_hap->dev, "%s: voted Vmax (%u mv) is higher than maximum (%u mv)\n",
+					__func__, vmax_mv, MAX_HAPTICS_VMAX_MV);
+			return -EINVAL;
+		}
+
+		dev_dbg(swr_hap->dev, "%s: Vmax is clamped at %u mv to support hBoost concurrency\n",
+				__func__, vmax_mv);
+		swr_hap->clamped_vmax = vmax_mv / VMAX_STEP_MV;
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int swr_haptics_probe(struct swr_device *sdev)
 {
 	struct swr_haptics_dev *swr_hap;
@@ -584,6 +619,8 @@ static int swr_haptics_probe(struct swr_device *sdev)
 		goto dev_err;
 	}
 
+	swr_hap->hboost_nb.notifier_call = hboost_notifier;
+	register_hboost_event_notifier(&swr_hap->hboost_nb);
 	return 0;
 dev_err:
 	swr_haptics_slave_disable(swr_hap);
@@ -605,6 +642,7 @@ static int swr_haptics_remove(struct swr_device *sdev)
 		goto clean;
 	}
 
+	unregister_hboost_event_notifier(&swr_hap->hboost_nb);
 	rc = swr_haptics_slave_disable(swr_hap);
 	if (rc < 0) {
 		dev_err(swr_hap->dev, "%s: disable swr-slave failed, rc=%d\n",
