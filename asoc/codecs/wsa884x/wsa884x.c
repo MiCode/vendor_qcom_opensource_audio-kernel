@@ -115,6 +115,8 @@ static const struct wsa_reg_mask_val reg_init[] = {
 	{REG_FIELD_VALUE(ILIM_CTRL1, ILIM_OFFSET_PB, 0x03)},
 	{REG_FIELD_VALUE(CURRENT_LIMIT, CURRENT_LIMIT, 0x09)},
 	{REG_FIELD_VALUE(CKWD_CTL_1, CKWD_VCOMP_VREF_SEL, 0x13)},
+	{REG_FIELD_VALUE(BOP2_PROG, BOP2_VTH, 0x06)},
+	{REG_FIELD_VALUE(BOP2_PROG, BOP2_HYST, 0x06)},
 };
 
 static int wsa884x_handle_post_irq(void *data);
@@ -1379,14 +1381,40 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 				REG_FIELD_VALUE(PWM_CLK_CTL,
 				PWM_CLK_FREQ_SEL, 0x01));
 		}
-		if (wsa884x->pbr_enable)
+		if (wsa884x->pbr_enable) {
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CURRENT_LIMIT,
 				CURRENT_LIMIT_OVRD_EN, 0x00));
-		else
+			switch (wsa884x->bat_cfg) {
+			case CONFIG_1S:
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CURRENT_LIMIT,
+					CURRENT_LIMIT, 0x15));
+				break;
+			case CONFIG_2S:
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CURRENT_LIMIT,
+					CURRENT_LIMIT, 0x11));
+				break;
+			case CONFIG_3S:
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CURRENT_LIMIT,
+					CURRENT_LIMIT, 0x0D));
+				break;
+			}
+		} else {
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CURRENT_LIMIT,
 				CURRENT_LIMIT_OVRD_EN, 0x01));
+			if (wsa884x->system_gain >= G_12_DB)
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CURRENT_LIMIT,
+					CURRENT_LIMIT, 0x15));
+			else
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CURRENT_LIMIT,
+					CURRENT_LIMIT, 0x09));
+		}
 		/* Force remove group */
 		swr_remove_from_group(wsa884x->swr_slave,
 				      wsa884x->swr_slave->dev_num);
@@ -2124,6 +2152,10 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 			REG_FIELD_VALUE(PWM_CLK_CTL,
 			PWM_CLK_FREQ_SEL, 0x01));
 	}
+	if (wsa884x->bat_cfg != CONFIG_1S && wsa884x->bat_cfg != EXT_1S)
+		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(TOP_CTRL1,
+			OCP_LOWVBAT_ITH_SEL_EN, 0x00));
 
 	mutex_init(&wsa884x->res_lock);
 
