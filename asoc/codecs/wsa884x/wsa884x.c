@@ -809,34 +809,6 @@ static int wsa_pa_gain_put(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int wsa884x_get_mute(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
-	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
-
-	ucontrol->value.integer.value[0] = wsa884x->pa_mute;
-
-	return 0;
-}
-
-static int wsa884x_set_mute(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-			snd_soc_kcontrol_component(kcontrol);
-	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
-	int value = ucontrol->value.integer.value[0];
-
-	dev_dbg(component->dev, "%s: mute current %d, new %d\n",
-		__func__, wsa884x->pa_mute, value);
-
-	wsa884x->pa_mute = value;
-
-	return 0;
-}
-
 static int wsa_get_temp(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
@@ -1107,31 +1079,6 @@ static int wsa884x_set_compander(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int wsa884x_get_comp_offset(struct snd_kcontrol *kcontrol,
-				   struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-				snd_soc_kcontrol_component(kcontrol);
-	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
-
-	ucontrol->value.integer.value[0] = wsa884x->comp_offset;
-	return 0;
-}
-
-static int wsa884x_set_comp_offset(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-				snd_soc_kcontrol_component(kcontrol);
-	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
-	int value = ucontrol->value.integer.value[0];
-
-	dev_dbg(component->dev, "%s: comp_offset %d\n",
-		__func__, wsa884x->comp_offset);
-	wsa884x->comp_offset = value;
-	return 0;
-}
-
 static int wsa884x_get_visense(struct snd_kcontrol *kcontrol,
 			       struct snd_ctl_elem_value *ucontrol)
 {
@@ -1207,39 +1154,9 @@ static int wsa884x_set_cps(struct snd_kcontrol *kcontrol,
 	return 0;
 }
 
-static int wsa884x_get_ext_vdd_spk(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-				snd_soc_kcontrol_component(kcontrol);
-	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
-
-	ucontrol->value.integer.value[0] = wsa884x->ext_vdd_spk;
-
-	return 0;
-}
-
-static int wsa884x_put_ext_vdd_spk(struct snd_kcontrol *kcontrol,
-			       struct snd_ctl_elem_value *ucontrol)
-{
-	struct snd_soc_component *component =
-				snd_soc_kcontrol_component(kcontrol);
-	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
-	int value = ucontrol->value.integer.value[0];
-
-	dev_dbg(component->dev, "%s: Ext VDD SPK enable current %d, new %d\n",
-		 __func__, wsa884x->ext_vdd_spk, value);
-	wsa884x->ext_vdd_spk = value;
-
-	return 0;
-}
-
 static const struct snd_kcontrol_new wsa884x_snd_controls[] = {
 	SOC_ENUM_EXT("WSA PA Gain", wsa_pa_gain_enum,
 			wsa_pa_gain_get, wsa_pa_gain_put),
-
-	SOC_SINGLE_EXT("WSA PA Mute", SND_SOC_NOPM, 0, 1, 0,
-			wsa884x_get_mute, wsa884x_set_mute),
 
 	SOC_SINGLE_EXT("WSA Temp", SND_SOC_NOPM, 0, UINT_MAX, 0,
 			wsa_get_temp, NULL),
@@ -1249,9 +1166,6 @@ static const struct snd_kcontrol_new wsa884x_snd_controls[] = {
 
 	SOC_ENUM_EXT("WSA MODE", wsa_dev_mode_enum,
 			wsa_dev_mode_get, wsa_dev_mode_put),
-
-	SOC_SINGLE_EXT("COMP Offset", SND_SOC_NOPM, 0, 4, 0,
-			wsa884x_get_comp_offset, wsa884x_set_comp_offset),
 
 	SOC_SINGLE_EXT("COMP Switch", SND_SOC_NOPM, 0, 1, 0,
 			wsa884x_get_compander, wsa884x_set_compander),
@@ -1265,8 +1179,6 @@ static const struct snd_kcontrol_new wsa884x_snd_controls[] = {
 	SOC_SINGLE_EXT("CPS Switch", SND_SOC_NOPM, 0, 1, 0,
 		wsa884x_get_cps, wsa884x_set_cps),
 
-	SOC_SINGLE_EXT("External VDD_SPK", SND_SOC_NOPM, 0, 1, 0,
-		wsa884x_get_ext_vdd_spk, wsa884x_put_ext_vdd_spk),
 };
 
 static const struct snd_kcontrol_new swr_dac_port[] = {
