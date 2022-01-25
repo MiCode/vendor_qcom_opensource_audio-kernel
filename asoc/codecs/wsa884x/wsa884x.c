@@ -1064,7 +1064,7 @@ static bool wsa884x_validate_dt_configuration_params(u8 irload, u8 ibat_cfg,
 		(EXT_ABOVE_3S <= ibat_cfg && ibat_cfg < CONFIG_MAX))
 			is_invalid_flag = false;
 
-          return is_invalid_flag;
+	return is_invalid_flag;
 }
 
 static int wsa884x_set_compander(struct snd_kcontrol *kcontrol,
@@ -2118,7 +2118,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 						__func__);
 				wsa884x->noise_gate_mode = IDLE_DETECT;
 			} else {
-				if(IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
+				if (IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
 					wsa884x->noise_gate_mode = noise_gate_mode;
 				else
 					wsa884x->noise_gate_mode = IDLE_DETECT;
