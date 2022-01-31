@@ -17,6 +17,9 @@
 #define FIELD_SHIFT(register_name, field_name) \
 	WSA884X_##register_name##_##field_name##_SHIFT
 
+/* WSA884X_BOP2_PROG Fields: */
+#define WSA884X_BOP2_PROG_BOP2_VTH_SHIFT                                  0x04
+#define WSA884X_BOP2_PROG_BOP2_HYST_SHIFT                                 0x00
 /* WSA884X_VSENSE1 Fields: */
 #define WSA884X_VSENSE1_GAIN_VSENSE_FE_SHIFT                              0x05
 #define WSA884X_VSENSE1_VSENSE_AMP_IQ_CTL_1_SHIFT                         0x04
@@ -40,6 +43,14 @@
 #define WSA884X_ADC_7_EN_AZ_REG_SHIFT                                     0x02
 #define WSA884X_ADC_7_EN_SAR_REG_SHIFT                                    0x01
 #define WSA884X_ADC_7_EN_SW_CURRENT_REG_SHIFT                             0x00
+/* WSA884X_TOP_CTRL1 Fields: */
+#define WSA884X_TOP_CTRL1_IDLE_PWRSAV_OVERRIDE_SHIFT                      0x07
+#define WSA884X_TOP_CTRL1_DAC_LDO_PROG_SHIFT                              0x05
+#define WSA884X_TOP_CTRL1_DATA_INV_SHIFT                                  0x04
+#define WSA884X_TOP_CTRL1_DATA_RESET_SHIFT                                0x03
+#define WSA884X_TOP_CTRL1_CLK_DIV2_SHIFT                                  0x02
+#define WSA884X_TOP_CTRL1_CLK_INV_SHIFT                                   0x01
+#define WSA884X_TOP_CTRL1_OCP_LOWVBAT_ITH_SEL_EN_SHIFT                    0x00
 /* WSA884X_BOP_DEGLITCH_CTL Fields: */
 #define WSA884X_BOP_DEGLITCH_CTL_BOP_DEGLITCH_SETTING_SHIFT               0x01
 #define WSA884X_BOP_DEGLITCH_CTL_BOP_DEGLITCH_EN_SHIFT                    0x00

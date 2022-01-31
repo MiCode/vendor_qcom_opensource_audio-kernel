@@ -17,6 +17,9 @@
 #define FIELD_MASK(register_name, field_name) \
 	WSA884X_##register_name##_##field_name##_MASK
 
+/* WSA884X_BOP2_PROG Fields: */
+#define WSA884X_BOP2_PROG_BOP2_VTH_MASK                                  0xf0
+#define WSA884X_BOP2_PROG_BOP2_HYST_MASK                                 0x0f
 /* WSA884X_VSENSE1 Fields: */
 #define WSA884X_VSENSE1_GAIN_VSENSE_FE_MASK                              0xe0
 #define WSA884X_VSENSE1_VSENSE_AMP_IQ_CTL_1_MASK                         0x10
@@ -40,6 +43,14 @@
 #define WSA884X_ADC_7_EN_AZ_REG_MASK                                     0x04
 #define WSA884X_ADC_7_EN_SAR_REG_MASK                                    0x02
 #define WSA884X_ADC_7_EN_SW_CURRENT_REG_MASK                             0x01
+/* WSA884X_TOP_CTRL1 Fields: */
+#define WSA884X_TOP_CTRL1_IDLE_PWRSAV_OVERRIDE_MASK                      0x80
+#define WSA884X_TOP_CTRL1_DAC_LDO_PROG_MASK                              0x60
+#define WSA884X_TOP_CTRL1_DATA_INV_MASK                                  0x10
+#define WSA884X_TOP_CTRL1_DATA_RESET_MASK                                0x08
+#define WSA884X_TOP_CTRL1_CLK_DIV2_MASK                                  0x04
+#define WSA884X_TOP_CTRL1_CLK_INV_MASK                                   0x02
+#define WSA884X_TOP_CTRL1_OCP_LOWVBAT_ITH_SEL_EN_MASK                    0x01
 /* WSA884X_BOP_DEGLITCH_CTL Fields: */
 #define WSA884X_BOP_DEGLITCH_CTL_BOP_DEGLITCH_SETTING_MASK               0x1e
 #define WSA884X_BOP_DEGLITCH_CTL_BOP_DEGLITCH_EN_MASK                    0x01

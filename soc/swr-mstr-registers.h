@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015, 2018-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _SWRM_REGISTERS_H
@@ -32,8 +33,8 @@
 #define SWRM_CMD_RESPONSE(n)              (SWRM_BASE+0x4054+0x1000*n)
 #define SWRM_CLK_CTRL(n)                  (SWRM_BASE+0x4060+0x1000*n)
 #define SWRM_LINK_STATUS(n)               (SWRM_BASE+0x4064+0x1000*n)
-#define SWRM_TO_CPU_SW_MESSAGE(n, m)      (SWRM_BASE+0x4090+0x1000*n)
-#define SWRM_TO_CPU_SW_MESSAGE_READ(n, m) (SWRM_BASE+0x40A0+0x1000*n)
+#define SWRM_TO_CPU_SW_MESSAGE(n, m)      (SWRM_BASE+0x4090+0x1000*n+0x4*m)
+#define SWRM_TO_CPU_SW_MESSAGE_READ(n, m) (SWRM_BASE+0x40A0+0x1000*n+0x4*m)
 #define SWRM_INTERRUPT_STATUS_RD_FIFO_OVERFLOW                  0x10
 #define SWRM_INTERRUPT_STATUS_RD_FIFO_UNDERFLOW                 0x20
 #define SWRM_INTERRUPT_STATUS_SPECIAL_CMD_ID_FINISHED           0x400
