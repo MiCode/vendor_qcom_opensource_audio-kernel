@@ -1607,25 +1607,20 @@ static int wsa884x_codec_probe(struct snd_soc_component *component)
 	wsa884x->global_pa_cnt = 0;
 
 	memset(w_name, 0, sizeof(w_name));
-	strlcpy(w_name, component->name_prefix, sizeof(w_name));
-	strlcat(w_name, " ", sizeof(w_name));
-	strlcat(w_name, wsa884x->dai_driver->playback.stream_name,
+	strlcpy(w_name, wsa884x->dai_driver->playback.stream_name,
 				sizeof(w_name));
 	snd_soc_dapm_ignore_suspend(dapm, w_name);
 
 	memset(w_name, 0, sizeof(w_name));
-	strlcpy(w_name, component->name_prefix, sizeof(w_name));
-	strlcat(w_name, " IN", sizeof(w_name));
+	strlcpy(w_name, "IN", sizeof(w_name));
 	snd_soc_dapm_ignore_suspend(dapm, w_name);
 
 	memset(w_name, 0, sizeof(w_name));
-	strlcpy(w_name, component->name_prefix, sizeof(w_name));
-	strlcat(w_name, " SWR DAC_Port", sizeof(w_name));
+	strlcpy(w_name, "SWR DAC_Port", sizeof(w_name));
 	snd_soc_dapm_ignore_suspend(dapm, w_name);
 
 	memset(w_name, 0, sizeof(w_name));
-	strlcpy(w_name, component->name_prefix, sizeof(w_name));
-	strlcat(w_name, " SPKR", sizeof(w_name));
+	strlcpy(w_name, "SPKR", sizeof(w_name));
 	snd_soc_dapm_ignore_suspend(dapm, w_name);
 
 	snd_soc_dapm_sync(dapm);
@@ -2103,7 +2098,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	wsa884x->bat_cfg = snd_soc_component_read(component,
 						  WSA884X_VPHX_SYS_EN_STATUS);
 	dev_dbg(component->dev,
-		"%s: Bat_cfg: 0x%x rload: 0x%x, sys_gain: 0x%x %x\n", __func__,
+		"%s: Bat_cfg: 0x%x, Rload: 0x%x, Sys_gain: 0x%x\n", __func__,
 		wsa884x->bat_cfg, wsa884x->rload, wsa884x->system_gain);
 	ret = wsa884x_validate_dt_configuration_params(wsa884x->rload,
 		wsa884x->bat_cfg, wsa884x->system_gain);
