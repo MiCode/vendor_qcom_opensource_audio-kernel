@@ -144,14 +144,18 @@ static int msm_audio_dma_buf_map(struct dma_buf *dma_buf,
 
 	struct msm_audio_alloc_data *alloc_data = NULL;
 	int rc = 0;
-	struct dma_buf_map dma_vmap;
+	struct dma_buf_map *dma_vmap = NULL;
 	struct device *cb_dev = ion_data->cb_dev;
 
+	dma_vmap = kzalloc(sizeof(*dma_vmap), GFP_KERNEL);
+	if (!dma_vmap)
+		return -ENOMEM;
 	/* Data required per buffer mapping */
 	alloc_data = kzalloc(sizeof(*alloc_data), GFP_KERNEL);
-	if (!alloc_data)
+	if (!alloc_data) {
+		kfree(dma_vmap);
 		return -ENOMEM;
-
+	}
 	alloc_data->dma_buf = dma_buf;
 	alloc_data->len = dma_buf->size;
 	*len = dma_buf->size;
@@ -186,14 +190,14 @@ static int msm_audio_dma_buf_map(struct dma_buf *dma_buf,
 	/* physical address from mapping */
 	if (!is_iova) {
 		*addr = sg_phys(alloc_data->table->sgl);
-		rc = msm_audio_ion_map_kernel((void *)dma_buf, ion_data, &dma_vmap);
+		rc = msm_audio_ion_map_kernel((void *)dma_buf, ion_data, dma_vmap);
 		if (rc) {
 			pr_err("%s: ION memory mapping for AUDIO failed, err:%d\n",
 				__func__, rc);
 			rc = -ENOMEM;
 			goto detach_dma_buf;
 		}
-		alloc_data->vmap = &dma_vmap;
+		alloc_data->vmap = dma_vmap;
 	} else {
 		*addr = MSM_AUDIO_ION_PHYS_ADDR(alloc_data);
 	}
@@ -205,6 +209,7 @@ detach_dma_buf:
 	dma_buf_detach(alloc_data->dma_buf,
 		       alloc_data->attach);
 free_alloc_data:
+	kfree(dma_vmap);
 	kfree(alloc_data);
 	alloc_data = NULL;
 
@@ -243,6 +248,7 @@ static int msm_audio_dma_buf_unmap(struct dma_buf *dma_buf, struct msm_audio_ion
 			dma_buf_put(alloc_data->dma_buf);
 
 			list_del(&(alloc_data->list));
+			kfree(alloc_data->vmap);
 			kfree(alloc_data);
 			alloc_data = NULL;
 			break;
@@ -655,7 +661,7 @@ static long msm_audio_ion_ioctl(struct file *file, unsigned int ioctl_num,
 	void *mem_handle;
 	dma_addr_t paddr;
 	size_t pa_len = 0;
-	struct dma_buf_map dma_vmap;
+	struct dma_buf_map *dma_vmap = NULL;
 	int ret = 0;
 	int dest_perms_map[2] = {PERM_READ | PERM_WRITE, PERM_READ | PERM_WRITE};
 	int source_vm_map[1] = {VMID_HLOS};
@@ -670,14 +676,20 @@ static long msm_audio_ion_ioctl(struct file *file, unsigned int ioctl_num,
 	pr_debug("%s ioctl num %u\n", __func__, ioctl_num);
 	switch (ioctl_num) {
 	case IOCTL_MAP_PHYS_ADDR:
+		dma_vmap = kzalloc(sizeof(struct msm_audio_fd_data), GFP_KERNEL);
+		if (!dma_vmap)
+			return -ENOMEM;
 		msm_audio_fd_data = kzalloc((sizeof(struct msm_audio_fd_data)),
 					GFP_KERNEL);
-		if (!msm_audio_fd_data)
+		if (!msm_audio_fd_data) {
+			kfree(dma_vmap);
 			return -ENOMEM;
+		}
 		ret = msm_audio_ion_import((struct dma_buf **)&mem_handle, (int)ioctl_param,
-					NULL, 0, &paddr, &pa_len, &dma_vmap, ion_data);
+					NULL, 0, &paddr, &pa_len, dma_vmap, ion_data);
 		if (ret < 0) {
 			pr_err("%s Memory map Failed %d\n", __func__, ret);
+			kfree(dma_vmap);
 			kfree(msm_audio_fd_data);
 			return ret;
 		}
