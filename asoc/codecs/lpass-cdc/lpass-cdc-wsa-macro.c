@@ -1584,9 +1584,10 @@ static int lpass_cdc_wsa_macro_config_softclip(struct snd_soc_component *compone
 static int lpass_cdc_was_macro_config_pbr(struct snd_soc_component *component,
 					  int path, int event)
 {
-	u16 reg1, reg2;
+	u16 reg1, reg2, reg3;
 	struct device *wsa_dev = NULL;
 	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+	int softclip_path = 0;
 
 	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
 		return -EINVAL;
@@ -1594,12 +1595,16 @@ static int lpass_cdc_was_macro_config_pbr(struct snd_soc_component *component,
 	if (path == LPASS_CDC_WSA_MACRO_COMP1) {
 		reg1 = LPASS_CDC_WSA_COMPANDER0_CTL0;
 		reg2 = LPASS_CDC_WSA_RX0_RX_PATH_CFG3;
+		reg3 = LPASS_CDC_WSA_RX0_RX_PATH_CFG1;
+		softclip_path = LPASS_CDC_WSA_MACRO_SOFTCLIP0;
 	} else if (path == LPASS_CDC_WSA_MACRO_COMP2) {
 		reg1 = LPASS_CDC_WSA_COMPANDER1_CTL0;
 		reg2 = LPASS_CDC_WSA_RX1_RX_PATH_CFG3;
+		reg3 = LPASS_CDC_WSA_RX1_RX_PATH_CFG1;
+		softclip_path = LPASS_CDC_WSA_MACRO_SOFTCLIP1;
 	}
-	if (!wsa_priv->pbr_enable || wsa_priv->wsa_bat_cfg[path] ||
-	    wsa_priv->wsa_sys_gain[path * 2] >= G_12_DB ||
+	if (!wsa_priv->pbr_enable || wsa_priv->wsa_bat_cfg[path] >= EXT_1S ||
+	    wsa_priv->wsa_sys_gain[path * 2] > G_12_DB ||
 	    wsa_priv->wsa_spkrrecv)
 		return 0;
 
@@ -1608,7 +1613,10 @@ static int lpass_cdc_was_macro_config_pbr(struct snd_soc_component *component,
 			reg1, 0x08, 0x08);
 		snd_soc_component_update_bits(component,
 			reg2, 0x40, 0x40);
-
+		snd_soc_component_update_bits(component,
+			reg3, 0x80, 0x80);
+		lpass_cdc_wsa_macro_enable_softclip_clk(component, wsa_priv,
+					softclip_path, true);
 		snd_soc_component_update_bits(component,
 			LPASS_CDC_WSA_PBR_PATH_CTL,
 			0x01, 0x01);
@@ -1618,12 +1626,15 @@ static int lpass_cdc_was_macro_config_pbr(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component,
 			LPASS_CDC_WSA_PBR_PATH_CTL,
 			0x01, 0x00);
+		lpass_cdc_wsa_macro_enable_softclip_clk(component, wsa_priv,
+					softclip_path, false);
 		snd_soc_component_update_bits(component,
 			reg1, 0x08, 0x00);
 		snd_soc_component_update_bits(component,
 			reg2, 0x40, 0x00);
+		snd_soc_component_update_bits(component,
+			reg3, 0x80, 0x00);
 	}
-
 	return 0;
 }
 
@@ -3669,10 +3680,10 @@ static void lpass_cdc_wsa_macro_cooling_adjust_gain(struct work_struct *work)
 }
 
 static int lpass_cdc_wsa_macro_read_array(struct platform_device *pdev,
-					  const char *name, int size,
+					  const char *name, int num_values,
 					  u32 *output)
 {
-	u32 len, ret;
+	u32 len, ret, size;
 
 	if (!of_find_property(pdev->dev.of_node, name, &size)) {
 		dev_info(&pdev->dev, "%s: missing %s\n", __func__, name);
@@ -3680,12 +3691,12 @@ static int lpass_cdc_wsa_macro_read_array(struct platform_device *pdev,
 	}
 
 	len = size / sizeof(u32);
-	if (len != size) {
+	if (len != num_values) {
 		dev_info(&pdev->dev, "%s: invalid number of %s\n", __func__, name);
 		return -EINVAL;
 	}
 
-	ret = of_property_read_u32_array(pdev->dev.of_node, name, output, size);
+	ret = of_property_read_u32_array(pdev->dev.of_node, name, output, len);
 	if (ret)
 		dev_info(&pdev->dev, "%s: Failed to read %s\n", __func__, name);
 

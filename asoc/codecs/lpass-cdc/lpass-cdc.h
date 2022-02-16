@@ -133,7 +133,7 @@ enum {
 static const int pbr_vth1_data[G_MAX_DB][CONFIG_MAX][WSA_MAX_OHMS] = {
 	/* G_21_DB */
 	{
-		{0, 0, 0, 0}, {81, 92, 196, 0},
+		{0, 0, 0, 0}, {81, 92, 106, 0},
 		{121, 148, 144, 0}, {158, 193, 192, 0}
 	},
 	/* G_19P5_DB */
