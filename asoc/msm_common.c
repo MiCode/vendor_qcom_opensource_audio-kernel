@@ -261,6 +261,8 @@ static int get_mi2s_tdm_auxpcm_intf_index(const char *stream_name)
 			return PRI_MI2S_TDM_AUXPCM;
 		else if (strnstr(stream_name, "TERTIARY", strlen(stream_name)))
 			return TER_MI2S_TDM_AUXPCM;
+		else if (strnstr(stream_name, "SECONDARY", strlen(stream_name)))
+			return SEC_MI2S_TDM_AUXPCM;
 	}
 	pr_debug("%s: stream name %s does not match\n", __func__, stream_name);
 	return -EINVAL;
