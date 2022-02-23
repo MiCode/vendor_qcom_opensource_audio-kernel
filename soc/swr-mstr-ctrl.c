@@ -1490,13 +1490,15 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 					SWRS_DP_SAMPLE_CONTROL_1_BANK(slv_id,
 								bank));
 
-			reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
-			val[len++] = SWR_REG_VAL_PACK(
-					(port_req->sinterval >> 8)& 0xFF,
-					port_req->dev_num, 0x00,
-					SWRS_DP_SAMPLE_CONTROL_2_BANK(slv_id,
-								bank));
-
+			/* Only wite MSB if SI > 0xFF */
+			if (port_req->sinterval > 0xFF) {
+				reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
+				val[len++] = SWR_REG_VAL_PACK(
+						(port_req->sinterval >> 8) & 0xFF,
+						port_req->dev_num, 0x00,
+						SWRS_DP_SAMPLE_CONTROL_2_BANK(slv_id,
+									bank));
+			}
 			reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
 			val[len++] = SWR_REG_VAL_PACK(port_req->offset1,
 					port_req->dev_num, 0x00,
@@ -2249,6 +2251,14 @@ handle_irq:
 				swrm_enable_slave_irq(swrm);
 				swrm->clk_stop_wakeup = false;
 			}
+			break;
+		case SWRM_INTERRUPT_STATUS_CMD_IGNORED_AND_EXEC_CONTINUED:
+			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS(swrm->ee_val));
+			dev_err_ratelimited(swrm->dev,
+			"%s: SWR CMD Ignored, fifo status 0x%x\n",
+					__func__, value);
+			/* Wait 3.5ms to clear */
+			usleep_range(3500, 3505);
 			break;
 		default:
 			dev_err_ratelimited(swrm->dev,
