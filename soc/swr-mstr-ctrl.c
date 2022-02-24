@@ -176,6 +176,15 @@ static bool swrm_is_msm_variant(int val)
 	return (val == SWRM_VERSION_1_3);
 }
 
+static u8 get_cmd_id(struct swr_mstr_ctrl *swrm)
+{
+	u8 id;
+
+	id = swrm->cmd_id;
+	swrm->cmd_id = (swrm->cmd_id == 0xE) ? 0 : ((swrm->cmd_id + 1) % 16);
+	return id;
+}
+
 #ifdef CONFIG_DEBUG_FS
 static int swrm_debug_open(struct inode *inode, struct file *file)
 {
@@ -1011,7 +1020,8 @@ static int swrm_read(struct swr_master *master, u8 dev_num, u16 reg_addr,
 	pm_runtime_get_sync(swrm->dev);
 	if (swrm->req_clk_switch)
 		swrm_runtime_resume(swrm->dev);
-	ret = swrm_cmd_fifo_rd_cmd(swrm, &val, dev_num, 0, reg_addr, len);
+	ret = swrm_cmd_fifo_rd_cmd(swrm, &val, dev_num,
+					get_cmd_id(swrm), reg_addr, len);
 
 	if (!ret)
 		*reg_val = (u8)val;
@@ -1046,7 +1056,8 @@ static int swrm_write(struct swr_master *master, u8 dev_num, u16 reg_addr,
 	pm_runtime_get_sync(swrm->dev);
 	if (swrm->req_clk_switch)
 		swrm_runtime_resume(swrm->dev);
-	ret = swrm_cmd_fifo_wr_cmd(swrm, reg_val, dev_num, 0, reg_addr);
+	ret = swrm_cmd_fifo_wr_cmd(swrm, reg_val, dev_num,
+					get_cmd_id(swrm), reg_addr);
 
 	pm_runtime_put_autosuspend(swrm->dev);
 	pm_runtime_mark_last_busy(swrm->dev);
@@ -1275,7 +1286,7 @@ static void swrm_disable_ports(struct swr_master *master,
 				continue;
 
 			swrm_cmd_fifo_wr_cmd(swrm, port_req->req_ch,
-					port_req->dev_num, 0x00,
+					port_req->dev_num, get_cmd_id(swrm),
 			SWRS_DP_CHANNEL_ENABLE_BANK(port_req->slave_port_id,
 					bank));
 			dev_dbg(swrm->dev, "%s: mport :%d, reg: 0x%x\n",
@@ -1479,14 +1490,14 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 			}
 			reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
 			val[len++] = SWR_REG_VAL_PACK(port_req->req_ch,
-					port_req->dev_num, 0x00,
+					port_req->dev_num, get_cmd_id(swrm),
 					SWRS_DP_CHANNEL_ENABLE_BANK(slv_id,
 								bank));
 
 			reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
 			val[len++] = SWR_REG_VAL_PACK(
 					port_req->sinterval & 0xFF,
-					port_req->dev_num, 0x00,
+					port_req->dev_num, get_cmd_id(swrm),
 					SWRS_DP_SAMPLE_CONTROL_1_BANK(slv_id,
 								bank));
 
@@ -1495,20 +1506,20 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 				reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
 				val[len++] = SWR_REG_VAL_PACK(
 						(port_req->sinterval >> 8) & 0xFF,
-						port_req->dev_num, 0x00,
+						port_req->dev_num, get_cmd_id(swrm),
 						SWRS_DP_SAMPLE_CONTROL_2_BANK(slv_id,
 									bank));
 			}
 			reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
 			val[len++] = SWR_REG_VAL_PACK(port_req->offset1,
-					port_req->dev_num, 0x00,
+					port_req->dev_num, get_cmd_id(swrm),
 					SWRS_DP_OFFSET_CONTROL_1_BANK(slv_id,
 								bank));
 
 			if (port_req->offset2 != SWR_INVALID_PARAM) {
 				reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
 				val[len++] = SWR_REG_VAL_PACK(port_req->offset2,
-						port_req->dev_num, 0x00,
+						port_req->dev_num, get_cmd_id(swrm),
 						SWRS_DP_OFFSET_CONTROL_2_BANK(
 							slv_id, bank));
 			}
@@ -1519,7 +1530,7 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 
 				reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
 				val[len++] = SWR_REG_VAL_PACK(hparams,
-						port_req->dev_num, 0x00,
+						port_req->dev_num, get_cmd_id(swrm),
 						SWRS_DP_HCONTROL_BANK(slv_id,
 									bank));
 			}
@@ -1527,7 +1538,7 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 				reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
 				val[len++] =
 					SWR_REG_VAL_PACK(port_req->word_length,
-						port_req->dev_num, 0x00,
+						port_req->dev_num, get_cmd_id(swrm),
 						SWRS_DP_BLOCK_CONTROL_1(slv_id));
 			}
 			if (port_req->blk_pack_mode != SWR_INVALID_PARAM) {
@@ -1535,7 +1546,7 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 				val[len++] =
 					SWR_REG_VAL_PACK(
 					port_req->blk_pack_mode,
-					port_req->dev_num, 0x00,
+					port_req->dev_num, get_cmd_id(swrm),
 					SWRS_DP_BLOCK_CONTROL_3_BANK(slv_id,
 									bank));
 			}
@@ -1544,7 +1555,7 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 				val[len++] =
 					 SWR_REG_VAL_PACK(
 						port_req->blk_grp_count,
-						port_req->dev_num, 0x00,
+						port_req->dev_num, get_cmd_id(swrm),
 						SWRS_DP_BLOCK_CONTROL_2_BANK(
 								slv_id, bank));
 			}
@@ -1552,7 +1563,7 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 				reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
 				val[len++] =
 					SWR_REG_VAL_PACK(port_req->lane_ctrl,
-						port_req->dev_num, 0x00,
+						port_req->dev_num, get_cmd_id(swrm),
 						SWRS_DP_LANE_CONTROL_BANK(
 								slv_id, bank));
 			}
@@ -1634,7 +1645,7 @@ static void swrm_apply_port_config(struct swr_master *master)
 		__func__, bank, master->num_port);
 
 	if (!swrm->disable_div2_clk_switch)
-		swrm_cmd_fifo_wr_cmd(swrm, 0x01, 0xF, 0x00,
+		swrm_cmd_fifo_wr_cmd(swrm, 0x01, 0xF, get_cmd_id(swrm),
 				SWRS_SCP_HOST_CLK_DIV2_CTL_BANK(bank));
 
 	swrm_copy_data_port_config(master, bank);
@@ -1992,12 +2003,12 @@ static void swrm_enable_slave_irq(struct swr_mstr_ctrl *swrm)
 	for (i = 0; i < (swrm->num_dev + 1); i++) {
 		if (status & SWRM_MCP_SLV_STATUS_MASK) {
 			if (!swrm->clk_stop_wakeup) {
-				swrm_cmd_fifo_rd_cmd(swrm, &temp, i, 0x0,
-					SWRS_SCP_INT_STATUS_CLEAR_1, 1);
-				swrm_cmd_fifo_wr_cmd(swrm, 0xFF, i, 0x0,
-					SWRS_SCP_INT_STATUS_CLEAR_1);
+				swrm_cmd_fifo_rd_cmd(swrm, &temp, i,
+					get_cmd_id(swrm), SWRS_SCP_INT_STATUS_CLEAR_1, 1);
+				swrm_cmd_fifo_wr_cmd(swrm, 0xFF, i,
+					get_cmd_id(swrm), SWRS_SCP_INT_STATUS_CLEAR_1);
 			}
-			swrm_cmd_fifo_wr_cmd(swrm, 0x4, i, 0x0,
+			swrm_cmd_fifo_wr_cmd(swrm, 0x4, i, get_cmd_id(swrm),
 					SWRS_SCP_INT_STATUS_MASK_1);
 		}
 		status >>= 2;
@@ -2085,11 +2096,14 @@ handle_irq:
 					__func__);
 				break;
 			}
-			swrm_cmd_fifo_rd_cmd(swrm, &temp, devnum, 0x0,
+			swrm_cmd_fifo_rd_cmd(swrm, &temp, devnum,
+						get_cmd_id(swrm),
 						SWRS_SCP_INT_STATUS_CLEAR_1, 1);
-			swrm_cmd_fifo_wr_cmd(swrm, 0x4, devnum, 0x0,
+			swrm_cmd_fifo_wr_cmd(swrm, 0x4, devnum,
+						get_cmd_id(swrm),
 						SWRS_SCP_INT_STATUS_CLEAR_1);
-			swrm_cmd_fifo_wr_cmd(swrm, 0x0, devnum, 0x0,
+			swrm_cmd_fifo_wr_cmd(swrm, 0x0, devnum,
+						get_cmd_id(swrm),
 						SWRS_SCP_INT_STATUS_CLEAR_1);
 
 
@@ -2863,6 +2877,7 @@ static int swrm_probe(struct platform_device *pdev)
 	swrm->master.num_port = 0;
 	swrm->rcmd_id = 0;
 	swrm->wcmd_id = 0;
+	swrm->cmd_id = 0;
 	swrm->slave_status = 0;
 	swrm->num_rx_chs = 0;
 	swrm->clk_ref_count = 0;
@@ -3258,7 +3273,7 @@ static int swrm_runtime_resume(struct device *dev)
 			if (!swrm_check_link_status(swrm, 0x1))
 				dev_dbg(dev, "%s:failed in connecting, ssr?\n",
 					__func__);
-			swrm_cmd_fifo_wr_cmd(swrm, 0x4, 0xF, 0x0,
+			swrm_cmd_fifo_wr_cmd(swrm, 0x4, 0xF, get_cmd_id(swrm),
 						SWRS_SCP_INT_STATUS_MASK_1);
 			if (swrm->state == SWR_MSTR_SSR) {
 				mutex_unlock(&swrm->reslock);
