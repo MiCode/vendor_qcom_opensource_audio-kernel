@@ -1428,6 +1428,16 @@ static void swrm_get_device_frame_shape(struct swr_mstr_ctrl *swrm,
 		port_req->blk_grp_count = mport->blk_grp_count;
 		port_req->lane_ctrl = mport->lane_ctrl;
 	}
+	if (swrm->master_id == MASTER_ID_WSA) {
+		uc = swrm_get_uc(swrm->bus_clk);
+		port_id_offset = (port_req->dev_num - 1) *
+					SWR_MAX_DEV_PORT_NUM +
+					port_req->slave_port_id;
+		if (port_id_offset >= SWR_MAX_MSTR_PORT_NUM ||
+			!swrm->pp[uc][port_id_offset].offset1)
+			return;
+		port_req->offset1 = swrm->pp[uc][port_id_offset].offset1;
+	}
 }
 
 static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
