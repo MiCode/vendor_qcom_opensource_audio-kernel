@@ -1399,7 +1399,7 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 	unsigned int ch_rate[WSA884X_MAX_SWR_PORTS] = {SWR_CLK_RATE_2P4MHZ, SWR_CLK_RATE_0P6MHZ,
 							SWR_CLK_RATE_0P3MHZ, SWR_CLK_RATE_48KHZ,
 							SWR_CLK_RATE_1P2MHZ, SWR_CLK_RATE_24KHZ};
-	unsigned int ch_mask[WSA884X_MAX_SWR_PORTS] = {0x1, 0xF, 0x3, 0x3, 0x3, 0x3};
+	unsigned int ch_mask[WSA884X_MAX_SWR_PORTS] = {0x1, 0xF, 0x3, 0x1, 0x3, 0x3};
 
 
 	struct snd_soc_component *component = NULL;
