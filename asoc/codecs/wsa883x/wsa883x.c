@@ -1414,25 +1414,20 @@ static int wsa883x_codec_probe(struct snd_soc_component *component)
 	wsa883x->global_pa_cnt = 0;
 
 	memset(w_name, 0, sizeof(w_name));
-	strlcpy(w_name, component->name_prefix, sizeof(w_name));
-	strlcat(w_name, " ", sizeof(w_name));
-	strlcat(w_name, wsa883x->dai_driver->playback.stream_name,
+	strlcpy(w_name, wsa883x->dai_driver->playback.stream_name,
 				sizeof(w_name));
 	snd_soc_dapm_ignore_suspend(dapm, w_name);
 
 	memset(w_name, 0, sizeof(w_name));
-	strlcpy(w_name, component->name_prefix, sizeof(w_name));
-	strlcat(w_name, " IN", sizeof(w_name));
+	strlcpy(w_name, "IN", sizeof(w_name));
 	snd_soc_dapm_ignore_suspend(dapm, w_name);
 
 	memset(w_name, 0, sizeof(w_name));
-	strlcpy(w_name, component->name_prefix, sizeof(w_name));
-	strlcat(w_name, " SWR DAC_Port", sizeof(w_name));
+	strlcpy(w_name, "SWR DAC_Port", sizeof(w_name));
 	snd_soc_dapm_ignore_suspend(dapm, w_name);
 
 	memset(w_name, 0, sizeof(w_name));
-	strlcpy(w_name, component->name_prefix, sizeof(w_name));
-	strlcat(w_name, " SPKR", sizeof(w_name));
+	strlcpy(w_name, "SPKR", sizeof(w_name));
 	snd_soc_dapm_ignore_suspend(dapm, w_name);
 
 	snd_soc_dapm_sync(dapm);
