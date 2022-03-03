@@ -1584,9 +1584,9 @@ static int lpass_cdc_wsa_macro_config_softclip(struct snd_soc_component *compone
 static int lpass_cdc_was_macro_config_pbr(struct snd_soc_component *component,
 					  int path, int event)
 {
-	u16 reg1, reg2, reg3;
 	struct device *wsa_dev = NULL;
 	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+	u16 reg1 = 0, reg2 = 0, reg3 = 0;
 	int softclip_path = 0;
 
 	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
@@ -1605,7 +1605,7 @@ static int lpass_cdc_was_macro_config_pbr(struct snd_soc_component *component,
 	}
 	if (!wsa_priv->pbr_enable || wsa_priv->wsa_bat_cfg[path] >= EXT_1S ||
 	    wsa_priv->wsa_sys_gain[path * 2] > G_12_DB ||
-	    wsa_priv->wsa_spkrrecv)
+	    wsa_priv->wsa_spkrrecv || !reg1 || !reg2 || !reg3)
 		return 0;
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {

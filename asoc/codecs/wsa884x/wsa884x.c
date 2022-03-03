@@ -758,7 +758,9 @@ static int wsa_dev_mode_put(struct snd_kcontrol *kcontrol,
 	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d  = %ld\n",
 		__func__, wsa884x->dev_mode, dev_mode);
 
-	if (dev_mode >= SPEAKER && dev_mode <= RECEIVER) {
+	/* Check if input parameter is in range */
+	if ((wsa884x->dev_mode + (wsa884x->dev_index - 1) * 2) <
+		(MAX_DEV_MODE * 2)) {
 		wsa884x->dev_mode =  dev_mode;
 		wsa884x->system_gain = wsa884x->sys_gains[
 			wsa884x->dev_mode + (wsa884x->dev_index - 1) * 2];
