@@ -330,7 +330,7 @@ static int lpass_cdc_va_macro_event_handler(struct snd_soc_component *component,
 		}
 		ret = lpass_cdc_clk_rsc_request_clock(va_priv->dev,
 						va_priv->default_clk_id,
-						VA_CORE_CLK, true);
+						va_priv->clk_id, true);
 		if (ret < 0)
 			dev_err_ratelimited(va_priv->dev,
 				"%s, failed to enable clk, ret:%d\n",
@@ -338,7 +338,7 @@ static int lpass_cdc_va_macro_event_handler(struct snd_soc_component *component,
 		else
 			lpass_cdc_clk_rsc_request_clock(va_priv->dev,
 						va_priv->default_clk_id,
-						VA_CORE_CLK, false);
+						va_priv->clk_id, false);
 		lpass_cdc_va_macro_core_vote(va_priv, false);
 		break;
 	case LPASS_CDC_MACRO_EVT_SSR_UP:
@@ -416,6 +416,13 @@ static int lpass_cdc_va_macro_swr_pwr_event(struct snd_soc_dapm_widget *w,
 	if (!lpass_cdc_va_macro_get_data(component, &va_dev,
 					 &va_priv, __func__))
 		return -EINVAL;
+
+	/**
+	 * no need to switch to va_core_clk if va is chosen to
+	 * run based off tx_core_clk
+	 */
+	if (va_priv->clk_id == TX_CORE_CLK)
+		return 0;
 
 	dev_dbg(va_dev, "%s: event = %d, lpi_enable = %d\n",
 		__func__, event, va_priv->lpi_enable);
@@ -559,16 +566,24 @@ static int lpass_cdc_va_macro_mclk_event(struct snd_soc_dapm_widget *w,
 		if (!ret)
 			va_priv->dapm_tx_clk_status++;
 
-		if (va_priv->lpi_enable)
+		if (va_priv->clk_id == TX_CORE_CLK) {
 			ret = lpass_cdc_va_macro_mclk_enable(va_priv, 1, true);
-		else
-			ret = lpass_cdc_tx_mclk_enable(component, 1);
+		} else {
+			if (va_priv->lpi_enable)
+				ret = lpass_cdc_va_macro_mclk_enable(va_priv, 1, true);
+			else
+				ret = lpass_cdc_tx_mclk_enable(component, 1);
+		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		if (va_priv->lpi_enable)
+		if (va_priv->clk_id == TX_CORE_CLK) {
 			lpass_cdc_va_macro_mclk_enable(va_priv, 0, true);
-		else
-			lpass_cdc_tx_mclk_enable(component, 0);
+		} else {
+			if (va_priv->lpi_enable)
+				lpass_cdc_va_macro_mclk_enable(va_priv, 0, true);
+			else
+				lpass_cdc_tx_mclk_enable(component, 0);
+		}
 
 		if (va_priv->dapm_tx_clk_status > 0) {
 			lpass_cdc_clk_rsc_request_clock(va_priv->dev,
@@ -2367,7 +2382,7 @@ static int lpass_cdc_va_macro_probe(struct platform_device *pdev)
 	const char *micb_current_str = "qcom,va-vdd-micb-current";
 	int ret = 0;
 	const char *dmic_sample_rate = "qcom,va-dmic-sample-rate";
-	u32 default_clk_id = 0;
+	u32 default_clk_id = 0, use_clk_id = 0;
 	struct clk *lpass_audio_hw_vote = NULL;
 	u32 is_used_va_swr_gpio = 0;
 	const char *is_used_va_swr_gpio_dt = "qcom,is-used-swr-gpio";
@@ -2474,14 +2489,24 @@ static int lpass_cdc_va_macro_probe(struct platform_device *pdev)
 			return ret;
 		}
 	}
+	use_clk_id = VA_CORE_CLK; /* default to using VA CORE CLK */
+	if (of_find_property(pdev->dev.of_node, "qcom,use-clk-id", NULL)) {
+		ret = of_property_read_u32(pdev->dev.of_node, "qcom,use-clk-id",
+				&use_clk_id);
+		if (ret) {
+			dev_dbg(&pdev->dev, "%s: could not find %s entry in dt\n",
+					__func__, "qcom,use-clk-id");
+			use_clk_id = VA_CORE_CLK;
+		}
+	}
+	va_priv->clk_id = use_clk_id;
 	ret = of_property_read_u32(pdev->dev.of_node, "qcom,default-clk-id",
 				   &default_clk_id);
 	if (ret) {
 		dev_err(&pdev->dev, "%s: could not find %s entry in dt\n",
 			__func__, "qcom,default-clk-id");
-		default_clk_id = VA_CORE_CLK;
+		default_clk_id = use_clk_id;
 	}
-	va_priv->clk_id = VA_CORE_CLK;
 	va_priv->default_clk_id = default_clk_id;
 	va_priv->current_clk_id = TX_CORE_CLK;
 

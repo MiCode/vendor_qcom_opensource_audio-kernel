@@ -136,6 +136,7 @@ struct swr_mstr_ctrl {
 	char __iomem *swrm_hctl_reg;
 	u8 rcmd_id;
 	u8 wcmd_id;
+	u8 cmd_id;
 	u32 master_id;
 	u32 ee_val;
 	u32 dynamic_port_map_supported;
