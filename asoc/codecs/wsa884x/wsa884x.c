@@ -2195,12 +2195,12 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 			REG_FIELD_VALUE(TOP_CTRL1,
 			OCP_LOWVBAT_ITH_SEL_EN, 0x00));
 	ret = wsa884x_parse_port_params(&pdev->dev, "qcom,swr-wsa-port-params");
-	swr_init_port_params(wsa884x->swr_slave, WSA884X_MAX_SWR_PORTS,
-		wsa884x->swr_wsa_port_params);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to read port params\n");
 		goto err;
 	}
+	swr_init_port_params(wsa884x->swr_slave, WSA884X_MAX_SWR_PORTS,
+		wsa884x->swr_wsa_port_params);
 	mutex_init(&wsa884x->res_lock);
 
 #ifdef CONFIG_DEBUG_FS
