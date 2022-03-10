@@ -125,6 +125,9 @@ static const struct wsa_reg_mask_val reg_init[] = {
 	{REG_FIELD_VALUE(CKWD_CTL_1, CKWD_VCOMP_VREF_SEL, 0x13)},
 	{REG_FIELD_VALUE(BOP2_PROG, BOP2_VTH, 0x06)},
 	{REG_FIELD_VALUE(BOP2_PROG, BOP2_HYST, 0x06)},
+	{REG_FIELD_VALUE(VBAT_CAL_CTL, RESERVE, 0x02)},
+	{REG_FIELD_VALUE(REF_CTRL, BG_RDY_SEL, 0x01)},
+	{REG_FIELD_VALUE(ZX_CTRL1, ZX_DET_SW_SEL, 0x03)},
 };
 
 static int wsa884x_handle_post_irq(void *data);
@@ -620,7 +623,7 @@ static int wsa884x_set_gain_parameters(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x00));
 	} else {
-		wsa884x->pa_aux_gain = pa_aux_no_comp[wsa884x->system_gain];
+		wsa884x->pa_aux_gain = pa_aux_no_comp[wsa884x->pa_gain];
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x01));
 		snd_soc_component_update_bits(component,

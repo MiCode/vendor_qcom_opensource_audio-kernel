@@ -204,4 +204,23 @@
 #define WSA884X_CKWD_CTL_1_SPARE_BITS_7_6_SHIFT                           0x06
 #define WSA884X_CKWD_CTL_1_VPP_SW_CTL_SHIFT                               0x05
 #define WSA884X_CKWD_CTL_1_CKWD_VCOMP_VREF_SEL_SHIFT                      0x00
+/* WSA884X_VBAT_CAL_CTL Fields: */
+#define WSA884X_VBAT_CAL_CTL_RESERVE_SHIFT                                0x01
+#define WSA884X_VBAT_CAL_CTL_VBAT_CAL_EN_SHIFT                            0x00
+/* WSA884X_REF_CTRL Fields: */
+#define WSA884X_REF_CTRL_DC_STARTUP_EN_SHIFT                              0x07
+#define WSA884X_REF_CTRL_DC_STARTUP_HOLD_SHIFT                            0x06
+#define WSA884X_REF_CTRL_TRAN_STARTUP_EN_CORE_SHIFT                       0x05
+#define WSA884X_REF_CTRL_TRAN_STARTUP_EN_PTAT_SHIFT                       0x04
+#define WSA884X_REF_CTRL_BG_EN_SHIFT                                      0x03
+#define WSA884X_REF_CTRL_BG_READY_FORCE_SHIFT                             0x02
+#define WSA884X_REF_CTRL_BG_RDY_SEL_SHIFT                                 0x00
+/* WSA884X_ZX_CTRL1 Fields: */
+#define WSA884X_ZX_CTRL1_ZX_DET_EN_SHIFT                                  0x07
+#define WSA884X_ZX_CTRL1_ZX_DET_SW_EN_SHIFT                               0x06
+#define WSA884X_ZX_CTRL1_ZX_DET_STAGE_DEFAULT_SHIFT                       0x05
+#define WSA884X_ZX_CTRL1_ZX_DET_SW_SEL_SHIFT                              0x03
+#define WSA884X_ZX_CTRL1_ZX_BYP_MASK_IGNORE_SHIFT                         0x02
+#define WSA884X_ZX_CTRL1_ZX_BYP_MASK_DEL_SHIFT                            0x01
+#define WSA884X_ZX_CTRL1_BOOTCAP_REFRESH_DIS_SHIFT                        0x00
 #endif /* WSA884X_REG_SHIFTS_H */
