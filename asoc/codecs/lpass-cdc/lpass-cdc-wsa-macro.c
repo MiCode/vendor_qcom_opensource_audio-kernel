@@ -1813,6 +1813,7 @@ static void lpass_cdc_macro_idle_detect_control(struct snd_soc_component *compon
 					 int interp, int event)
 {
 	int reg = 0, mask = 0, val = 0, source_reg = 0;
+	u16 mode = 0;
 
 	if (!wsa_priv->idle_detect_cfg.idle_detect_en)
 		return;
@@ -1830,10 +1831,14 @@ static void lpass_cdc_macro_idle_detect_control(struct snd_soc_component *compon
 		val = 0x02;
 	}
 
-	if (wsa_priv->noise_gate_mode == NG2)
-		snd_soc_component_update_bits(component, source_reg, 0x80, 0x80);
-	else
+	mode = wsa_priv->comp_mode[interp];
+
+	if ((wsa_priv->noise_gate_mode == NG2 && mode >= G_13P5_DB) ||
+			wsa_priv->noise_gate_mode == IDLE_DETECT || !wsa_priv->pbr_enable ||
+			wsa_priv->wsa_spkrrecv)
 		snd_soc_component_update_bits(component, source_reg, 0x80, 0x00);
+	else
+		snd_soc_component_update_bits(component, source_reg, 0x80, 0x80);
 
 	if (reg && SND_SOC_DAPM_EVENT_ON(event))
 		snd_soc_component_update_bits(component, reg, mask, val);
