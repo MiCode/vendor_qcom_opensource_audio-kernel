@@ -585,6 +585,15 @@ static struct snd_soc_dai_link msm_wsa_cdc_dma_be_dai_links[] = {
 		SND_SOC_DAILINK_REG(vi_feedback),
 	},
 	{
+		.name = LPASS_BE_WSA_CDC_DMA_TX_2,
+		.stream_name = LPASS_BE_WSA_CDC_DMA_TX_2,
+		.capture_only = 1,
+		.ignore_suspend = 1,
+		.ops = &msm_common_be_ops,
+		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
+		SND_SOC_DAILINK_REG(cps_feedback),
+	},
+	{
 		.name = LPASS_BE_WSA_CDC_DMA_RX_0_VIRT,
 		.stream_name = LPASS_BE_WSA_CDC_DMA_RX_0_VIRT,
 		.playback_only = 1,
@@ -641,6 +650,15 @@ static struct snd_soc_dai_link msm_wsa2_cdc_dma_be_dai_links[] = {
 		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
 		SND_SOC_DAILINK_REG(wsa2_vi_feedback),
 	},
+	{
+		.name = LPASS_BE_WSA2_CDC_DMA_TX_2,
+		.stream_name = LPASS_BE_WSA2_CDC_DMA_TX_2,
+		.capture_only = 1,
+		.ignore_suspend = 1,
+		.ops = &msm_common_be_ops,
+		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
+		SND_SOC_DAILINK_REG(wsa2_cps_feedback),
+	},
 };
 
 static struct snd_soc_dai_link msm_wsa_wsa2_cdc_dma_be_dai_links[] = {
@@ -686,6 +704,15 @@ static struct snd_soc_dai_link msm_wsa_wsa2_cdc_dma_be_dai_links[] = {
 		.ops = &msm_common_be_ops,
 		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
 		SND_SOC_DAILINK_REG(wsa_wsa2_vi_feedback),
+	},
+	{
+		.name = LPASS_BE_WSA_CDC_DMA_TX_2,
+		.stream_name = LPASS_BE_WSA_CDC_DMA_TX_2,
+		.capture_only = 1,
+		.ignore_suspend = 1,
+		.ops = &msm_common_be_ops,
+		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
+		SND_SOC_DAILINK_REG(wsa_wsa2_cps_feedback),
 	},
 };
 
