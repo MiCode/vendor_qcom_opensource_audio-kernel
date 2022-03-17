@@ -257,7 +257,7 @@ static int get_mi2s_tdm_auxpcm_intf_index(const char *stream_name)
 	else if (strnstr(stream_name, "LPAIF_VA", strlen(stream_name)))
 		return QUIN_MI2S_TDM_AUXPCM;
 	else if (strnstr(stream_name, "LPAIF_AUD", strlen(stream_name)))
-		return SEC_MI2S_TDM_AUXPCM;
+		return SEP_MI2S_TDM_AUXPCM;
 	else if (strnstr(stream_name, "LPAIF", strlen(stream_name))) {
 		if (strnstr(stream_name, "PRIMARY", strlen(stream_name)))
 			return PRI_MI2S_TDM_AUXPCM;
@@ -293,7 +293,7 @@ static int get_mi2s_clk_id(int index)
 		clk_id = CLOCK_ID_PRI_MI2S_IBIT;
 		break;
 	case SEC_MI2S_TDM_AUXPCM:
-		clk_id = CLOCK_ID_SEP_MI2S_IBIT;
+		clk_id = CLOCK_ID_SEC_MI2S_IBIT;
 		break;
 	case TER_MI2S_TDM_AUXPCM:
 		clk_id = CLOCK_ID_TER_MI2S_IBIT;
@@ -306,6 +306,9 @@ static int get_mi2s_clk_id(int index)
 		break;
 	case SEN_MI2S_TDM_AUXPCM:
 		clk_id = CLOCK_ID_SEN_MI2S_IBIT;
+		break;
+	case SEP_MI2S_TDM_AUXPCM:
+		clk_id = CLOCK_ID_SEP_MI2S_IBIT;
 		break;
 	default:
 		pr_err("%s: Invalid interface index: %d\n", __func__, index);
@@ -323,7 +326,7 @@ static int get_tdm_clk_id(int index)
 		clk_id = CLOCK_ID_PRI_TDM_IBIT;
 		break;
 	case SEC_MI2S_TDM_AUXPCM:
-		clk_id = CLOCK_ID_SEP_TDM_IBIT;
+		clk_id = CLOCK_ID_SEC_TDM_IBIT;
 		break;
 	case TER_MI2S_TDM_AUXPCM:
 		clk_id = CLOCK_ID_TER_TDM_IBIT;
@@ -336,6 +339,9 @@ static int get_tdm_clk_id(int index)
 		break;
 	case SEN_MI2S_TDM_AUXPCM:
 		clk_id = CLOCK_ID_SEN_TDM_IBIT;
+		break;
+	case SEP_MI2S_TDM_AUXPCM:
+		clk_id = CLOCK_ID_SEP_TDM_IBIT;
 		break;
 	default:
 		pr_err("%s: Invalid interface index: %d\n", __func__, index);
@@ -748,6 +754,8 @@ int msm_common_snd_init(struct platform_device *pdev, struct snd_soc_card *card)
 			"qcom,quin-mi2s-gpios", 0);
 	common_pdata->mi2s_gpio_p[SEN_MI2S_TDM_AUXPCM] = of_parse_phandle(pdev->dev.of_node,
 			"qcom,sen-mi2s-gpios", 0);
+	common_pdata->mi2s_gpio_p[SEP_MI2S_TDM_AUXPCM] = of_parse_phandle(pdev->dev.of_node,
+			"qcom,sep-mi2s-gpios", 0);
 	common_pdata->aud_dev_state = devm_kcalloc(&pdev->dev, card->num_links,
 						sizeof(uint8_t), GFP_KERNEL);
 	dev_info(&pdev->dev, "num_links %d \n", card->num_links);

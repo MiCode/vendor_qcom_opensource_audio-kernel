@@ -933,6 +933,27 @@ static struct snd_soc_dai_link msm_mi2s_dai_links[] = {
 		.ignore_suspend = 1,
 		SND_SOC_DAILINK_REG(sen_mi2s_tx),
 	},
+	{
+		.name = LPASS_BE_SEP_MI2S_RX,
+		.stream_name = LPASS_BE_SEP_MI2S_RX,
+		.playback_only = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ops = &msm_common_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		SND_SOC_DAILINK_REG(sep_mi2s_rx),
+	},
+	{
+		.name = LPASS_BE_SEP_MI2S_TX,
+		.stream_name = LPASS_BE_SEP_MI2S_TX,
+		.capture_only = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ops = &msm_common_be_ops,
+		.ignore_suspend = 1,
+		SND_SOC_DAILINK_REG(sep_mi2s_tx),
+	},
 };
 
 static struct snd_soc_dai_link msm_tdm_dai_links[] = {
@@ -1061,6 +1082,27 @@ static struct snd_soc_dai_link msm_tdm_dai_links[] = {
 		.ops = &msm_common_be_ops,
 		.ignore_suspend = 1,
 		SND_SOC_DAILINK_REG(sen_tdm_tx_0),
+	},
+	{
+		.name = LPASS_BE_SEP_TDM_RX_0,
+		.stream_name = LPASS_BE_SEP_TDM_RX_0,
+		.playback_only = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ops = &msm_common_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		SND_SOC_DAILINK_REG(sep_tdm_rx_0),
+	},
+	{
+		.name = LPASS_BE_SEP_TDM_TX_0,
+		.stream_name = LPASS_BE_SEP_TDM_TX_0,
+		.capture_only = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ops = &msm_common_be_ops,
+		.ignore_suspend = 1,
+		SND_SOC_DAILINK_REG(sep_tdm_tx_0),
 	},
 };
 
