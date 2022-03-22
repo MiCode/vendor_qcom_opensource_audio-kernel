@@ -758,7 +758,9 @@ static int wsa_dev_mode_put(struct snd_kcontrol *kcontrol,
 	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d  = %ld\n",
 		__func__, wsa884x->dev_mode, dev_mode);
 
-	if (dev_mode >= SPEAKER && dev_mode <= RECEIVER) {
+	/* Check if input parameter is in range */
+	if ((wsa884x->dev_mode + (wsa884x->dev_index - 1) * 2) <
+		(MAX_DEV_MODE * 2)) {
 		wsa884x->dev_mode =  dev_mode;
 		wsa884x->system_gain = wsa884x->sys_gains[
 			wsa884x->dev_mode + (wsa884x->dev_index - 1) * 2];
@@ -1779,6 +1781,65 @@ static int wsa884x_event_notify(struct notifier_block *nb,
 	return 0;
 }
 
+static int wsa884x_parse_port_params(struct device *dev, char *prop)
+{
+	u32 *dt_array, map_size, max_uc;
+	int ret = 0;
+	u32 cnt = 0;
+	u32 i, j;
+	struct swr_port_params (*map)[SWR_UC_MAX][WSA884X_MAX_SWR_PORTS];
+	struct swr_dev_frame_config (*map_uc)[SWR_UC_MAX];
+	struct wsa884x_priv *wsa884x = dev_get_drvdata(dev);
+
+	map = &wsa884x->wsa_port_params;
+	map_uc = &wsa884x->swr_wsa_port_params;
+
+	if (!of_find_property(dev->of_node, prop,
+				&map_size)) {
+		dev_err(dev, "missing port mapping prop %s\n", prop);
+		ret = -EINVAL;
+		goto err_port_map;
+	}
+
+	max_uc = map_size / (WSA884X_MAX_SWR_PORTS * SWR_PORT_PARAMS * sizeof(u32));
+
+	if (max_uc != SWR_UC_MAX) {
+		dev_err(dev, "%s: port params not provided for all usecases\n",
+			__func__);
+		ret = -EINVAL;
+		goto err_port_map;
+	}
+	dt_array = kzalloc(map_size, GFP_KERNEL);
+
+	if (!dt_array) {
+		ret = -ENOMEM;
+		goto err_port_map;
+	}
+	ret = of_property_read_u32_array(dev->of_node, prop, dt_array,
+				WSA884X_MAX_SWR_PORTS * SWR_PORT_PARAMS * max_uc);
+	if (ret) {
+		dev_err(dev, "%s: Failed to read port mapping from prop %s\n",
+					__func__, prop);
+		goto err_pdata_fail;
+	}
+
+	for (i = 0; i < max_uc; i++) {
+		for (j = 0; j < WSA884X_MAX_SWR_PORTS; j++) {
+			cnt = (i * WSA884X_MAX_SWR_PORTS + j) * SWR_PORT_PARAMS;
+			(*map)[i][j].offset1 = dt_array[cnt];
+			(*map)[i][j].lane_ctrl = dt_array[cnt + 1];
+		}
+		(*map_uc)[i].pp = &(*map)[i][0];
+	}
+	kfree(dt_array);
+	return 0;
+
+err_pdata_fail:
+	kfree(dt_array);
+err_port_map:
+	return ret;
+}
+
 static int wsa884x_enable_supplies(struct device *dev,
 				   struct wsa884x_priv *priv)
 {
@@ -2133,7 +2194,13 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(TOP_CTRL1,
 			OCP_LOWVBAT_ITH_SEL_EN, 0x00));
-
+	ret = wsa884x_parse_port_params(&pdev->dev, "qcom,swr-wsa-port-params");
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to read port params\n");
+		goto err;
+	}
+	swr_init_port_params(wsa884x->swr_slave, WSA884X_MAX_SWR_PORTS,
+		wsa884x->swr_wsa_port_params);
 	mutex_init(&wsa884x->res_lock);
 
 #ifdef CONFIG_DEBUG_FS

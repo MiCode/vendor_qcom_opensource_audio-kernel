@@ -929,7 +929,6 @@ retry_read:
 			/* wait 500 us before retry on fifo read failure */
 			usleep_range(500, 505);
 			if (retry_attempt == (MAX_FIFO_RD_FAIL_RETRY - 1)) {
-				swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
 				swr_master_write(swrm,
 					SWRM_CMD_FIFO_RD_CMD(swrm->ee_val),
 					val);
@@ -1427,6 +1426,16 @@ static void swrm_get_device_frame_shape(struct swr_mstr_ctrl *swrm,
 		port_req->blk_pack_mode = mport->blk_pack_mode;
 		port_req->blk_grp_count = mport->blk_grp_count;
 		port_req->lane_ctrl = mport->lane_ctrl;
+	}
+	if (swrm->master_id == MASTER_ID_WSA) {
+		uc = swrm_get_uc(swrm->bus_clk);
+		port_id_offset = (port_req->dev_num - 1) *
+					SWR_MAX_DEV_PORT_NUM +
+					port_req->slave_port_id;
+		if (port_id_offset >= SWR_MAX_MSTR_PORT_NUM ||
+			!swrm->pp[uc][port_id_offset].offset1)
+			return;
+		port_req->offset1 = swrm->pp[uc][port_id_offset].offset1;
 	}
 }
 
@@ -2194,7 +2203,6 @@ handle_irq:
 			dev_err(swrm->dev,
 				"%s: SWR write FIFO overflow fifo status %x\n",
 				__func__, value);
-			swr_master_write(swrm, SWRM_CMD_FIFO_CMD, 0x1);
 			break;
 		case SWRM_INTERRUPT_STATUS_CMD_ERROR:
 			value = swr_master_read(swrm, SWRM_CMD_FIFO_STATUS(swrm->ee_val));

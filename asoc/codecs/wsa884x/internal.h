@@ -376,6 +376,8 @@ struct wsa884x_priv {
 	u8 dev_index;
 	struct irq_domain *virq;
 	struct wcd_irq_info irq_info;
+	struct swr_port_params wsa_port_params[SWR_UC_MAX][WSA884X_MAX_SWR_PORTS];
+	struct swr_dev_frame_config swr_wsa_port_params[SWR_UC_MAX];
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_dent;
 	struct dentry *debugfs_peek;
