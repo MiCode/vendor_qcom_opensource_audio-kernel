@@ -516,13 +516,13 @@ static bool lpass_cdc_wsa_macro_get_data(struct snd_soc_component *component,
 	*wsa_dev = lpass_cdc_get_device_ptr(component->dev,
 							WSA_MACRO);
 	if (!(*wsa_dev)) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: null device for macro!\n", func_name);
 		return false;
 	}
 	*wsa_priv = dev_get_drvdata((*wsa_dev));
 	if (!(*wsa_priv) || !(*wsa_priv)->component) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: priv is null for macro!\n", func_name);
 		return false;
 	}
@@ -575,7 +575,7 @@ static int lpass_cdc_wsa_macro_set_prim_interpolator_rate(struct snd_soc_dai *da
 		int_1_mix1_inp = port;
 		if ((int_1_mix1_inp < LPASS_CDC_WSA_MACRO_RX0) ||
 			(int_1_mix1_inp > LPASS_CDC_WSA_MACRO_RX_MIX1)) {
-			dev_err(wsa_dev,
+			dev_err_ratelimited(wsa_dev,
 				"%s: Invalid RX port, Dai ID is %d\n",
 				__func__, dai->id);
 			return -EINVAL;
@@ -647,7 +647,7 @@ static int lpass_cdc_wsa_macro_set_mix_interpolator_rate(struct snd_soc_dai *dai
 		int_2_inp = port;
 		if ((int_2_inp < LPASS_CDC_WSA_MACRO_RX0) ||
 			(int_2_inp > LPASS_CDC_WSA_MACRO_RX_MIX1)) {
-			dev_err(wsa_dev,
+			dev_err_ratelimited(wsa_dev,
 				"%s: Invalid RX port, Dai ID is %d\n",
 				__func__, dai->id);
 			return -EINVAL;
@@ -744,7 +744,7 @@ static int lpass_cdc_wsa_macro_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_STREAM_PLAYBACK:
 		ret = lpass_cdc_wsa_macro_set_interpolator_rate(dai, params_rate(params));
 		if (ret) {
-			dev_err(component->dev,
+			dev_err_ratelimited(component->dev,
 				"%s: cannot set sample rate: %u\n",
 				__func__, params_rate(params));
 			return ret;
@@ -760,7 +760,7 @@ static int lpass_cdc_wsa_macro_hw_params(struct snd_pcm_substream *substream,
 			wsa_priv->bit_width[dai->id] = 32;
 			break;
 		default:
-			dev_err(component->dev, "%s: Invalid format 0x%x\n",
+			dev_err_ratelimited(component->dev, "%s: Invalid format 0x%x\n",
 				__func__, params_width(params));
 			return -EINVAL;
 		}
@@ -776,7 +776,7 @@ static int lpass_cdc_wsa_macro_hw_params(struct snd_pcm_substream *substream,
 			wsa_priv->bit_width[dai->id] = 24;
 			break;
 		default:
-			dev_err(component->dev, "%s: Invalid format 0x%x\n",
+			dev_err_ratelimited(component->dev, "%s: Invalid format 0x%x\n",
 				__func__, params_width(params));
 			return -EINVAL;
 			}
@@ -835,7 +835,7 @@ static int lpass_cdc_wsa_macro_get_channel_map(struct snd_soc_dai *dai,
 		*tx_num = cnt;
 		break;
 	default:
-		dev_err(wsa_dev, "%s: Invalid AIF\n", __func__);
+		dev_err_ratelimited(wsa_dev, "%s: Invalid AIF\n", __func__);
 		break;
 	}
 	return 0;
@@ -901,7 +901,7 @@ static int lpass_cdc_wsa_macro_mclk_enable(
 	int ret = 0;
 
 	if (regmap == NULL) {
-		dev_err(wsa_priv->dev, "%s: regmap is NULL\n", __func__);
+		dev_err_ratelimited(wsa_priv->dev, "%s: regmap is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -940,7 +940,7 @@ static int lpass_cdc_wsa_macro_mclk_enable(
 		wsa_priv->wsa_mclk_users++;
 	} else {
 		if (wsa_priv->wsa_mclk_users <= 0) {
-			dev_err(wsa_priv->dev, "%s: clock already disabled\n",
+			dev_err_ratelimited(wsa_priv->dev, "%s: clock already disabled\n",
 			__func__);
 			wsa_priv->wsa_mclk_users = 0;
 			goto exit;
@@ -995,7 +995,7 @@ static int lpass_cdc_wsa_macro_mclk_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	default:
-		dev_err(wsa_priv->dev,
+		dev_err_ratelimited(wsa_priv->dev,
 			"%s: invalid DAPM event %d\n", __func__, event);
 		ret = -EINVAL;
 	}
@@ -1272,7 +1272,7 @@ static int lpass_cdc_wsa_macro_enable_mix_path(struct snd_soc_dapm_widget *w,
 	} else if (!(strcmp(w->name, "WSA_RX1 MIX INP"))) {
 		gain_reg = LPASS_CDC_WSA_RX1_RX_VOL_MIX_CTL;
 	} else {
-		dev_err(component->dev, "%s: No gain register avail for %s\n",
+		dev_err_ratelimited(component->dev, "%s: No gain register avail for %s\n",
 			__func__, w->name);
 		return 0;
 	}
@@ -1740,7 +1740,7 @@ static int lpass_cdc_wsa_macro_enable_interpolator(struct snd_soc_dapm_widget *w
 	} else if (!(strcmp(w->name, "WSA_RX INT1 INTERP"))) {
 		reg = LPASS_CDC_WSA_RX1_RX_PATH_CTL;
 	} else {
-		dev_err(component->dev, "%s: Interpolator reg not found\n",
+		dev_err_ratelimited(component->dev, "%s: Interpolator reg not found\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -1826,7 +1826,7 @@ static int lpass_cdc_wsa_macro_spk_boost_event(struct snd_soc_dapm_widget *w,
 		reg = LPASS_CDC_WSA_RX1_RX_PATH_CTL;
 		reg_mix = LPASS_CDC_WSA_RX1_RX_PATH_MIX_CTL;
 	} else {
-		dev_err(component->dev, "%s: unknown widget: %s\n",
+		dev_err_ratelimited(component->dev, "%s: unknown widget: %s\n",
 			__func__, w->name);
 		return -EINVAL;
 	}
@@ -1991,7 +1991,7 @@ static int lpass_cdc_wsa_macro_enable_vbat(struct snd_soc_dapm_widget *w,
 			LPASS_CDC_WSA_VBAT_BCL_VBAT_PATH_CTL, 0x10, 0x00);
 		break;
 	default:
-		dev_err(wsa_dev, "%s: Invalid event %d\n", __func__, event);
+		dev_err_ratelimited(wsa_dev, "%s: Invalid event %d\n", __func__, event);
 		break;
 	}
 	return 0;
@@ -2020,7 +2020,7 @@ static int lpass_cdc_wsa_macro_enable_echo(struct snd_soc_dapm_widget *w,
 		ec_tx = ((val & 0x38) >> 0x3) - 1;
 
 	if (ec_tx < 0 || ec_tx >= (LPASS_CDC_WSA_MACRO_RX1 + 1)) {
-		dev_err(wsa_dev, "%s: EC mix control not set correctly\n",
+		dev_err_ratelimited(wsa_dev, "%s: EC mix control not set correctly\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -2136,7 +2136,7 @@ static int lpass_cdc_wsa_macro_set_rx_mute_status(struct snd_kcontrol *kcontrol,
 				0x10, value << 4);
 		break;
 	default:
-		pr_err("%s: invalid argument rx_shift = %d\n", __func__,
+		pr_err_ratelimited("%s: invalid argument rx_shift = %d\n", __func__,
 			wsa_rx_shift);
 		ret = -EINVAL;
 	}
@@ -2166,7 +2166,7 @@ static int lpass_cdc_wsa_macro_set_digital_volume(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 
 	if (!wsa_priv) {
-		pr_err("%s: priv is null for macro!\n",
+		pr_err_ratelimited("%s: priv is null for macro!\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -2186,7 +2186,7 @@ static int lpass_cdc_wsa_macro_set_digital_volume(struct snd_kcontrol *kcontrol,
 		gain = (u8)(wsa_priv->rx1_origin_gain -
 				wsa_priv->thermal_cur_state);
 	} else {
-		dev_err(wsa_priv->dev,
+		dev_err_ratelimited(wsa_priv->dev,
 			"%s: Incorrect RX Path selected\n", __func__);
 		return -EINVAL;
 	}
@@ -2400,11 +2400,11 @@ static int lpass_cdc_wsa_macro_rx_mux_put(struct snd_kcontrol *kcontrol,
 	aif_rst = wsa_priv->rx_port_value[widget->shift];
 	if (!rx_port_value) {
 		if (aif_rst == 0) {
-			dev_err(wsa_dev, "%s: AIF reset already\n", __func__);
+			dev_err_ratelimited(wsa_dev, "%s: AIF reset already\n", __func__);
 			return 0;
 		}
 		if (aif_rst >= LPASS_CDC_WSA_MACRO_RX_MAX) {
-			dev_err(wsa_dev, "%s: Invalid AIF reset\n", __func__);
+			dev_err_ratelimited(wsa_dev, "%s: Invalid AIF reset\n", __func__);
 			return 0;
 		}
 	}
@@ -2431,7 +2431,7 @@ static int lpass_cdc_wsa_macro_rx_mux_put(struct snd_kcontrol *kcontrol,
 		wsa_priv->active_ch_cnt[rx_port_value]++;
 		break;
 	default:
-		dev_err(wsa_dev,
+		dev_err_ratelimited(wsa_dev,
 			"%s: Invalid AIF_ID for WSA RX MUX %d\n",
 			__func__, rx_port_value);
 		return -EINVAL;
@@ -3178,7 +3178,7 @@ static int lpass_cdc_wsa_macro_core_vote(void *handle, bool enable)
 	struct lpass_cdc_wsa_macro_priv *wsa_priv = (struct lpass_cdc_wsa_macro_priv *) handle;
 
 	if (wsa_priv == NULL) {
-		pr_err("%s: wsa priv data is NULL\n", __func__);
+		pr_err_ratelimited("%s: wsa priv data is NULL\n", __func__);
 		return -EINVAL;
 	}
 	if (enable) {
@@ -3202,7 +3202,7 @@ static int wsa_swrm_clock(void *handle, bool enable)
 	int ret = 0;
 
 	if (regmap == NULL) {
-		dev_err(wsa_priv->dev, "%s: regmap is NULL\n", __func__);
+		dev_err_ratelimited(wsa_priv->dev, "%s: regmap is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -3258,7 +3258,7 @@ static int wsa_swrm_clock(void *handle, bool enable)
 		pm_runtime_put_autosuspend(wsa_priv->dev);
 	} else {
 		if (wsa_priv->swr_clk_users <= 0) {
-			dev_err(wsa_priv->dev, "%s: clock already disabled\n",
+			dev_err_ratelimited(wsa_priv->dev, "%s: clock already disabled\n",
 			__func__);
 			wsa_priv->swr_clk_users = 0;
 			goto exit;
@@ -3296,7 +3296,7 @@ static int lpass_cdc_wsa_macro_get_max_state(
 {
 	struct lpass_cdc_wsa_macro_priv *wsa_priv = cdev->devdata;
 	if (!wsa_priv) {
-		pr_err("%s: cdev->devdata is NULL\n", __func__);
+		pr_err_ratelimited("%s: cdev->devdata is NULL\n", __func__);
 		return -EINVAL;
 	}
 	*state = wsa_priv->thermal_max_state;
@@ -3311,7 +3311,7 @@ static int lpass_cdc_wsa_macro_get_cur_state(
 	struct lpass_cdc_wsa_macro_priv *wsa_priv = cdev->devdata;
 
 	if (!wsa_priv) {
-		pr_err("%s: cdev->devdata is NULL\n", __func__);
+		pr_err_ratelimited("%s: cdev->devdata is NULL\n", __func__);
 		return -EINVAL;
 	}
 	*state = wsa_priv->thermal_cur_state;
@@ -3327,14 +3327,14 @@ static int lpass_cdc_wsa_macro_set_cur_state(
 	struct lpass_cdc_wsa_macro_priv *wsa_priv = cdev->devdata;
 
 	if (!wsa_priv || !wsa_priv->dev) {
-		pr_err("%s: cdev->devdata is NULL\n", __func__);
+		pr_err_ratelimited("%s: cdev->devdata is NULL\n", __func__);
 		return -EINVAL;
 	}
 
 	if (state <= wsa_priv->thermal_max_state) {
 		wsa_priv->thermal_cur_state = state;
 	} else {
-		dev_err(wsa_priv->dev,
+		dev_err_ratelimited(wsa_priv->dev,
 			"%s: incorrect requested state:%d\n",
 			__func__, state);
 		return -EINVAL;
