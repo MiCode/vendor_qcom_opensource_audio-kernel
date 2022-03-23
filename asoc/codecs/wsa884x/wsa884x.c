@@ -756,11 +756,11 @@ static void wsa_noise_gate_write(struct snd_soc_component *component,
 		break;
 	case NG2:
 		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,
-			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x28);
+			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x20);
 		break;
 	case NG3:
 		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,
-			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x18);
+			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x10);
 		break;
 	default:
 		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,

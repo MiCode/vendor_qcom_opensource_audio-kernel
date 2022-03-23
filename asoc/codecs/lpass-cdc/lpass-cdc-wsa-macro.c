@@ -1316,7 +1316,7 @@ static int lpass_cdc_macro_set_idle_detect_thr(struct snd_soc_component *compone
 	 */
 	if (path_type == INTERP_MIX_PATH) {
 		mux_reg = LPASS_CDC_WSA_RX_INP_MUX_RX_INT0_CFG1 +
-						2 * interp;
+						8 * interp;
 		mux_reg_val = snd_soc_component_read(component, mux_reg) &
 				0x0f;
 
@@ -1329,7 +1329,7 @@ static int lpass_cdc_macro_set_idle_detect_thr(struct snd_soc_component *compone
 
 	if (path_type == INTERP_MAIN_PATH) {
 		mux_reg = LPASS_CDC_WSA_RX_INP_MUX_RX_INT1_CFG0 +
-			  2 * (interp - 1);
+			  8 * (interp - 1);
 		mux_reg_val = snd_soc_component_read(component, mux_reg) &
 				0x0f;
 		i = NUM_INTERPOLATORS;
