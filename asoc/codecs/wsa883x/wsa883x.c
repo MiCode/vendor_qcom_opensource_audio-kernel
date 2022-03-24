@@ -1763,6 +1763,7 @@ static int wsa883x_swr_probe(struct swr_device *pdev)
 			__func__, ret);
 		goto dev_err;
 	}
+    wsa883x->swr_slave->slave_irq = wsa883x->virq;
 
 	wcd_request_irq(&wsa883x->irq_info, WSA883X_IRQ_INT_SAF2WAR,
 			"WSA SAF2WAR", wsa883x_saf2war_handle_irq, wsa883x);
