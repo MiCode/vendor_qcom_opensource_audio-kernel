@@ -472,6 +472,16 @@ static struct snd_soc_dai_link msm_common_be_dai_links[] = {
 		.ops = &msm_common_be_ops,
 		SND_SOC_DAILINK_REG(usb_audio_tx),
 	},
+	{
+		.name = LPASS_BE_PCM_DUMMY_TX_0,
+		.stream_name = LPASS_BE_PCM_DUMMY_TX_0,
+		.capture_only = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ignore_suspend = 1,
+		.ops = &msm_common_be_ops,
+		SND_SOC_DAILINK_REG(pcm_dummy_tx0),
+	},
 };
 
 static struct snd_soc_dai_link msm_wcn_be_dai_links[] = {
