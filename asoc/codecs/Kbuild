@@ -258,6 +258,7 @@ ifeq ($(KERNEL_BUILD), 1)
 	obj-y	+= bolero/
 	obj-y	+= lpass-cdc/
 	obj-y	+= wsa884x/
+	obj-y	+= wsa883x/
 	obj-y	+= rouleur/
 endif
 # Module information used by KBuild framework
