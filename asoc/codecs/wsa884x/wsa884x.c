@@ -28,6 +28,7 @@
 #include <sound/tlv.h>
 #include <asoc/msm-cdc-pinctrl.h>
 #include <asoc/msm-cdc-supply.h>
+#include "wsa884x-registers.h"
 #include "wsa884x.h"
 #include "internal.h"
 #include "asoc/bolero-slave-internal.h"
