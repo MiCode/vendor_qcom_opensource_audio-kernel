@@ -85,7 +85,7 @@ enum {
 };
 
 #define WSA884X_VTH_TO_REG(vth) \
-	((vth) != 0 ? (((vth) - 150 / PBR_MAX_VOLTAGE) * PBR_MAX_CODE / 100) : 0)
+	((vth) != 0 ? (((vth) - 150) * PBR_MAX_CODE / (PBR_MAX_VOLTAGE * 100) + 1) : 0)
 
 struct wsa_reg_mask_val {
 	u16 reg;
