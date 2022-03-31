@@ -72,6 +72,9 @@ enum {
 	LPASS_CDC_WSA_MACRO_RX_MIX1,
 	LPASS_CDC_WSA_MACRO_RX4,
 	LPASS_CDC_WSA_MACRO_RX5,
+	LPASS_CDC_WSA_MACRO_RX6,
+	LPASS_CDC_WSA_MACRO_RX7,
+	LPASS_CDC_WSA_MACRO_RX8,
 	LPASS_CDC_WSA_MACRO_RX_MAX,
 };
 
@@ -342,11 +345,12 @@ static struct snd_soc_dai_driver lpass_cdc_wsa_macro_dai[];
 static const DECLARE_TLV_DB_SCALE(digital_gain, 0, 1, 0);
 
 static const char *const rx_text[] = {
-	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4", "RX5", "DEC0", "DEC1"
+	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4",
+	"RX5", "RX6", "RX7", "RX8", "DEC0", "DEC1"
 };
 
 static const char *const rx_mix_text[] = {
-	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4", "RX5",
+	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4", "RX5", "RX6", "RX7", "RX8"
 };
 
 static const char *const rx_mix_ec_text[] = {
@@ -397,19 +401,19 @@ static SOC_ENUM_SINGLE_EXT_DECL(idle_detect_enum, idle_detect_text);
 /* RX INT0 */
 static const struct soc_enum rx0_prim_inp0_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT0_CFG0,
-		0, 9, rx_text);
+		0, 12, rx_text);
 
 static const struct soc_enum rx0_prim_inp1_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT0_CFG0,
-		3, 9, rx_text);
+		3, 12, rx_text);
 
 static const struct soc_enum rx0_prim_inp2_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT0_CFG1,
-		3, 9, rx_text);
+		3, 12, rx_text);
 
 static const struct soc_enum rx0_mix_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT0_CFG1,
-		0, 7, rx_mix_text);
+		0, 10, rx_mix_text);
 
 static const struct soc_enum rx0_sidetone_mix_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 2, rx_sidetone_mix_text);
@@ -432,19 +436,19 @@ static const struct snd_kcontrol_new rx0_sidetone_mix_mux =
 /* RX INT1 */
 static const struct soc_enum rx1_prim_inp0_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT1_CFG0,
-		0, 9, rx_text);
+		0, 12, rx_text);
 
 static const struct soc_enum rx1_prim_inp1_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT1_CFG0,
-		3, 9, rx_text);
+		3, 12, rx_text);
 
 static const struct soc_enum rx1_prim_inp2_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT1_CFG1,
-		3, 9, rx_text);
+		3, 12, rx_text);
 
 static const struct soc_enum rx1_mix_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT1_CFG1,
-		0, 7, rx_mix_text);
+		0, 10, rx_mix_text);
 
 static const struct snd_kcontrol_new rx1_prim_inp0_mux =
 	SOC_DAPM_ENUM("WSA_RX1 INP0 Mux", rx1_prim_inp0_chain_enum);

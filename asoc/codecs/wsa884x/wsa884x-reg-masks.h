@@ -214,4 +214,23 @@
 #define WSA884X_CKWD_CTL_1_SPARE_BITS_7_6_MASK                           0xc0
 #define WSA884X_CKWD_CTL_1_VPP_SW_CTL_MASK                               0x20
 #define WSA884X_CKWD_CTL_1_CKWD_VCOMP_VREF_SEL_MASK                      0x1f
+/* WSA884X_VBAT_CAL_CTL Fields: */
+#define WSA884X_VBAT_CAL_CTL_RESERVE_MASK                                0x0e
+#define WSA884X_VBAT_CAL_CTL_VBAT_CAL_EN_MASK                            0x01
+/* WSA884X_REF_CTRL Fields: */
+#define WSA884X_REF_CTRL_DC_STARTUP_EN_MASK                              0x80
+#define WSA884X_REF_CTRL_DC_STARTUP_HOLD_MASK                            0x40
+#define WSA884X_REF_CTRL_TRAN_STARTUP_EN_CORE_MASK                       0x20
+#define WSA884X_REF_CTRL_TRAN_STARTUP_EN_PTAT_MASK                       0x10
+#define WSA884X_REF_CTRL_BG_EN_MASK                                      0x08
+#define WSA884X_REF_CTRL_BG_READY_FORCE_MASK                             0x04
+#define WSA884X_REF_CTRL_BG_RDY_SEL_MASK                                 0x03
+/* WSA884X_ZX_CTRL1 Fields: */
+#define WSA884X_ZX_CTRL1_ZX_DET_EN_MASK                                  0x80
+#define WSA884X_ZX_CTRL1_ZX_DET_SW_EN_MASK                               0x40
+#define WSA884X_ZX_CTRL1_ZX_DET_STAGE_DEFAULT_MASK                       0x20
+#define WSA884X_ZX_CTRL1_ZX_DET_SW_SEL_MASK                              0x18
+#define WSA884X_ZX_CTRL1_ZX_BYP_MASK_IGNORE_MASK                         0x04
+#define WSA884X_ZX_CTRL1_ZX_BYP_MASK_DEL_MASK                            0x02
+#define WSA884X_ZX_CTRL1_BOOTCAP_REFRESH_DIS_MASK                        0x01
 #endif /* WSA884X_REG_MASKS_H */
