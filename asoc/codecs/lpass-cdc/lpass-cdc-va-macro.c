@@ -212,7 +212,7 @@ static int lpass_cdc_va_macro_clk_div_get(struct snd_soc_component *component)
 		return LPASS_CDC_VA_MACRO_CLK_DIV_4;
 
 
-	return va_priv->dmic_clk_div;
+	return (int)va_priv->dmic_clk_div;
 }
 
 static int lpass_cdc_va_macro_mclk_enable(
