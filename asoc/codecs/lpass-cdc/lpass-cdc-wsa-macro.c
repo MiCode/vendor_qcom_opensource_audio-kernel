@@ -131,19 +131,6 @@ enum {
 };
 
 enum {
-	WSA_MODE_21DB,
-	WSA_MODE_19P5DB,
-	WSA_MODE_18DB,
-	WSA_MODE_16P5DB,
-	WSA_MODE_15DB,
-	WSA_MODE_13P5DB,
-	WSA_MODE_12DB,
-	WSA_MODE_10P5DB,
-	WSA_MODE_9DB,
-	WSA_MODE_MAX
-};
-
-enum {
 	INTERP_RX0,
 	INTERP_RX1
 };
@@ -160,7 +147,7 @@ enum {
 	INTERP_MIX_PATH,
 };
 
-static struct lpass_cdc_comp_setting comp_setting_table[WSA_MODE_MAX] = {
+static struct lpass_cdc_comp_setting comp_setting_table[G_MAX_DB] = {
 	{42, 0, 42},
 	{39, 0, 42},
 	{36, 0, 42},
@@ -1454,7 +1441,9 @@ static int lpass_cdc_wsa_macro_config_compander(struct snd_soc_component *compon
 	u16 comp_ctl0_reg, comp_ctl8_reg, rx_path_cfg0_reg;
 	struct device *wsa_dev = NULL;
 	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+	struct lpass_cdc_comp_setting *comp_settings = NULL;
 	u16 mode = 0;
+	int sys_gain, bat_cfg, sys_gain_int, upper_gain, lower_gain;
 
 	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
 		return -EINVAL;
@@ -1472,11 +1461,49 @@ static int lpass_cdc_wsa_macro_config_compander(struct snd_soc_component *compon
 					(comp * LPASS_CDC_WSA_MACRO_RX_COMP_OFFSET);
 	rx_path_cfg0_reg = LPASS_CDC_WSA_RX0_RX_PATH_CFG0 +
 					(comp * LPASS_CDC_WSA_MACRO_RX_PATH_OFFSET);
+	comp_settings = &comp_setting_table[mode];
+
+	/* If System has battery configuration */
+	if (wsa_priv->wsa_bat_cfg[comp]) {
+		sys_gain = wsa_priv->wsa_sys_gain[comp * 2 + wsa_priv->wsa_spkrrecv];
+		bat_cfg = wsa_priv->wsa_bat_cfg[comp];
+		/* Convert enum to value and
+		 * multiply all values by 10 to avoid float
+		 */
+		sys_gain_int = -15 * sys_gain + 210;
+		switch (bat_cfg) {
+		case CONFIG_1S:
+		case EXT_1S:
+			if (sys_gain > G_13P5_DB) {
+				upper_gain = sys_gain_int + 60;
+				lower_gain = 0;
+			} else {
+				upper_gain = 210;
+				lower_gain = 0;
+			}
+			break;
+		case CONFIG_3S:
+		case EXT_3S:
+			upper_gain = sys_gain_int;
+			lower_gain = 75;
+		case EXT_ABOVE_3S:
+			upper_gain = sys_gain_int;
+			lower_gain = 120;
+			break;
+		default:
+			upper_gain = sys_gain_int;
+			lower_gain = 0;
+			break;
+		}
+		/* Truncate after calculation */
+		comp_settings->lower_gain_int = (lower_gain * 2) / 10;
+		comp_settings->upper_gain_int = (upper_gain * 2) / 10;
+	}
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		lpass_cdc_update_compander_setting(component,
 					comp_ctl8_reg,
-					&comp_setting_table[mode]);
+					comp_settings);
 		/* Enable Compander Clock */
 		snd_soc_component_update_bits(component, comp_ctl0_reg,
 						0x01, 0x01);
