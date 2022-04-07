@@ -256,13 +256,15 @@ static int get_mi2s_tdm_auxpcm_intf_index(const char *stream_name)
 		return SEN_MI2S_TDM_AUXPCM;
 	else if (strnstr(stream_name, "LPAIF_VA", strlen(stream_name)))
 		return QUIN_MI2S_TDM_AUXPCM;
-	else if (strnstr(stream_name, "LPAIF_AUD", strlen(stream_name)))
-		return SEP_MI2S_TDM_AUXPCM;
+	else if (strnstr(stream_name, "LPAIF_AUD", strlen(stream_name))){
+		if (strnstr(stream_name, "PRIMARY", strlen(stream_name)))
+			return SEP_MI2S_TDM_AUXPCM;
+		else if (strnstr(stream_name, "SECONDARY", strlen(stream_name)))
+			return TER_MI2S_TDM_AUXPCM;
+	}
 	else if (strnstr(stream_name, "LPAIF", strlen(stream_name))) {
 		if (strnstr(stream_name, "PRIMARY", strlen(stream_name)))
 			return PRI_MI2S_TDM_AUXPCM;
-		else if (strnstr(stream_name, "TERTIARY", strlen(stream_name)))
-			return TER_MI2S_TDM_AUXPCM;
 		else if (strnstr(stream_name, "SECONDARY", strlen(stream_name)))
 			return SEC_MI2S_TDM_AUXPCM;
 	}
