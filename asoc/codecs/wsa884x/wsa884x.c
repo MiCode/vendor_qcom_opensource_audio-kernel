@@ -315,14 +315,14 @@ static ssize_t swr_slave_reg_show(struct swr_device *pdev, char __user *ubuf,
 		len = snprintf(tmp_buf, sizeof(tmp_buf), "0x%.3x: 0x%.2x\n", i,
 			       (reg_val & 0xFF));
 		if (len < 0) {
-			pr_err("%s: fail to fill the buffer\n", __func__);
+			pr_err_ratelimited("%s: fail to fill the buffer\n", __func__);
 			total = -EFAULT;
 			goto copy_err;
 		}
 		if ((total + len) >= count - 1)
 			break;
 		if (copy_to_user((ubuf + total), tmp_buf, len)) {
-			pr_err("%s: fail to copy reg dump\n", __func__);
+			pr_err_ratelimited("%s: fail to copy reg dump\n", __func__);
 			total = -EFAULT;
 			goto copy_err;
 		}
@@ -419,7 +419,7 @@ static ssize_t codec_debug_peek_write(struct file *file,
 	if (rc == 0)
 		rc = cnt;
 	else
-		pr_err("%s: rc = %d\n", __func__, rc);
+		pr_err_ratelimited("%s: rc = %d\n", __func__, rc);
 
 	return rc;
 }
@@ -455,7 +455,7 @@ static ssize_t codec_debug_write(struct file *file,
 	if (rc == 0)
 		rc = cnt;
 	else
-		pr_err("%s: rc = %d\n", __func__, rc);
+		pr_err_ratelimited("%s: rc = %d\n", __func__, rc);
 
 	return rc;
 }
@@ -884,7 +884,7 @@ static ssize_t wsa884x_codec_version_read(struct snd_info_entry *entry,
 
 	wsa884x = (struct wsa884x_priv *) entry->private_data;
 	if (!wsa884x) {
-		pr_err("%s: wsa884x priv is null\n", __func__);
+		pr_err_ratelimited("%s: wsa884x priv is null\n", __func__);
 		return -EINVAL;
 	}
 
@@ -916,7 +916,7 @@ static ssize_t wsa884x_variant_read(struct snd_info_entry *entry,
 
 	wsa884x = (struct wsa884x_priv *) entry->private_data;
 	if (!wsa884x) {
-		pr_err("%s: wsa884x priv is null\n", __func__);
+		pr_err_ratelimited("%s: wsa884x priv is null\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1056,7 +1056,7 @@ int wsa884x_codec_get_dev_num(struct snd_soc_component *component)
 
 	wsa884x = snd_soc_component_get_drvdata(component);
 	if (!wsa884x) {
-		pr_err("%s: wsa884x component is NULL\n", __func__);
+		pr_err_ratelimited("%s: wsa884x component is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1076,7 +1076,7 @@ static int wsa884x_get_dev_num(struct snd_kcontrol *kcontrol,
 
 	wsa884x = snd_soc_component_get_drvdata(component);
 	if (!wsa884x) {
-		pr_err("%s: wsa884x component is NULL\n", __func__);
+		pr_err_ratelimited("%s: wsa884x component is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1349,7 +1349,7 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (swr_set_device_group(wsa884x->swr_slave, SWR_GROUP_NONE))
-			dev_err(component->dev,
+			dev_err_ratelimited(component->dev,
 				"%s: set num ch failed\n", __func__);
 
 		swr_slvdev_datapath_control(wsa884x->swr_slave,
@@ -1467,7 +1467,7 @@ int wsa884x_set_channel_map(struct snd_soc_component *component, u8 *port,
 
 	if (!port || !ch_mask || !ch_rate ||
 		(num_port > WSA884X_MAX_SWR_PORTS)) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: Invalid port=%pK, ch_mask=%pK, ch_rate=%pK\n",
 			__func__, port, ch_mask, ch_rate);
 		return -EINVAL;
@@ -1510,7 +1510,7 @@ static int32_t wsa884x_temp_reg_read(struct snd_soc_component *component,
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
 
 	if (!wsa884x) {
-		dev_err(component->dev, "%s: wsa884x is NULL\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: wsa884x is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1571,7 +1571,7 @@ static int wsa884x_get_temperature(struct snd_soc_component *component,
 	do {
 		ret = wsa884x_temp_reg_read(component, &reg);
 		if (ret) {
-			pr_err("%s: temp read failed: %d, current temp: %d\n",
+			pr_err_ratelimited("%s: temp read failed: %d, current temp: %d\n",
 				__func__, ret, wsa884x->curr_temp);
 			if (temp)
 				*temp = wsa884x->curr_temp;
@@ -1736,7 +1736,7 @@ static int wsa884x_gpio_ctrl(struct wsa884x_priv *wsa884x, bool enable)
 		ret = msm_cdc_pinctrl_select_sleep_state(
 						wsa884x->wsa_rst_np);
 	if (ret != 0)
-		dev_err(wsa884x->dev,
+		dev_err_ratelimited(wsa884x->dev,
 			"%s: Failed to turn state %d; ret=%d\n",
 			__func__, enable, ret);
 
@@ -1749,7 +1749,7 @@ static int wsa884x_swr_up(struct wsa884x_priv *wsa884x)
 
 	ret = wsa884x_gpio_ctrl(wsa884x, true);
 	if (ret)
-		dev_err(wsa884x->dev, "%s: Failed to enable gpio\n", __func__);
+		dev_err_ratelimited(wsa884x->dev, "%s: Failed to enable gpio\n", __func__);
 
 	return ret;
 }
@@ -1760,7 +1760,7 @@ static int wsa884x_swr_down(struct wsa884x_priv *wsa884x)
 
 	ret = wsa884x_gpio_ctrl(wsa884x, false);
 	if (ret)
-		dev_err(wsa884x->dev, "%s: Failed to disable gpio\n", __func__);
+		dev_err_ratelimited(wsa884x->dev, "%s: Failed to disable gpio\n", __func__);
 
 	return ret;
 }
@@ -2369,7 +2369,7 @@ static int wsa884x_swr_suspend(struct device *dev)
 	struct wsa884x_priv *wsa884x = swr_get_dev_data(to_swr_device(dev));
 
 	if (!wsa884x) {
-		dev_err(dev, "%s: wsa884x private data is NULL\n", __func__);
+		dev_err_ratelimited(dev, "%s: wsa884x private data is NULL\n", __func__);
 		return -EINVAL;
 	}
 	dev_dbg(dev, "%s: system suspend\n", __func__);

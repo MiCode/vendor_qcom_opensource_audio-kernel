@@ -155,7 +155,7 @@ static int lpi_gpio_read(struct lpi_gpio_pad *pad, unsigned int addr)
 
 	if (!lpi_dev_up) {
 		if (__ratelimit(&rtl))
-			pr_err("%s: ADSP is down due to SSR, return\n",
+			pr_err_ratelimited("%s: ADSP is down due to SSR, return\n",
 				   __func__);
 		return 0;
 	}
@@ -163,7 +163,7 @@ static int lpi_gpio_read(struct lpi_gpio_pad *pad, unsigned int addr)
 	mutex_lock(&state->core_hw_vote_lock);
 	if (!state->core_hw_vote_status) {
 		if (__ratelimit(&rtl))
-			pr_err("%s: core hw vote clk is not enabled\n",
+			pr_err_ratelimited("%s: core hw vote clk is not enabled\n",
 				__func__);
 		ret = -EINVAL;
 		goto err;
@@ -171,7 +171,7 @@ static int lpi_gpio_read(struct lpi_gpio_pad *pad, unsigned int addr)
 
 	ret = ioread32(pad->base + pad->offset + addr);
 	if (ret < 0)
-		pr_err("%s: read 0x%x failed\n", __func__, addr);
+		pr_err_ratelimited("%s: read 0x%x failed\n", __func__, addr);
 
 err:
 	mutex_unlock(&state->core_hw_vote_lock);
@@ -194,7 +194,7 @@ static int lpi_gpio_write(struct lpi_gpio_pad *pad, unsigned int addr,
 	mutex_lock(&state->core_hw_vote_lock);
 	if (!state->core_hw_vote_status) {
 		if (__ratelimit(&rtl))
-			pr_err("%s: core hw vote clk is not enabled\n",
+			pr_err_ratelimited("%s: core hw vote clk is not enabled\n",
 				__func__);
 		ret = -EINVAL;
 		goto err;
@@ -372,8 +372,8 @@ static int lpi_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 				goto set_gpio;
 			}
 			if (arg > LPI_SLEW_RATE_MAX) {
-				dev_err(pctldev->dev, "%s: invalid slew rate %u for pin: %d\n",
-					__func__, arg, pin);
+				dev_err_ratelimited(pctldev->dev, "%s: invalid slew rate %u for \
+					pin: %d\n", __func__, arg, pin);
 				goto set_gpio;
 			}
 			pad->base = pad->slew_base;
@@ -909,7 +909,7 @@ int lpi_pinctrl_runtime_resume(struct device *dev)
 	if (ret < 0) {
 		pm_runtime_set_autosuspend_delay(dev,
 						 LPI_AUTO_SUSPEND_DELAY_ERROR);
-		dev_err(dev, "%s:lpass core hw island enable failed\n",
+		dev_err_ratelimited(dev, "%s:lpass core hw island enable failed\n",
 			__func__);
 		goto exit;
 	} else {

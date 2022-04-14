@@ -1,4 +1,5 @@
 /* Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -75,18 +76,18 @@ static int spf_core_callback(struct gpr_device *adev, void *data)
 	struct gpr_hdr *hdr = data;
 
 
-	dev_info(&adev->dev ,"%s: Payload %x",__func__, hdr->opcode);
+	dev_info_ratelimited(&adev->dev, "%s: Payload %x", __func__, hdr->opcode);
 	switch (hdr->opcode) {
 	case GPR_IBASIC_RSP_RESULT:
 		basic_rsp = GPR_PKT_GET_PAYLOAD(
 				struct spf_cmd_basic_rsp,
 				data);
-		dev_info(&adev->dev ,"%s: op %x status %d", __func__,
+		dev_info_ratelimited(&adev->dev, "%s: op %x status %d", __func__,
 				basic_rsp->opcode, basic_rsp->status);
 		if (basic_rsp->opcode == APM_CMD_CLOSE_ALL) {
 			core->status = basic_rsp->status;
 		} else {
-			dev_err(&adev->dev ,"%s: Failed response received",
+			dev_err_ratelimited(&adev->dev, "%s: Failed response received",
 					__func__);
 		}
 		core->resp_received = true;
@@ -96,12 +97,12 @@ static int spf_core_callback(struct gpr_device *adev, void *data)
 				GPR_PKT_GET_PAYLOAD(
 					struct apm_cmd_rsp_get_spf_status_t,
 					data);
-		dev_info(&adev->dev ,"%s: sucess response received",__func__);
+		dev_info_ratelimited(&adev->dev, "%s: sucess response received", __func__);
 		core->status = spf_status_rsp->status;
 		core->resp_received = true;
 		break;
 	default:
-		dev_err(&adev->dev, "Message ID from apm: 0x%x\n",
+		dev_err_ratelimited(&adev->dev, "Message ID from apm: 0x%x\n",
 			hdr->opcode);
 		break;
 	}
@@ -128,7 +129,7 @@ static bool __spf_core_is_apm_ready(struct spf_core *core)
 	pkt.hdr.src_domain_id = GPR_IDS_DOMAIN_ID_APPS_V;
 	pkt.hdr.opcode = APM_CMD_GET_SPF_STATE;
 
-	dev_err(spf_core_priv->dev, "%s: send_command ret\n",	__func__);
+	dev_err_ratelimited(spf_core_priv->dev, "%s: send_command ret\n", __func__);
 
 	rc = gpr_send_pkt(adev, &pkt);
 	if (rc < 0) {
@@ -143,7 +144,7 @@ static bool __spf_core_is_apm_ready(struct spf_core *core)
 	if (rc > 0 && core->resp_received) {
 		ret = core->status;
 	} else {
-		dev_err(spf_core_priv->dev, "%s: command timedout, ret\n",
+		dev_err_ratelimited(spf_core_priv->dev, "%s: command timedout, ret\n",
 			__func__);
         }
 done:
@@ -229,24 +230,24 @@ void spf_core_apm_close_all(void)
 	pkt.hdr.src_domain_id = GPR_IDS_DOMAIN_ID_APPS_V;
 	pkt.hdr.opcode = APM_CMD_CLOSE_ALL;
 
-	dev_info(spf_core_priv->dev, "%s: send_command \n", __func__);
+	dev_info_ratelimited(spf_core_priv->dev, "%s: send_command \n", __func__);
 
 	rc = gpr_send_pkt(adev, &pkt);
 	if (rc < 0) {
-		dev_err(spf_core_priv->dev, "%s: send_pkt_failed %d\n",
+		dev_err_ratelimited(spf_core_priv->dev, "%s: send_pkt_failed %d\n",
 				__func__, rc);
 		goto done;
 	}
 
 	rc = wait_event_timeout(core->wait, (core->resp_received),
 				msecs_to_jiffies(Q6_READY_TIMEOUT_MS));
-	dev_info(spf_core_priv->dev, "%s: wait event unblocked \n", __func__);
+	dev_info_ratelimited(spf_core_priv->dev, "%s: wait event unblocked \n", __func__);
 	if (rc > 0 && core->resp_received) {
 		if (core->status != 0)
-			dev_err(spf_core_priv->dev, "%s, cmd failed status %d",
+			dev_err_ratelimited(spf_core_priv->dev, "%s, cmd failed status %d",
 					__func__, core->status);
 	} else {
-		dev_err(spf_core_priv->dev, "%s: command timedout, ret\n",
+		dev_err_ratelimited(spf_core_priv->dev, "%s: command timedout, ret\n",
 			__func__);
         }
 

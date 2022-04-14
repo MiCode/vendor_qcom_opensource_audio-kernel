@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -155,20 +156,20 @@ static bool lpass_cdc_tx_macro_get_data(struct snd_soc_component *component,
 {
 	*tx_dev = lpass_cdc_get_device_ptr(component->dev, TX_MACRO);
 	if (!(*tx_dev)) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: null device for macro!\n", func_name);
 		return false;
 	}
 
 	*tx_priv = dev_get_drvdata((*tx_dev));
 	if (!(*tx_priv)) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: priv is null for macro!\n", func_name);
 		return false;
 	}
 
 	if (!(*tx_priv)->component) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: tx_priv->component not initialized!\n", func_name);
 		return false;
 	}
@@ -184,7 +185,7 @@ static int lpass_cdc_tx_macro_mclk_enable(
 	int ret = 0;
 
 	if (regmap == NULL) {
-		dev_err(tx_priv->dev, "%s: regmap is NULL\n", __func__);
+		dev_err_ratelimited(tx_priv->dev, "%s: regmap is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -220,7 +221,7 @@ static int lpass_cdc_tx_macro_mclk_enable(
 		tx_priv->tx_mclk_users++;
 	} else {
 		if (tx_priv->tx_mclk_users <= 0) {
-			dev_err(tx_priv->dev, "%s: clock already disabled\n",
+			dev_err_ratelimited(tx_priv->dev, "%s: clock already disabled\n",
 				__func__);
 			tx_priv->tx_mclk_users = 0;
 			goto exit;
@@ -285,7 +286,7 @@ static int lpass_cdc_tx_macro_mclk_event(struct snd_soc_dapm_widget *w,
 			ret = lpass_cdc_tx_macro_mclk_enable(tx_priv, 0);
 		break;
 	default:
-		dev_err(tx_priv->dev,
+		dev_err_ratelimited(tx_priv->dev,
 			"%s: invalid DAPM event %d\n", __func__, event);
 		ret = -EINVAL;
 	}
@@ -505,7 +506,7 @@ static int lpass_cdc_tx_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
 		mic_sel_reg = LPASS_CDC_TX7_TX_PATH_CFG0;
 		break;
 	default:
-		dev_err(component->dev, "%s: e->reg: 0x%x not expected\n",
+		dev_err_ratelimited(component->dev, "%s: e->reg: 0x%x not expected\n",
 			__func__, e->reg);
 		return -EINVAL;
 	}
@@ -612,21 +613,21 @@ static inline int lpass_cdc_tx_macro_path_get(const char *wname,
 
 	path_name = strsep(&widget_name, " ");
 	if (!path_name) {
-		pr_err("%s: Invalid widget name = %s\n",
+		pr_err_ratelimited("%s: Invalid widget name = %s\n",
 			__func__, widget_name);
 		ret = -EINVAL;
 		goto err;
 	}
 	path_num_char = strpbrk(path_name, "01234567");
 	if (!path_num_char) {
-		pr_err("%s: tx path index not found\n",
+		pr_err_ratelimited("%s: tx path index not found\n",
 			__func__);
 		ret = -EINVAL;
 		goto err;
 	}
 	ret = kstrtouint(path_num_char, 10, path_num);
 	if (ret < 0)
-		pr_err("%s: Invalid tx path = %s\n",
+		pr_err_ratelimited("%s: Invalid tx path = %s\n",
 			__func__, w_name);
 
 err:
@@ -1112,7 +1113,7 @@ static int lpass_cdc_tx_macro_hw_params(struct snd_pcm_substream *substream,
 		tx_fs_rate = 7;
 		break;
 	default:
-		dev_err(component->dev, "%s: Invalid TX sample rate: %d\n",
+		dev_err_ratelimited(component->dev, "%s: Invalid TX sample rate: %d\n",
 			__func__, params_rate(params));
 		return -EINVAL;
 	}
@@ -1126,7 +1127,7 @@ static int lpass_cdc_tx_macro_hw_params(struct snd_pcm_substream *substream,
 			snd_soc_component_update_bits(component, tx_fs_reg,
 						0x0F, tx_fs_rate);
 		} else {
-			dev_err(component->dev,
+			dev_err_ratelimited(component->dev,
 				"%s: ERROR: Invalid decimator: %d\n",
 				__func__, decimator);
 			return -EINVAL;
@@ -1154,7 +1155,7 @@ static int lpass_cdc_tx_macro_get_channel_map(struct snd_soc_dai *dai,
 		*tx_num = tx_priv->active_ch_cnt[dai->id];
 		break;
 	default:
-		dev_err(tx_dev, "%s: Invalid AIF\n", __func__);
+		dev_err_ratelimited(tx_dev, "%s: Invalid AIF\n", __func__);
 		break;
 	}
 	return 0;

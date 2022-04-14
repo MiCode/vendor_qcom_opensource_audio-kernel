@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -185,13 +186,13 @@ static bool lpass_cdc_va_macro_get_data(struct snd_soc_component *component,
 {
 	*va_dev = lpass_cdc_get_device_ptr(component->dev, VA_MACRO);
 	if (!(*va_dev)) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: null device for macro!\n", func_name);
 		return false;
 	}
 	*va_priv = dev_get_drvdata((*va_dev));
 	if (!(*va_priv) || !(*va_priv)->component) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: priv is null for macro!\n", func_name);
 		return false;
 	}
@@ -223,7 +224,7 @@ static int lpass_cdc_va_macro_mclk_enable(
 	int ret = 0;
 
 	if (regmap == NULL) {
-		dev_err(va_priv->dev, "%s: regmap is NULL\n", __func__);
+		dev_err_ratelimited(va_priv->dev, "%s: regmap is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -234,7 +235,7 @@ static int lpass_cdc_va_macro_mclk_enable(
 	if (mclk_enable) {
 		ret = lpass_cdc_va_macro_core_vote(va_priv, true);
 		if (ret < 0) {
-			dev_err(va_priv->dev,
+			dev_err_ratelimited(va_priv->dev,
 				"%s: va request core vote failed\n",
 				__func__);
 			goto exit;
@@ -245,7 +246,7 @@ static int lpass_cdc_va_macro_mclk_enable(
 						   true);
 		lpass_cdc_va_macro_core_vote(va_priv, false);
 		if (ret < 0) {
-			dev_err(va_priv->dev,
+			dev_err_ratelimited(va_priv->dev,
 				"%s: va request clock en failed\n",
 				__func__);
 			goto exit;
@@ -261,7 +262,7 @@ static int lpass_cdc_va_macro_mclk_enable(
 		va_priv->va_mclk_users++;
 	} else {
 		if (va_priv->va_mclk_users <= 0) {
-			dev_err(va_priv->dev, "%s: clock already disabled\n",
+			dev_err_ratelimited(va_priv->dev, "%s: clock already disabled\n",
 			__func__);
 			va_priv->va_mclk_users = 0;
 			goto exit;
@@ -271,7 +272,7 @@ static int lpass_cdc_va_macro_mclk_enable(
 					  false);
 		ret = lpass_cdc_va_macro_core_vote(va_priv, true);
 		if (ret < 0) {
-			dev_err(va_priv->dev,
+			dev_err_ratelimited(va_priv->dev,
 				"%s: va request core vote failed\n",
 				__func__);
 		}
@@ -315,7 +316,7 @@ static int lpass_cdc_va_macro_event_handler(struct snd_soc_component *component,
 			retry_cnt--;
 		}
 		if (retry_cnt == 0)
-			dev_err(va_dev,
+			dev_err_ratelimited(va_dev,
 				"%s: va_mclk_users non-zero, SSR fail!!\n",
 				__func__);
 		break;
@@ -323,7 +324,7 @@ static int lpass_cdc_va_macro_event_handler(struct snd_soc_component *component,
 		/* enable&disable VA_CORE_CLK to reset GFMUX reg */
 		ret = lpass_cdc_va_macro_core_vote(va_priv, true);
 		if (ret < 0) {
-			dev_err(va_priv->dev,
+			dev_err_ratelimited(va_priv->dev,
 				"%s: va request core vote failed\n",
 				__func__);
 			break;
@@ -442,7 +443,7 @@ static int lpass_cdc_va_macro_swr_pwr_event(struct snd_soc_dapm_widget *w,
 				va_priv->tx_clk_status)  {
 			ret = lpass_cdc_va_macro_core_vote(va_priv, true);
 			if (ret < 0) {
-				dev_err(va_priv->dev,
+				dev_err_ratelimited(va_priv->dev,
 					"%s: va request core vote failed\n",
 					__func__);
 				break;
@@ -482,7 +483,7 @@ static int lpass_cdc_va_macro_swr_pwr_event(struct snd_soc_dapm_widget *w,
 					TX_CORE_CLK,
 					true);
 			if (ret) {
-				dev_err(component->dev,
+				dev_err_ratelimited(component->dev,
 					"%s: request clock TX_CLK enable failed\n",
 					__func__);
 				if (va_priv->dev_up)
@@ -490,7 +491,7 @@ static int lpass_cdc_va_macro_swr_pwr_event(struct snd_soc_dapm_widget *w,
 			}
 			ret = lpass_cdc_va_macro_core_vote(va_priv, true);
 			if (ret < 0) {
-				dev_err(va_priv->dev,
+				dev_err_ratelimited(va_priv->dev,
 					"%s: va request core vote failed\n",
 					__func__);
 				if (va_priv->dev_up)
@@ -502,7 +503,7 @@ static int lpass_cdc_va_macro_swr_pwr_event(struct snd_soc_dapm_widget *w,
 					false);
 			lpass_cdc_va_macro_core_vote(va_priv, false);
 			if (ret) {
-				dev_err(component->dev,
+				dev_err_ratelimited(component->dev,
 					"%s: request clock VA_CLK disable failed\n",
 					__func__);
 				if (va_priv->dev_up)
@@ -516,7 +517,7 @@ static int lpass_cdc_va_macro_swr_pwr_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	default:
-		dev_err(va_priv->dev,
+		dev_err_ratelimited(va_priv->dev,
 			"%s: invalid DAPM event %d\n", __func__, event);
 		ret = -EINVAL;
 	}
@@ -594,7 +595,7 @@ static int lpass_cdc_va_macro_mclk_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	default:
-		dev_err(va_priv->dev,
+		dev_err_ratelimited(va_priv->dev,
 			"%s: invalid DAPM event %d\n", __func__, event);
 		ret = -EINVAL;
 	}
@@ -737,7 +738,7 @@ static int lpass_cdc_va_macro_core_vote(void *handle, bool enable)
 					(struct lpass_cdc_va_macro_priv *) handle;
 
 	if (va_priv == NULL) {
-		pr_err("%s: va priv data is NULL\n", __func__);
+		pr_err_ratelimited("%s: va priv data is NULL\n", __func__);
 		return -EINVAL;
 	}
 	trace_printk("%s, enter: enable %d\n", __func__, enable);
@@ -764,7 +765,7 @@ static int lpass_cdc_va_macro_swrm_clock(void *handle, bool enable)
 	int ret = 0;
 
 	if (regmap == NULL) {
-		dev_err(va_priv->dev, "%s: regmap is NULL\n", __func__);
+		dev_err_ratelimited(va_priv->dev, "%s: regmap is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1001,7 +1002,7 @@ static int lpass_cdc_va_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
 		mic_sel_reg = LPASS_CDC_VA_TX3_TX_PATH_CFG0;
 		break;
 	default:
-		dev_err(component->dev, "%s: e->reg: 0x%x not expected\n",
+		dev_err_ratelimited(component->dev, "%s: e->reg: 0x%x not expected\n",
 			__func__, e->reg);
 		return -EINVAL;
 	}
@@ -1377,7 +1378,7 @@ static int lpass_cdc_va_macro_enable_tx(struct snd_soc_dapm_widget *w,
 			va_priv->dapm_tx_clk_status++;
 		break;
 	default:
-		dev_err(va_priv->dev,
+		dev_err_ratelimited(va_priv->dev,
 			"%s: invalid DAPM event %d\n", __func__, event);
 		ret = -EINVAL;
 		break;
@@ -1400,7 +1401,7 @@ static int lpass_cdc_va_macro_enable_micbias(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 
 	if (!va_priv->micb_supply) {
-		dev_err(va_dev,
+		dev_err_ratelimited(va_dev,
 			"%s:regulator not provided in dtsi\n", __func__);
 		return -EINVAL;
 	}
@@ -1412,20 +1413,20 @@ static int lpass_cdc_va_macro_enable_micbias(struct snd_soc_dapm_widget *w,
 				      va_priv->micb_voltage,
 				      va_priv->micb_voltage);
 		if (ret) {
-			dev_err(va_dev, "%s: Setting voltage failed, err = %d\n",
+			dev_err_ratelimited(va_dev, "%s: Setting voltage failed, err = %d\n",
 				__func__, ret);
 			return ret;
 		}
 		ret = regulator_set_load(va_priv->micb_supply,
 					 va_priv->micb_current);
 		if (ret) {
-			dev_err(va_dev, "%s: Setting current failed, err = %d\n",
+			dev_err_ratelimited(va_dev, "%s: Setting current failed, err = %d\n",
 				__func__, ret);
 			return ret;
 		}
 		ret = regulator_enable(va_priv->micb_supply);
 		if (ret) {
-			dev_err(va_dev, "%s: regulator enable failed, err = %d\n",
+			dev_err_ratelimited(va_dev, "%s: regulator enable failed, err = %d\n",
 				__func__, ret);
 			return ret;
 		}
@@ -1441,7 +1442,7 @@ static int lpass_cdc_va_macro_enable_micbias(struct snd_soc_dapm_widget *w,
 		}
 		ret = regulator_disable(va_priv->micb_supply);
 		if (ret) {
-			dev_err(va_dev, "%s: regulator disable failed, err = %d\n",
+			dev_err_ratelimited(va_dev, "%s: regulator disable failed, err = %d\n",
 				__func__, ret);
 			return ret;
 		}
@@ -1470,21 +1471,21 @@ static inline int lpass_cdc_va_macro_path_get(const char *wname,
 
 	path_name = strsep(&widget_name, " ");
 	if (!path_name) {
-		pr_err("%s: Invalid widget name = %s\n",
+		pr_err_ratelimited("%s: Invalid widget name = %s\n",
 			__func__, widget_name);
 		ret = -EINVAL;
 		goto err;
 	}
 	path_num_char = strpbrk(path_name, "01234567");
 	if (!path_num_char) {
-		pr_err("%s: va path index not found\n",
+		pr_err_ratelimited("%s: va path index not found\n",
 			__func__);
 		ret = -EINVAL;
 		goto err;
 	}
 	ret = kstrtouint(path_num_char, 10, path_num);
 	if (ret < 0)
-		pr_err("%s: Invalid tx path = %s\n",
+		pr_err_ratelimited("%s: Invalid tx path = %s\n",
 			__func__, w_name);
 
 err:
@@ -1585,7 +1586,7 @@ static int lpass_cdc_va_macro_hw_params(struct snd_pcm_substream *substream,
 		tx_fs_rate = 7;
 		break;
 	default:
-		dev_err(va_dev, "%s: Invalid TX sample rate: %d\n",
+		dev_err_ratelimited(va_dev, "%s: Invalid TX sample rate: %d\n",
 			__func__, params_rate(params));
 		return -EINVAL;
 	}
@@ -1599,7 +1600,7 @@ static int lpass_cdc_va_macro_hw_params(struct snd_pcm_substream *substream,
 			snd_soc_component_update_bits(component, tx_fs_reg,
 						0x0F, tx_fs_rate);
 		} else {
-			dev_err(va_dev,
+			dev_err_ratelimited(va_dev,
 				"%s: ERROR: Invalid decimator: %d\n",
 				__func__, decimator);
 			return -EINVAL;
@@ -1628,7 +1629,7 @@ static int lpass_cdc_va_macro_get_channel_map(struct snd_soc_dai *dai,
 		*tx_num = va_priv->active_ch_cnt[dai->id];
 		break;
 	default:
-		dev_err(va_dev, "%s: Invalid AIF\n", __func__);
+		dev_err_ratelimited(va_dev, "%s: Invalid AIF\n", __func__);
 		break;
 	}
 	return 0;

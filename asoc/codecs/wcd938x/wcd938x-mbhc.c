@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -223,7 +224,7 @@ static void wcd938x_mbhc_program_btn_thr(struct snd_soc_component *component,
 	int vth;
 
 	if (num_btn > WCD_MBHC_DEF_BUTTONS) {
-		dev_err(component->dev, "%s: invalid number of buttons: %d\n",
+		dev_err_ratelimited(component->dev, "%s: invalid number of buttons: %d\n",
 			__func__, num_btn);
 		return;
 	}
@@ -336,12 +337,12 @@ static struct firmware_cal *wcd938x_get_hwdep_fw_cal(struct wcd_mbhc *mbhc,
 	wcd938x_mbhc = container_of(mbhc, struct wcd938x_mbhc, wcd_mbhc);
 
 	if (!component) {
-		pr_err("%s: NULL component pointer\n", __func__);
+		pr_err_ratelimited("%s: NULL component pointer\n", __func__);
 		return NULL;
 	}
 	hwdep_cal = wcdcal_get_fw_cal(wcd938x_mbhc->fw_data, type);
 	if (!hwdep_cal)
-		dev_err(component->dev, "%s: cal not sent by %d\n",
+		dev_err_ratelimited(component->dev, "%s: cal not sent by %d\n",
 			__func__, type);
 
 	return hwdep_cal;
@@ -848,7 +849,7 @@ static int wcd938x_get_hph_type(struct snd_kcontrol *kcontrol,
 	struct wcd_mbhc *mbhc;
 
 	if (!wcd938x_mbhc) {
-		dev_err(component->dev, "%s: mbhc not initialized!\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: mbhc not initialized!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -871,7 +872,7 @@ static int wcd938x_hph_impedance_get(struct snd_kcontrol *kcontrol,
 	struct wcd938x_mbhc *wcd938x_mbhc = wcd938x_soc_get_mbhc(component);
 
 	if (!wcd938x_mbhc) {
-		dev_err(component->dev, "%s: mbhc not initialized!\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: mbhc not initialized!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -908,11 +909,11 @@ int wcd938x_mbhc_get_impedance(struct wcd938x_mbhc *wcd938x_mbhc,
 			     uint32_t *zl, uint32_t *zr)
 {
 	if (!wcd938x_mbhc) {
-		pr_err("%s: mbhc not initialized!\n", __func__);
+		pr_err_ratelimited("%s: mbhc not initialized!\n", __func__);
 		return -EINVAL;
 	}
 	if (!zl || !zr) {
-		pr_err("%s: zl or zr null!\n", __func__);
+		pr_err_ratelimited("%s: zl or zr null!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -933,19 +934,19 @@ int wcd938x_mbhc_hs_detect(struct snd_soc_component *component,
 	struct wcd938x_mbhc *wcd938x_mbhc = NULL;
 
 	if (!component) {
-		pr_err("%s: component is NULL\n", __func__);
+		pr_err_ratelimited("%s: component is NULL\n", __func__);
 		return -EINVAL;
 	}
 
 	wcd938x = snd_soc_component_get_drvdata(component);
 	if (!wcd938x) {
-		pr_err("%s: wcd938x is NULL\n", __func__);
+		pr_err_ratelimited("%s: wcd938x is NULL\n", __func__);
 		return -EINVAL;
 	}
 
 	wcd938x_mbhc = wcd938x->mbhc;
 	if (!wcd938x_mbhc) {
-		dev_err(component->dev, "%s: mbhc not initialized!\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: mbhc not initialized!\n", __func__);
 		return -EINVAL;
 	}
 
@@ -963,19 +964,19 @@ void wcd938x_mbhc_hs_detect_exit(struct snd_soc_component *component)
 	struct wcd938x_mbhc *wcd938x_mbhc = NULL;
 
 	if (!component) {
-		pr_err("%s: component is NULL\n", __func__);
+		pr_err_ratelimited("%s: component is NULL\n", __func__);
 		return;
 	}
 
 	wcd938x = snd_soc_component_get_drvdata(component);
 	if (!wcd938x) {
-		pr_err("%s: wcd938x is NULL\n", __func__);
+		pr_err_ratelimited("%s: wcd938x is NULL\n", __func__);
 		return;
 	}
 
 	wcd938x_mbhc = wcd938x->mbhc;
 	if (!wcd938x_mbhc) {
-		dev_err(component->dev, "%s: mbhc not initialized!\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: mbhc not initialized!\n", __func__);
 		return;
 	}
 	wcd_mbhc_stop(&wcd938x_mbhc->wcd_mbhc);
@@ -998,7 +999,7 @@ void wcd938x_mbhc_ssr_down(struct wcd938x_mbhc *mbhc,
 
 	wcd_mbhc = &mbhc->wcd_mbhc;
 	if (!wcd_mbhc) {
-		dev_err(component->dev, "%s: wcd_mbhc is NULL\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: wcd_mbhc is NULL\n", __func__);
 		return;
 	}
 

@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of_platform.h>
@@ -55,7 +56,7 @@ int lpass_cdc_set_port_map(struct snd_soc_component *component,
 		return -EINVAL;
 
 	if (!lpass_cdc_is_valid_codec_dev(priv->dev)) {
-		dev_err(priv->dev, "%s: invalid codec\n", __func__);
+		dev_err_ratelimited(priv->dev, "%s: invalid codec\n", __func__);
 		return -EINVAL;
 	}
 	map = (struct swr_mstr_port_map *)data;
@@ -164,7 +165,7 @@ static int lpass_cdc_update_wcd_event(void *handle, u16 event, u32 data)
 	struct lpass_cdc_priv *priv = (struct lpass_cdc_priv *)handle;
 
 	if (!priv) {
-		pr_err("%s:Invalid lpass_cdc priv handle\n", __func__);
+		pr_err_ratelimited("%s:Invalid lpass_cdc priv handle\n", __func__);
 		return -EINVAL;
 	}
 
@@ -219,7 +220,7 @@ static int lpass_cdc_update_wcd_event(void *handle, u16 event, u32 data)
 				LPASS_CDC_MACRO_EVT_HPHR_HD2_ENABLE, data);
 		break;
 	default:
-		dev_err(priv->dev, "%s: Invalid event %d trigger from wcd\n",
+		dev_err_ratelimited(priv->dev, "%s: Invalid event %d trigger from wcd\n",
 			__func__, event);
 		return -EINVAL;
 	}
@@ -233,7 +234,7 @@ static int lpass_cdc_register_notifier(void *handle,
 	struct lpass_cdc_priv *priv = (struct lpass_cdc_priv *)handle;
 
 	if (!priv) {
-		pr_err("%s: lpass_cdc priv is null\n", __func__);
+		pr_err_ratelimited("%s: lpass_cdc priv is null\n", __func__);
 		return -EINVAL;
 	}
 	if (enable)
@@ -323,17 +324,17 @@ struct device *lpass_cdc_get_device_ptr(struct device *dev, u16 macro_id)
 	struct lpass_cdc_priv *priv;
 
 	if (!dev) {
-		pr_err("%s: dev is null\n", __func__);
+		pr_err_ratelimited("%s: dev is null\n", __func__);
 		return NULL;
 	}
 
 	if (!lpass_cdc_is_valid_codec_dev(dev)) {
-		pr_err("%s: invalid codec\n", __func__);
+		pr_err_ratelimited("%s: invalid codec\n", __func__);
 		return NULL;
 	}
 	priv = dev_get_drvdata(dev);
 	if (!priv || (macro_id >= MAX_MACRO)) {
-		dev_err(dev, "%s: priv is null or invalid macro\n", __func__);
+		dev_err_ratelimited(dev, "%s: priv is null or invalid macro\n", __func__);
 		return NULL;
 	}
 
@@ -353,17 +354,17 @@ struct device *lpass_cdc_get_rsc_clk_device_ptr(struct device *dev)
 	struct lpass_cdc_priv *priv;
 
 	if (!dev) {
-		pr_err("%s: dev is null\n", __func__);
+		pr_err_ratelimited("%s: dev is null\n", __func__);
 		return NULL;
 	}
 
 	if (!lpass_cdc_is_valid_codec_dev(dev)) {
-		pr_err("%s: invalid codec\n", __func__);
+		pr_err_ratelimited("%s: invalid codec\n", __func__);
 		return NULL;
 	}
 	priv = dev_get_drvdata(dev);
 	if (!priv) {
-		dev_err(dev, "%s: priv is null\n", __func__);
+		dev_err_ratelimited(dev, "%s: priv is null\n", __func__);
 		return NULL;
 	}
 
@@ -413,17 +414,17 @@ int lpass_cdc_register_res_clk(struct device *dev, rsc_clk_cb_t rsc_clk_cb)
 	struct lpass_cdc_priv *priv;
 
 	if (!dev || !rsc_clk_cb) {
-		pr_err("%s: dev or rsc_clk_cb is null\n", __func__);
+		pr_err_ratelimited("%s: dev or rsc_clk_cb is null\n", __func__);
 		return -EINVAL;
 	}
 	if (!lpass_cdc_is_valid_child_dev(dev)) {
-		dev_err(dev, "%s: child device :%pK not added yet\n",
+		dev_err_ratelimited(dev, "%s: child device :%pK not added yet\n",
 			__func__, dev);
 		return -EINVAL;
 	}
 	priv = dev_get_drvdata(dev->parent);
 	if (!priv) {
-		dev_err(dev, "%s: priv is null\n", __func__);
+		dev_err_ratelimited(dev, "%s: priv is null\n", __func__);
 		return -EINVAL;
 	}
 
@@ -444,17 +445,17 @@ void lpass_cdc_unregister_res_clk(struct device *dev)
 	struct lpass_cdc_priv *priv;
 
 	if (!dev) {
-		pr_err("%s: dev is NULL\n", __func__);
+		pr_err_ratelimited("%s: dev is NULL\n", __func__);
 		return;
 	}
 	if (!lpass_cdc_is_valid_child_dev(dev)) {
-		dev_err(dev, "%s: child device :%pK not added\n",
+		dev_err_ratelimited(dev, "%s: child device :%pK not added\n",
 			__func__, dev);
 		return;
 	}
 	priv = dev_get_drvdata(dev->parent);
 	if (!priv) {
-		dev_err(dev, "%s: priv is null\n", __func__);
+		dev_err_ratelimited(dev, "%s: priv is null\n", __func__);
 		return;
 	}
 
@@ -523,7 +524,7 @@ int lpass_cdc_dmic_clk_enable(struct snd_soc_component *component,
 		freq_change_mask = 0x08;
 		break;
 	default:
-		dev_err(component->dev, "%s: Invalid DMIC Selection\n",
+		dev_err_ratelimited(component->dev, "%s: Invalid DMIC Selection\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -591,17 +592,17 @@ bool lpass_cdc_is_va_macro_registered(struct device *dev)
 	struct lpass_cdc_priv *priv;
 
 	if (!dev) {
-		pr_err("%s: dev is null\n", __func__);
+		pr_err_ratelimited("%s: dev is null\n", __func__);
 		return false;
 	}
 	if (!lpass_cdc_is_valid_child_dev(dev)) {
-		dev_err(dev, "%s: child device calling is not added yet\n",
+		dev_err_ratelimited(dev, "%s: child device calling is not added yet\n",
 			__func__);
 		return false;
 	}
 	priv = dev_get_drvdata(dev->parent);
 	if (!priv) {
-		dev_err(dev, "%s: priv is null\n", __func__);
+		dev_err_ratelimited(dev, "%s: priv is null\n", __func__);
 		return false;
 	}
 	return priv->macros_supported[VA_MACRO];
@@ -703,17 +704,17 @@ void lpass_cdc_unregister_macro(struct device *dev, u16 macro_id)
 	struct lpass_cdc_priv *priv;
 
 	if (!dev) {
-		pr_err("%s: dev is null\n", __func__);
+		pr_err_ratelimited("%s: dev is null\n", __func__);
 		return;
 	}
 	if (!lpass_cdc_is_valid_child_dev(dev)) {
-		dev_err(dev, "%s: macro:%d not in valid registered macro-list\n",
+		dev_err_ratelimited(dev, "%s: macro:%d not in valid registered macro-list\n",
 			__func__, macro_id);
 		return;
 	}
 	priv = dev_get_drvdata(dev->parent);
 	if (!priv || (macro_id >= MAX_MACRO)) {
-		dev_err(dev, "%s: priv is null or invalid macro\n", __func__);
+		dev_err_ratelimited(dev, "%s: priv is null or invalid macro\n", __func__);
 		return;
 	}
 
@@ -744,17 +745,17 @@ void lpass_cdc_wsa_pa_on(struct device *dev, bool adie_lb)
 	struct lpass_cdc_priv *priv;
 
 	if (!dev) {
-		pr_err("%s: dev is null\n", __func__);
+		pr_err_ratelimited("%s: dev is null\n", __func__);
 		return;
 	}
 	if (!lpass_cdc_is_valid_child_dev(dev)) {
-		dev_err(dev, "%s: not a valid child dev\n",
+		dev_err_ratelimited(dev, "%s: not a valid child dev\n",
 			__func__);
 		return;
 	}
 	priv = dev_get_drvdata(dev->parent);
 	if (!priv) {
-		dev_err(dev, "%s: priv is null\n", __func__);
+		dev_err_ratelimited(dev, "%s: priv is null\n", __func__);
 		return;
 	}
 	if (adie_lb)
@@ -800,7 +801,7 @@ static ssize_t lpass_cdc_version_read(struct snd_info_entry *entry,
 
 	priv = (struct lpass_cdc_priv *) entry->private_data;
 	if (!priv) {
-		pr_err("%s: lpass_cdc priv is null\n", __func__);
+		pr_err_ratelimited("%s: lpass_cdc priv is null\n", __func__);
 		return -EINVAL;
 	}
 
@@ -974,7 +975,7 @@ int lpass_cdc_info_create_codec_entry(struct snd_info_entry *codec_root,
 						   "version",
 						   priv->entry);
 	if (!version_entry) {
-		dev_err(component->dev, "%s: failed to create lpass_cdc version entry\n",
+		dev_err_ratelimited(component->dev, "%s: failed to create lpass_cdc version entry\n",
 			__func__);
 		snd_info_free_entry(priv->entry);
 		return -ENOMEM;
@@ -1017,7 +1018,7 @@ int lpass_cdc_register_wake_irq(struct snd_soc_component *component,
 		return -EINVAL;
 
 	if (!lpass_cdc_is_valid_codec_dev(priv->dev)) {
-		dev_err(component->dev, "%s: invalid codec\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: invalid codec\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1051,7 +1052,7 @@ int lpass_cdc_tx_mclk_enable(struct snd_soc_component *component,
 		return -EINVAL;
 
 	if (!lpass_cdc_is_valid_codec_dev(priv->dev)) {
-		dev_err(component->dev, "%s: invalid codec\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: invalid codec\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1086,7 +1087,7 @@ int lpass_cdc_register_event_listener(struct snd_soc_component *component,
 		return -EINVAL;
 
 	if (!lpass_cdc_is_valid_codec_dev(priv->dev)) {
-		dev_err(component->dev, "%s: invalid codec\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: invalid codec\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1384,7 +1385,7 @@ int lpass_cdc_runtime_resume(struct device *dev)
 	if (priv->core_hw_vote_count == 0) {
 		ret = digital_cdc_rsc_mgr_hw_vote_enable(priv->lpass_core_hw_vote);
 		if (ret < 0) {
-			dev_err(dev, "%s:lpass core hw enable failed\n",
+			dev_err_ratelimited(dev, "%s:lpass core hw enable failed\n",
 				__func__);
 			goto audio_vote;
 		}
@@ -1402,7 +1403,7 @@ audio_vote:
 	if (priv->core_audio_vote_count == 0) {
 		ret = digital_cdc_rsc_mgr_hw_vote_enable(priv->lpass_audio_hw_vote);
 		if (ret < 0) {
-			dev_err(dev, "%s:lpass audio hw enable failed\n",
+			dev_err_ratelimited(dev, "%s:lpass audio hw enable failed\n",
 				__func__);
 			goto done;
 		}
