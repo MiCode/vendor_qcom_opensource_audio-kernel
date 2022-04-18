@@ -798,17 +798,17 @@ static int wsa_dev_mode_put(struct snd_kcontrol *kcontrol,
 			snd_soc_kcontrol_component(kcontrol);
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
 	int dev_mode;
+	int wsa_dev_index;
 
 	dev_mode = ucontrol->value.integer.value[0];
 	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d  = %ld\n",
 		__func__, wsa884x->dev_mode, dev_mode);
 
 	/* Check if input parameter is in range */
-	if ((wsa884x->dev_mode + (wsa884x->dev_index - 1) * 2) <
-		(MAX_DEV_MODE * 2)) {
+	wsa_dev_index = (wsa884x->dev_index - 1) % 2;
+	if ((dev_mode + wsa_dev_index * 2) < (MAX_DEV_MODE * 2)) {
 		wsa884x->dev_mode =  dev_mode;
-		wsa884x->system_gain = wsa884x->sys_gains[
-			wsa884x->dev_mode + (wsa884x->dev_index - 1) * 2];
+		wsa884x->system_gain = wsa884x->sys_gains[dev_mode + wsa_dev_index * 2];
 	} else {
 		return -EINVAL;
 	}
@@ -1211,7 +1211,7 @@ static const struct snd_kcontrol_new wsa884x_snd_controls[] = {
 	SOC_SINGLE_EXT("WSA Get DevNum", SND_SOC_NOPM, 0, UINT_MAX, 0,
 			wsa884x_get_dev_num, NULL),
 
-	SOC_ENUM_EXT("WSA MODE", wsa_dev_mode_enum,
+	SOC_SINGLE_EXT("WSA MODE", SND_SOC_NOPM, 0, 1, 0,
 			wsa_dev_mode_get, wsa_dev_mode_put),
 
 	SOC_SINGLE_EXT("COMP Switch", SND_SOC_NOPM, 0, 1, 0,
@@ -1947,6 +1947,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	struct regmap_irq_chip *wsa884x_sub_regmap_irq_chip = NULL;
 	u8 wo0_val;
 	int sys_gain_size, sys_gain_length;
+	int wsa_dev_index;
 
 
 	wsa884x = devm_kzalloc(&pdev->dev, sizeof(struct wsa884x_priv),
@@ -2139,6 +2140,8 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	/* Start in speaker mode by default */
 	wsa884x->dev_mode = SPEAKER;
 	wsa884x->dev_index = dev_index;
+	/* wsa_dev_index is macro_agnostic index */
+	wsa_dev_index = (wsa884x->dev_index - 1) % 2;
 	wsa884x->macro_np = of_parse_phandle(pdev->dev.of_node,
 				"qcom,wsa-macro-handle", 0);
 	if (wsa884x->macro_np) {
@@ -2148,7 +2151,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 			ret = of_property_read_u32_index(
 				wsa884x->macro_dev->dev.of_node,
 				"qcom,wsa-rloads",
-				dev_index - 1,
+				wsa_dev_index,
 				&wsa884x->rload);
 			if (ret) {
 				dev_err(&pdev->dev,
@@ -2192,7 +2195,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 				goto err_mem;
 			}
 			wsa884x->system_gain = wsa884x->sys_gains[
-				wsa884x->dev_mode + (dev_index - 1) * 2];
+				wsa884x->dev_mode + wsa_dev_index * 2];
 		} else {
 			dev_err(&pdev->dev, "%s: parent dev not found\n",
 				__func__);
