@@ -39,6 +39,7 @@
 #define HIGH_TEMP_THRESHOLD 45
 #define TEMP_INVALID	0xFFFF
 #define WSA884X_TEMP_RETRY 3
+#define WSA884X_IRQ_RETRY 2
 #define PBR_MAX_VOLTAGE 20
 #define PBR_MAX_CODE 255
 #define WSA884X_IDLE_DETECT_NG_BLOCK_MASK	0x38
@@ -125,6 +126,9 @@ static const struct wsa_reg_mask_val reg_init[] = {
 	{REG_FIELD_VALUE(CKWD_CTL_1, CKWD_VCOMP_VREF_SEL, 0x13)},
 	{REG_FIELD_VALUE(BOP2_PROG, BOP2_VTH, 0x06)},
 	{REG_FIELD_VALUE(BOP2_PROG, BOP2_HYST, 0x06)},
+	{REG_FIELD_VALUE(VBAT_CAL_CTL, RESERVE, 0x02)},
+	{REG_FIELD_VALUE(REF_CTRL, BG_RDY_SEL, 0x01)},
+	{REG_FIELD_VALUE(ZX_CTRL1, ZX_DET_SW_SEL, 0x03)},
 };
 
 static int wsa884x_handle_post_irq(void *data);
@@ -188,13 +192,41 @@ static int wsa884x_handle_post_irq(void *data)
 {
 	struct wsa884x_priv *wsa884x = data;
 	u32 sts1 = 0, sts2 = 0;
+	int retry = WSA884X_IRQ_RETRY;
 
-	regmap_read(wsa884x->regmap, WSA884X_INTR_STATUS0, &sts1);
-	regmap_read(wsa884x->regmap, WSA884X_INTR_STATUS1, &sts2);
+	struct snd_soc_component *component = NULL;
 
-	wsa884x->swr_slave->slave_irq_pending =
-			((sts1 || sts2) ? true : false);
+	if (!wsa884x)
+		return IRQ_NONE;
 
+	component = wsa884x->component;
+	if (!wsa884x->pa_mute) {
+		do {
+			wsa884x->pa_mute = 0;
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x01));
+			usleep_range(1000, 1100);
+
+			regmap_read(wsa884x->regmap, WSA884X_INTR_STATUS0, &sts1);
+			regmap_read(wsa884x->regmap, WSA884X_INTR_STATUS1, &sts2);
+
+			wsa884x->swr_slave->slave_irq_pending =
+					((sts1 || sts2) ? true : false);
+			pr_debug("%s: IRQs Sts0: %x, Sts1: %x\n", __func__,
+				 sts1, sts2);
+			if (wsa884x->swr_slave->slave_irq_pending) {
+				pr_debug("%s: IRQ retries left: %0d\n",
+					__func__, retry);
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x00));
+				wsa884x->pa_mute = 1;
+				if (retry--)
+					usleep_range(1000, 1100);
+			} else {
+				break;
+			}
+		} while (retry);
+	}
 	return IRQ_HANDLED;
 }
 
@@ -490,6 +522,17 @@ static irqreturn_t wsa884x_clip_handle_irq(int irq, void *data)
 
 static irqreturn_t wsa884x_pdm_wd_handle_irq(int irq, void *data)
 {
+	struct wsa884x_priv *wsa884x = data;
+	struct snd_soc_component *component = NULL;
+
+	if (!wsa884x)
+		return IRQ_NONE;
+	component = wsa884x->component;
+	snd_soc_component_update_bits(component,
+		REG_FIELD_VALUE(PDM_WD_CTL, PDM_WD_EN, 0x00));
+	snd_soc_component_update_bits(component,
+		REG_FIELD_VALUE(PDM_WD_CTL, PDM_WD_EN, 0x01));
+
 	pr_err_ratelimited("%s: interrupt for irq =%d triggered\n",
 			   __func__, irq);
 	return IRQ_HANDLED;
@@ -529,6 +572,8 @@ static irqreturn_t wsa884x_pa_on_err_handle_irq(int irq, void *data)
 	if (!component)
 		return IRQ_NONE;
 
+	snd_soc_component_update_bits(component,
+		REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x00));
 	pa_fsm_sta = (snd_soc_component_read(component, WSA884X_PA_FSM_STA1)
 			& 0x1F);
 	if (pa_fsm_sta)
@@ -620,7 +665,7 @@ static int wsa884x_set_gain_parameters(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x00));
 	} else {
-		wsa884x->pa_aux_gain = pa_aux_no_comp[wsa884x->system_gain];
+		wsa884x->pa_aux_gain = pa_aux_no_comp[wsa884x->pa_gain];
 		snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x01));
 		snd_soc_component_update_bits(component,
@@ -1064,7 +1109,7 @@ static bool wsa884x_validate_dt_configuration_params(u8 irload, u8 ibat_cfg,
 		(EXT_ABOVE_3S <= ibat_cfg && ibat_cfg < CONFIG_MAX))
 			is_invalid_flag = false;
 
-          return is_invalid_flag;
+	return is_invalid_flag;
 }
 
 static int wsa884x_set_compander(struct snd_kcontrol *kcontrol,
@@ -1380,7 +1425,8 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 		/* Force remove group */
 		swr_remove_from_group(wsa884x->swr_slave,
 				      wsa884x->swr_slave->dev_num);
-		if (test_bit(SPKR_ADIE_LB, &wsa884x->status_mask))
+		if (test_bit(SPKR_ADIE_LB, &wsa884x->status_mask) &&
+		    !wsa884x->pa_mute)
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x01));
 		break;
@@ -1391,6 +1437,7 @@ static int wsa884x_spkr_event(struct snd_soc_dapm_widget *w,
 			REG_FIELD_VALUE(PDM_WD_CTL, PDM_WD_EN, 0x00));
 		clear_bit(SPKR_STATUS, &wsa884x->status_mask);
 		clear_bit(SPKR_ADIE_LB, &wsa884x->status_mask);
+		wsa884x->pa_mute = 0;
 		break;
 	}
 	return 0;
@@ -2118,7 +2165,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 						__func__);
 				wsa884x->noise_gate_mode = IDLE_DETECT;
 			} else {
-				if(IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
+				if (IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
 					wsa884x->noise_gate_mode = noise_gate_mode;
 				else
 					wsa884x->noise_gate_mode = IDLE_DETECT;

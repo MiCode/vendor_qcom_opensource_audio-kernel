@@ -72,6 +72,9 @@ enum {
 	LPASS_CDC_WSA_MACRO_RX_MIX1,
 	LPASS_CDC_WSA_MACRO_RX4,
 	LPASS_CDC_WSA_MACRO_RX5,
+	LPASS_CDC_WSA_MACRO_RX6,
+	LPASS_CDC_WSA_MACRO_RX7,
+	LPASS_CDC_WSA_MACRO_RX8,
 	LPASS_CDC_WSA_MACRO_RX_MAX,
 };
 
@@ -128,19 +131,6 @@ enum {
 };
 
 enum {
-	WSA_MODE_21DB,
-	WSA_MODE_19P5DB,
-	WSA_MODE_18DB,
-	WSA_MODE_16P5DB,
-	WSA_MODE_15DB,
-	WSA_MODE_13P5DB,
-	WSA_MODE_12DB,
-	WSA_MODE_10P5DB,
-	WSA_MODE_9DB,
-	WSA_MODE_MAX
-};
-
-enum {
 	INTERP_RX0,
 	INTERP_RX1
 };
@@ -157,8 +147,7 @@ enum {
 	INTERP_MIX_PATH,
 };
 
-static struct lpass_cdc_comp_setting comp_setting_table[WSA_MODE_MAX] =
-{
+static struct lpass_cdc_comp_setting comp_setting_table[G_MAX_DB] = {
 	{42, 0, 42},
 	{39, 0, 42},
 	{36, 0, 42},
@@ -343,11 +332,12 @@ static struct snd_soc_dai_driver lpass_cdc_wsa_macro_dai[];
 static const DECLARE_TLV_DB_SCALE(digital_gain, 0, 1, 0);
 
 static const char *const rx_text[] = {
-	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4", "RX5", "DEC0", "DEC1"
+	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4",
+	"RX5", "RX6", "RX7", "RX8", "DEC0", "DEC1"
 };
 
 static const char *const rx_mix_text[] = {
-	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4", "RX5",
+	"ZERO", "RX0", "RX1", "RX_MIX0", "RX_MIX1", "RX4", "RX5", "RX6", "RX7", "RX8"
 };
 
 static const char *const rx_mix_ec_text[] = {
@@ -398,19 +388,19 @@ static SOC_ENUM_SINGLE_EXT_DECL(idle_detect_enum, idle_detect_text);
 /* RX INT0 */
 static const struct soc_enum rx0_prim_inp0_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT0_CFG0,
-		0, 9, rx_text);
+		0, 12, rx_text);
 
 static const struct soc_enum rx0_prim_inp1_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT0_CFG0,
-		3, 9, rx_text);
+		3, 12, rx_text);
 
 static const struct soc_enum rx0_prim_inp2_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT0_CFG1,
-		3, 9, rx_text);
+		3, 12, rx_text);
 
 static const struct soc_enum rx0_mix_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT0_CFG1,
-		0, 7, rx_mix_text);
+		0, 10, rx_mix_text);
 
 static const struct soc_enum rx0_sidetone_mix_enum =
 	SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 2, rx_sidetone_mix_text);
@@ -433,19 +423,19 @@ static const struct snd_kcontrol_new rx0_sidetone_mix_mux =
 /* RX INT1 */
 static const struct soc_enum rx1_prim_inp0_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT1_CFG0,
-		0, 9, rx_text);
+		0, 12, rx_text);
 
 static const struct soc_enum rx1_prim_inp1_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT1_CFG0,
-		3, 9, rx_text);
+		3, 12, rx_text);
 
 static const struct soc_enum rx1_prim_inp2_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT1_CFG1,
-		3, 9, rx_text);
+		3, 12, rx_text);
 
 static const struct soc_enum rx1_mix_chain_enum =
 	SOC_ENUM_SINGLE(LPASS_CDC_WSA_RX_INP_MUX_RX_INT1_CFG1,
-		0, 7, rx_mix_text);
+		0, 10, rx_mix_text);
 
 static const struct snd_kcontrol_new rx1_prim_inp0_mux =
 	SOC_DAPM_ENUM("WSA_RX1 INP0 Mux", rx1_prim_inp0_chain_enum);
@@ -780,35 +770,35 @@ static int lpass_cdc_wsa_macro_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 		}
 		switch (params_width(params)) {
-			case 16:
-				wsa_priv->bit_width[dai->id] = 16;
-				break;
-			case 24:
-				wsa_priv->bit_width[dai->id] = 24;
-				break;
-			case 32:
-				wsa_priv->bit_width[dai->id] = 32;
-				break;
-			default:
-				dev_err(component->dev, "%s: Invalid format 0x%x\n",
-					__func__, params_width(params));
-				return -EINVAL;
+		case 16:
+			wsa_priv->bit_width[dai->id] = 16;
+			break;
+		case 24:
+			wsa_priv->bit_width[dai->id] = 24;
+			break;
+		case 32:
+			wsa_priv->bit_width[dai->id] = 32;
+			break;
+		default:
+			dev_err(component->dev, "%s: Invalid format 0x%x\n",
+				__func__, params_width(params));
+			return -EINVAL;
 		}
 		break;
 	case SNDRV_PCM_STREAM_CAPTURE:
 		if (dai->id == LPASS_CDC_WSA_MACRO_AIF_VI)
 			wsa_priv->pcm_rate_vi = params_rate(params);
 		switch (params_width(params)) {
-			case 16:
-				wsa_priv->bit_width[dai->id] = 16;
-				break;
-			case 24:
-				wsa_priv->bit_width[dai->id] = 24;
-				break;
-			default:
-				dev_err(component->dev, "%s: Invalid format 0x%x\n",
-					__func__, params_width(params));
-				return -EINVAL;
+		case 16:
+			wsa_priv->bit_width[dai->id] = 16;
+			break;
+		case 24:
+			wsa_priv->bit_width[dai->id] = 24;
+			break;
+		default:
+			dev_err(component->dev, "%s: Invalid format 0x%x\n",
+				__func__, params_width(params));
+			return -EINVAL;
 			}
 	default:
 		break;
@@ -1093,16 +1083,16 @@ static int lpass_cdc_wsa_macro_enable_vi_feedback(struct snd_soc_dapm_widget *w,
 		return -EINVAL;
 
 	switch (wsa_priv->pcm_rate_vi) {
-		case 48000:
-			val = 0x04;
-			break;
-		case 24000:
-			val = 0x02;
-			break;
-		case 8000:
-		default:
-			val = 0x00;
-			break;
+	case 48000:
+		val = 0x04;
+		break;
+	case 24000:
+		val = 0x02;
+		break;
+	case 8000:
+	default:
+		val = 0x00;
+		break;
 	}
 
 	switch (event) {
@@ -1451,7 +1441,9 @@ static int lpass_cdc_wsa_macro_config_compander(struct snd_soc_component *compon
 	u16 comp_ctl0_reg, comp_ctl8_reg, rx_path_cfg0_reg;
 	struct device *wsa_dev = NULL;
 	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+	struct lpass_cdc_comp_setting *comp_settings = NULL;
 	u16 mode = 0;
+	int sys_gain, bat_cfg, sys_gain_int, upper_gain, lower_gain;
 
 	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
 		return -EINVAL;
@@ -1469,11 +1461,49 @@ static int lpass_cdc_wsa_macro_config_compander(struct snd_soc_component *compon
 					(comp * LPASS_CDC_WSA_MACRO_RX_COMP_OFFSET);
 	rx_path_cfg0_reg = LPASS_CDC_WSA_RX0_RX_PATH_CFG0 +
 					(comp * LPASS_CDC_WSA_MACRO_RX_PATH_OFFSET);
+	comp_settings = &comp_setting_table[mode];
+
+	/* If System has battery configuration */
+	if (wsa_priv->wsa_bat_cfg[comp]) {
+		sys_gain = wsa_priv->wsa_sys_gain[comp * 2 + wsa_priv->wsa_spkrrecv];
+		bat_cfg = wsa_priv->wsa_bat_cfg[comp];
+		/* Convert enum to value and
+		 * multiply all values by 10 to avoid float
+		 */
+		sys_gain_int = -15 * sys_gain + 210;
+		switch (bat_cfg) {
+		case CONFIG_1S:
+		case EXT_1S:
+			if (sys_gain > G_13P5_DB) {
+				upper_gain = sys_gain_int + 60;
+				lower_gain = 0;
+			} else {
+				upper_gain = 210;
+				lower_gain = 0;
+			}
+			break;
+		case CONFIG_3S:
+		case EXT_3S:
+			upper_gain = sys_gain_int;
+			lower_gain = 75;
+		case EXT_ABOVE_3S:
+			upper_gain = sys_gain_int;
+			lower_gain = 120;
+			break;
+		default:
+			upper_gain = sys_gain_int;
+			lower_gain = 0;
+			break;
+		}
+		/* Truncate after calculation */
+		comp_settings->lower_gain_int = (lower_gain * 2) / 10;
+		comp_settings->upper_gain_int = (upper_gain * 2) / 10;
+	}
 
 	if (SND_SOC_DAPM_EVENT_ON(event)) {
 		lpass_cdc_update_compander_setting(component,
 					comp_ctl8_reg,
-					&comp_setting_table[mode]);
+					comp_settings);
 		/* Enable Compander Clock */
 		snd_soc_component_update_bits(component, comp_ctl0_reg,
 						0x01, 0x01);
@@ -1800,7 +1830,7 @@ static void lpass_cdc_macro_idle_detect_control(struct snd_soc_component *compon
 		val = 0x02;
 	}
 
-	if(wsa_priv->noise_gate_mode == NG2)
+	if (wsa_priv->noise_gate_mode == NG2)
 		snd_soc_component_update_bits(component, source_reg, 0x80, 0x80);
 	else
 		snd_soc_component_update_bits(component, source_reg, 0x80, 0x00);
@@ -1884,7 +1914,7 @@ static int lpass_cdc_wsa_macro_enable_interpolator(struct snd_soc_dapm_widget *w
 				w->shift, event);
 		lpass_cdc_wsa_macro_config_softclip(component, w->shift, event);
 		lpass_cdc_was_macro_config_pbr(component, w->shift, event);
-		if(wsa_priv->wsa_spkrrecv)
+		if (wsa_priv->wsa_spkrrecv)
 			snd_soc_component_update_bits(component,
 					LPASS_CDC_WSA_RX0_RX_PATH_CFG1,
 					0x08, 0x00);
@@ -2031,24 +2061,24 @@ static int lpass_cdc_wsa_macro_enable_vbat(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component,
 			LPASS_CDC_WSA_VBAT_BCL_VBAT_BCL_GAIN_UPD9,
 			0xFF, 0x00);
-                /* Enable CB decode block clock */
-                snd_soc_component_update_bits(component,
-                        LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL1, 0x01, 0x01);
-                /* Enable BCL path */
-                snd_soc_component_update_bits(component,
-                        LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL2, 0x01, 0x01);
-                /* Request for BCL data */
-                snd_soc_component_update_bits(component,
-                        LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL3, 0x01, 0x01);
+		/* Enable CB decode block clock */
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL1, 0x01, 0x01);
+		/* Enable BCL path */
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL2, 0x01, 0x01);
+		/* Request for BCL data */
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL3, 0x01, 0x01);
 		break;
 
 	case SND_SOC_DAPM_POST_PMD:
-                snd_soc_component_update_bits(component,
-                        LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL3, 0x01, 0x00);
-                snd_soc_component_update_bits(component,
-                        LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL2, 0x01, 0x00);
-                snd_soc_component_update_bits(component,
-                        LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL1, 0x01, 0x00);
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL3, 0x01, 0x00);
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL2, 0x01, 0x00);
+		snd_soc_component_update_bits(component,
+			LPASS_CDC_WSA_CB_DECODE_CB_DECODE_CTL1, 0x01, 0x00);
 		snd_soc_component_update_bits(component, vbat_path_cfg,
 			0x80, 0x00);
 		snd_soc_component_update_bits(component,
@@ -2363,22 +2393,22 @@ static int lpass_cdc_wsa_macro_ear_spkrrecv_get(struct snd_kcontrol *kcontrol,
 }
 
 static int lpass_cdc_wsa_macro_ear_spkrrecv_put(struct snd_kcontrol *kcontrol,
-                                        struct snd_ctl_elem_value *ucontrol)
+				struct snd_ctl_elem_value *ucontrol)
 {
-        struct snd_soc_component *component =
-                                snd_soc_kcontrol_component(kcontrol);
-        struct device *wsa_dev = NULL;
-        struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+	struct snd_soc_component *component =
+				snd_soc_kcontrol_component(kcontrol);
+	struct device *wsa_dev = NULL;
+	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
 
-        if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
-                return -EINVAL;
+	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
+		return -EINVAL;
 
-        wsa_priv->wsa_spkrrecv = ucontrol->value.integer.value[0];
+	wsa_priv->wsa_spkrrecv = ucontrol->value.integer.value[0];
 
-        dev_dbg(component->dev, "%s:spkrrecv status = %d\n",
-                 __func__, wsa_priv->wsa_spkrrecv);
+	dev_dbg(component->dev, "%s:spkrrecv status = %d\n",
+		__func__, wsa_priv->wsa_spkrrecv);
 
-        return 0;
+	return 0;
 }
 
 static int lpass_cdc_wsa_macro_idle_detect_get(struct snd_kcontrol *kcontrol,
@@ -3858,7 +3888,7 @@ static int lpass_cdc_wsa_macro_probe(struct platform_device *pdev)
 			__func__, "qcom,noise-gate-mode");
 		wsa_priv->noise_gate_mode = IDLE_DETECT;
 	} else {
-		if(IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
+		if (IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
 			wsa_priv->noise_gate_mode = noise_gate_mode;
 		else
 			wsa_priv->noise_gate_mode = IDLE_DETECT;
