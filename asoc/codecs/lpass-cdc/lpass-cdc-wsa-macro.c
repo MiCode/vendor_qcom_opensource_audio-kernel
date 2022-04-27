@@ -341,10 +341,6 @@ static const char * const lpass_cdc_wsa_macro_vbat_bcl_gsm_mode_text[] = {
 	"OFF", "ON"
 };
 
-static const char *const lpass_cdc_wsa_macro_ear_spkrrecv_text[] = {
-	"OFF", "ON"
-};
-
 static const char * const lpass_cdc_wsa_macro_comp_mode_text[] = {
 	"G_21_DB", "G_19P5_DB", "G_18_DB", "G_16P5_DB", "G_15_DB",
 	"G_13P5_DB", "G_12_DB", "G_10P5_DB", "G_9_DB"
@@ -358,8 +354,7 @@ static const struct snd_kcontrol_new wsa_int1_vbat_mix_switch[] = {
 	SOC_DAPM_SINGLE("WSA RX1 VBAT Enable", SND_SOC_NOPM, 0, 1, 0)
 };
 
-static SOC_ENUM_SINGLE_EXT_DECL(lpass_cdc_wsa_macro_ear_spkrrecv_enum,
-				lpass_cdc_wsa_macro_ear_spkrrecv_text);
+
 static SOC_ENUM_SINGLE_EXT_DECL(lpass_cdc_wsa_macro_vbat_bcl_gsm_mode_enum,
 			lpass_cdc_wsa_macro_vbat_bcl_gsm_mode_text);
 static SOC_ENUM_SINGLE_EXT_DECL(lpass_cdc_wsa_macro_comp_mode_enum,
@@ -2558,9 +2553,6 @@ static int lpass_cdc_wsa_macro_pbr_enable_put(struct snd_kcontrol *kcontrol,
 
 
 static const struct snd_kcontrol_new lpass_cdc_wsa_macro_snd_controls[] = {
-	SOC_ENUM_EXT("WSA SPKRRECV", lpass_cdc_wsa_macro_ear_spkrrecv_enum,
-			lpass_cdc_wsa_macro_ear_spkrrecv_get,
-			lpass_cdc_wsa_macro_ear_spkrrecv_put),
 	SOC_ENUM_EXT("GSM mode Enable", lpass_cdc_wsa_macro_vbat_bcl_gsm_mode_enum,
 		     lpass_cdc_wsa_macro_vbat_bcl_gsm_mode_func_get,
 		     lpass_cdc_wsa_macro_vbat_bcl_gsm_mode_func_put),
@@ -2570,6 +2562,9 @@ static const struct snd_kcontrol_new lpass_cdc_wsa_macro_snd_controls[] = {
 	SOC_ENUM_EXT("WSA_RX1 comp_mode", lpass_cdc_wsa_macro_comp_mode_enum,
 		     lpass_cdc_wsa_macro_comp_mode_get,
 		     lpass_cdc_wsa_macro_comp_mode_put),
+	SOC_SINGLE_EXT("WSA SPKRRECV", SND_SOC_NOPM, 0, 1, 0,
+			lpass_cdc_wsa_macro_ear_spkrrecv_get,
+			lpass_cdc_wsa_macro_ear_spkrrecv_put),
 	SOC_SINGLE_EXT("Idle Detect", SND_SOC_NOPM, 0, 1,
 			0, lpass_cdc_wsa_macro_idle_detect_get,
 			lpass_cdc_wsa_macro_idle_detect_put),
