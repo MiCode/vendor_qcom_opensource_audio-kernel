@@ -1178,10 +1178,10 @@ static int lpass_cdc_va_macro_enable_dmic(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		lpass_cdc_dmic_clk_enable(component, dmic, DMIC_VA, true);
+		lpass_cdc_dmic_clk_enable(component, (u32)dmic, (u32)DMIC_VA, true);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		lpass_cdc_dmic_clk_enable(component, dmic, DMIC_VA, false);
+		lpass_cdc_dmic_clk_enable(component, (u32)dmic, (u32)DMIC_VA, false);
 		break;
 	}
 
