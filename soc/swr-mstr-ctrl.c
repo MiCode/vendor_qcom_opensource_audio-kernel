@@ -1519,11 +1519,13 @@ static void swrm_copy_data_port_config(struct swr_master *master, u8 bank)
 						SWRS_DP_SAMPLE_CONTROL_2_BANK(slv_id,
 									bank));
 			}
-			reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
-			val[len++] = SWR_REG_VAL_PACK(port_req->offset1,
-					port_req->dev_num, get_cmd_id(swrm),
-					SWRS_DP_OFFSET_CONTROL_1_BANK(slv_id,
-								bank));
+			if (port_req->offset1 != SWR_INVALID_PARAM) {
+				reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
+				val[len++] = SWR_REG_VAL_PACK(port_req->offset1,
+						port_req->dev_num, get_cmd_id(swrm),
+						SWRS_DP_OFFSET_CONTROL_1_BANK(slv_id,
+									bank));
+			}
 
 			if (port_req->offset2 != SWR_INVALID_PARAM) {
 				reg[len] = SWRM_CMD_FIFO_WR_CMD(swrm->ee_val);
