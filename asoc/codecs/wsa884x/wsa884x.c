@@ -1500,9 +1500,6 @@ static void wsa884x_codec_init(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, reg_init[i].reg,
 					reg_init[i].mask, reg_init[i].val);
 
-	if (wsa884x->variant == WSA8845H)
-		snd_soc_component_update_bits(wsa884x->component,
-		REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x01));
 	wsa_noise_gate_write(component, wsa884x->noise_gate_mode);
 
 }
@@ -2233,6 +2230,11 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 		ret = -EINVAL;
 		goto err_mem;
 	}
+	/* Assume that compander is enabled by default unless it is haptics sku */
+	if (wsa884x->variant == WSA8845H)
+		wsa884x->comp_enable = false;
+	else
+		wsa884x->comp_enable = true;
 	wsa884x_set_gain_parameters(component);
 	wsa884x_set_pbr_parameters(component);
 	/* Must write WO registers in a single write */
