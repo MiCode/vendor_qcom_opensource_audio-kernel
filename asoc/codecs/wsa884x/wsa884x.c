@@ -268,7 +268,11 @@ static bool is_swr_slave_reg_readable(int reg)
 
 	if (((reg > 0x46) && (reg < 0x4A)) ||
 	    ((reg > 0x4A) && (reg < 0x50)) ||
-	    ((reg > 0x55) && (reg < 0xD0)) ||
+	    ((reg > 0x55) && (reg < 0x60)) ||
+	    ((reg > 0x60) && (reg < 0x70)) ||
+	    ((reg > 0x70) && (reg < 0xC0)) ||
+	    ((reg > 0xC1) && (reg < 0xC8)) ||
+	    ((reg > 0xC8) && (reg < 0xD0)) ||
 	    ((reg > 0xD0) && (reg < 0xE0)) ||
 	    ((reg > 0xE0) && (reg < 0xF0)) ||
 	    ((reg > 0xF0) && (reg < 0x100)) ||
