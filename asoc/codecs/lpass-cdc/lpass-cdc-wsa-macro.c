@@ -3022,7 +3022,7 @@ static void lpass_cdc_wsa_macro_init_pbr(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component,
 		LPASS_CDC_WSA_ILIM_CFG1, 0x0F, sys_gain);
 	snd_soc_component_update_bits(component,
-		LPASS_CDC_WSA_ILIM_CFG9, 0xC0, bat_cfg << 0x7);
+		LPASS_CDC_WSA_ILIM_CFG9, 0xC0, (bat_cfg - 1) << 0x6);
 	/* Thesh */
 	vth1 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth1_data[sys_gain][bat_cfg][rload]);
 	vth2 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth2_data[sys_gain][bat_cfg][rload]);
@@ -3084,7 +3084,7 @@ static void lpass_cdc_wsa_macro_init_pbr(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component,
 		LPASS_CDC_WSA_ILIM_CFG1_1, 0x0F, sys_gain);
 	snd_soc_component_update_bits(component,
-		LPASS_CDC_WSA_ILIM_CFG9, 0x30, bat_cfg << 0x5);
+		LPASS_CDC_WSA_ILIM_CFG9, 0x30, (bat_cfg - 1) << 0x4);
 	/* Thesh */
 	vth1 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth1_data[sys_gain][bat_cfg][rload]);
 	vth2 = LPASS_CDC_WSA_MACRO_VTH_TO_REG(pbr_vth2_data[sys_gain][bat_cfg][rload]);
