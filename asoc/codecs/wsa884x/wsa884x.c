@@ -774,13 +774,6 @@ static void wsa_noise_gate_write(struct snd_soc_component *component,
 	}
 }
 
-static const char * const wsa_dev_mode_text[] = {
-	"speaker", "receiver"
-};
-
-static const struct soc_enum wsa_dev_mode_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(wsa_dev_mode_text), wsa_dev_mode_text);
-
 static int wsa_dev_mode_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
@@ -806,7 +799,7 @@ static int wsa_dev_mode_put(struct snd_kcontrol *kcontrol,
 	int wsa_dev_index;
 
 	dev_mode = ucontrol->value.integer.value[0];
-	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d  = %ld\n",
+	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d\n",
 		__func__, wsa884x->dev_mode, dev_mode);
 
 	/* Check if input parameter is in range */
