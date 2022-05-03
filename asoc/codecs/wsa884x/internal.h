@@ -366,7 +366,7 @@ struct wsa884x_priv {
 	int variant;
 	int version;
 	u8 pa_gain;
-	u8 bat_cfg;
+	u32 bat_cfg;
 	u32 rload;
 	u8 system_gain;
 	u32 sys_gains[MAX_DEV_MODE * 2];

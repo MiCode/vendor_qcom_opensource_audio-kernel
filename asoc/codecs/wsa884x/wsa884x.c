@@ -1104,14 +1104,19 @@ static int wsa884x_get_compander(struct snd_kcontrol *kcontrol,
  * wsa884x_validate_dt_configuration_params - returns 1 or 0
  * Return: 0 Valid configuration, 1 Invalid configuration
  */
-static bool wsa884x_validate_dt_configuration_params(u8 irload, u8 ibat_cfg,
-					u8 isystem_gain)
+static bool wsa884x_validate_dt_configuration_params(struct snd_soc_component *component,
+					u8 irload, u8 ibat_cfg_dts, u8 isystem_gain)
 {
+	u8 bat_cfg_reg;
 	bool is_invalid_flag = true;
 
+	bat_cfg_reg = snd_soc_component_read(component, WSA884X_VPHX_SYS_EN_STATUS);
+	if ((ibat_cfg_dts == EXT_1S) || (ibat_cfg_dts == EXT_2S) || (ibat_cfg_dts == EXT_3S))
+		ibat_cfg_dts = EXT_ABOVE_3S;
 	if ((WSA_4_OHMS <= irload && irload < WSA_MAX_OHMS) &&
 		(G_21_DB <= isystem_gain && isystem_gain < G_MAX_DB) &&
-		(EXT_ABOVE_3S <= ibat_cfg && ibat_cfg < CONFIG_MAX))
+		(EXT_ABOVE_3S <= ibat_cfg_dts && ibat_cfg_dts < CONFIG_MAX) &&
+		(ibat_cfg_dts == bat_cfg_reg))
 			is_invalid_flag = false;
 
 	return is_invalid_flag;
@@ -2165,6 +2170,18 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 				goto err_mem;
 			}
 
+			ret = of_property_read_u32_index(
+				wsa884x->macro_dev->dev.of_node,
+				"qcom,wsa-bat-cfgs",
+				dev_index - 1,
+				&wsa884x->bat_cfg);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"%s: Failed to read wsa bat cfgs\n",
+							__func__);
+				goto err_mem;
+			}
+
 			ret = of_property_read_u32(wsa884x->macro_dev->dev.of_node,
 				"qcom,noise-gate-mode", &noise_gate_mode);
 			if (ret) {
@@ -2211,15 +2228,15 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 		goto err_mem;
 	}
 
-	wsa884x->bat_cfg = snd_soc_component_read(component,
-						  WSA884X_VPHX_SYS_EN_STATUS);
 	dev_dbg(component->dev,
-		"%s: Bat_cfg: 0x%x, Rload: 0x%x, Sys_gain: 0x%x\n", __func__,
+		"%s: Bat_cfg: 0x%x rload: 0x%x, sys_gain: 0x%x\n", __func__,
 		wsa884x->bat_cfg, wsa884x->rload, wsa884x->system_gain);
-	ret = wsa884x_validate_dt_configuration_params(wsa884x->rload,
+	ret = wsa884x_validate_dt_configuration_params(component, wsa884x->rload,
 		wsa884x->bat_cfg, wsa884x->system_gain);
 	if (ret) {
-		dev_err(&pdev->dev, "%s: invalid dt parameter\n", __func__);
+		dev_err(&pdev->dev,
+			"%s: invalid dt parameter: Bat_cfg: 0x%x rload: 0x%x, sys_gain: 0x%x\n",
+			__func__, wsa884x->bat_cfg, wsa884x->rload, wsa884x->system_gain);
 		ret = -EINVAL;
 		goto err_mem;
 	}
