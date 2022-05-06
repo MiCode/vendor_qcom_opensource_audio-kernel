@@ -3153,6 +3153,7 @@ static const struct lpass_cdc_wsa_macro_reg_mask_val
 	{LPASS_CDC_WSA_ILIM_CFG2_1, 0xFF, 0x2A},
 	{LPASS_CDC_WSA_ILIM_CFG2, 0x3F, 0x1B},
 	{LPASS_CDC_WSA_ILIM_CFG9, 0x0F, 0x05},
+	{LPASS_CDC_WSA_IDLE_DETECT_CFG1, 0xFF, 0x1D},
 };
 
 static void lpass_cdc_wsa_macro_init_reg(struct snd_soc_component *component)
