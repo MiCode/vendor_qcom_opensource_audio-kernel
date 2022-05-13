@@ -1833,7 +1833,7 @@ static int lpass_cdc_tx_macro_clk_div_get(struct snd_soc_component *component)
 	if (!lpass_cdc_tx_macro_get_data(component, &tx_dev, &tx_priv, __func__))
 		return -EINVAL;
 
-	return (int)tx_priv->dmic_clk_div;
+	return tx_priv->dmic_clk_div;
 }
 
 static int lpass_cdc_tx_macro_validate_dmic_sample_rate(u32 dmic_sample_rate,
