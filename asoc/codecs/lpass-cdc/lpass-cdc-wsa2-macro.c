@@ -41,6 +41,9 @@
 		SNDRV_PCM_FMTBIT_S24_LE |\
 		SNDRV_PCM_FMTBIT_S24_3LE)
 
+#define LPASS_CDC_WSA2_MACRO_CPS_RATES (SNDRV_PCM_RATE_48000)
+#define LPASS_CDC_WSA2_MACRO_CPS_FORMATS (SNDRV_PCM_FMTBIT_S32_LE)
+
 #define NUM_INTERPOLATORS 2
 
 #define LPASS_CDC_WSA2_MACRO_MUX_INP_SHFT 0x3
@@ -226,6 +229,7 @@ enum {
 	LPASS_CDC_WSA2_MACRO_AIF_MIX1_PB,
 	LPASS_CDC_WSA2_MACRO_AIF_VI,
 	LPASS_CDC_WSA2_MACRO_AIF_ECHO,
+	LPASS_CDC_WSA2_MACRO_AIF_CPS,
 	LPASS_CDC_WSA2_MACRO_MAX_DAIS,
 };
 
@@ -487,6 +491,20 @@ static struct snd_soc_dai_driver lpass_cdc_wsa2_macro_dai[] = {
 		},
 		.ops = &lpass_cdc_wsa2_macro_dai_ops,
 	},
+        {
+                .name = "wsa2_macro_cpsfeedback",
+                .id = LPASS_CDC_WSA2_MACRO_AIF_CPS,
+                .capture = {
+                        .stream_name = "WSA2_AIF_CPS Capture",
+                        .rates = LPASS_CDC_WSA2_MACRO_CPS_RATES,
+                        .formats = LPASS_CDC_WSA2_MACRO_CPS_FORMATS,
+                        .rate_max = 48000,
+                        .rate_min = 48000,
+                        .channels_min = 1,
+                        .channels_max = 2,
+                },
+                .ops = &lpass_cdc_wsa2_macro_dai_ops,
+        },
 };
 
 static bool lpass_cdc_wsa2_macro_get_data(struct snd_soc_component *component,
@@ -758,6 +776,7 @@ static int lpass_cdc_wsa2_macro_get_channel_map(struct snd_soc_dai *dai,
 
 	switch (dai->id) {
 	case LPASS_CDC_WSA2_MACRO_AIF_VI:
+	case LPASS_CDC_WSA2_MACRO_AIF_CPS:
 		*tx_slot = wsa2_priv->active_ch_mask[dai->id];
 		*tx_num = wsa2_priv->active_ch_cnt[dai->id];
 		break;
@@ -2448,6 +2467,93 @@ static const struct snd_kcontrol_new aif_vi_mixer[] = {
 			lpass_cdc_wsa2_macro_vi_feed_mixer_put),
 };
 
+static int lpass_cdc_wsa2_macro_cps_feed_mixer_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget =
+		snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_component *component =
+				snd_soc_dapm_to_component(widget->dapm);
+	struct soc_multi_mixer_control *mixer =
+		((struct soc_multi_mixer_control *)kcontrol->private_value);
+	u32 dai_id = widget->shift;
+	u32 spk_tx_id = mixer->shift;
+	struct device *wsa2_dev = NULL;
+	struct lpass_cdc_wsa2_macro_priv *wsa2_priv = NULL;
+
+	if (!lpass_cdc_wsa2_macro_get_data(component, &wsa2_dev, &wsa2_priv, __func__))
+		return -EINVAL;
+
+	if (test_bit(spk_tx_id, &wsa2_priv->active_ch_mask[dai_id]))
+		ucontrol->value.integer.value[0] = 1;
+	else
+		ucontrol->value.integer.value[0] = 0;
+
+	return 0;
+}
+
+static int lpass_cdc_wsa2_macro_cps_feed_mixer_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget =
+		snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_component *component =
+				snd_soc_dapm_to_component(widget->dapm);
+	struct soc_multi_mixer_control *mixer =
+		((struct soc_multi_mixer_control *)kcontrol->private_value);
+	u32 spk_tx_id = mixer->shift;
+	u32 enable = ucontrol->value.integer.value[0];
+	struct device *wsa2_dev = NULL;
+	struct lpass_cdc_wsa2_macro_priv *wsa2_priv = NULL;
+
+	if (!lpass_cdc_wsa2_macro_get_data(component, &wsa2_dev, &wsa2_priv, __func__))
+		return -EINVAL;
+
+	if (enable) {
+		if (spk_tx_id == LPASS_CDC_WSA2_MACRO_TX0 &&
+			!test_bit(LPASS_CDC_WSA2_MACRO_TX0,
+				&wsa2_priv->active_ch_mask[LPASS_CDC_WSA2_MACRO_AIF_CPS])) {
+			set_bit(LPASS_CDC_WSA2_MACRO_TX0,
+				&wsa2_priv->active_ch_mask[LPASS_CDC_WSA2_MACRO_AIF_CPS]);
+			wsa2_priv->active_ch_cnt[LPASS_CDC_WSA2_MACRO_AIF_CPS]++;
+		}
+		if (spk_tx_id == LPASS_CDC_WSA2_MACRO_TX1 &&
+			!test_bit(LPASS_CDC_WSA2_MACRO_TX1,
+				&wsa2_priv->active_ch_mask[LPASS_CDC_WSA2_MACRO_AIF_CPS])) {
+			set_bit(LPASS_CDC_WSA2_MACRO_TX1,
+				&wsa2_priv->active_ch_mask[LPASS_CDC_WSA2_MACRO_AIF_CPS]);
+			wsa2_priv->active_ch_cnt[LPASS_CDC_WSA2_MACRO_AIF_CPS]++;
+		}
+	} else {
+		if (spk_tx_id == LPASS_CDC_WSA2_MACRO_TX0 &&
+			test_bit(LPASS_CDC_WSA2_MACRO_TX0,
+				&wsa2_priv->active_ch_mask[LPASS_CDC_WSA2_MACRO_AIF_CPS])) {
+			clear_bit(LPASS_CDC_WSA2_MACRO_TX0,
+				&wsa2_priv->active_ch_mask[LPASS_CDC_WSA2_MACRO_AIF_CPS]);
+			wsa2_priv->active_ch_cnt[LPASS_CDC_WSA2_MACRO_AIF_CPS]--;
+		}
+		if (spk_tx_id == LPASS_CDC_WSA2_MACRO_TX1 &&
+			test_bit(LPASS_CDC_WSA2_MACRO_TX1,
+				&wsa2_priv->active_ch_mask[LPASS_CDC_WSA2_MACRO_AIF_CPS])) {
+			clear_bit(LPASS_CDC_WSA2_MACRO_TX1,
+				&wsa2_priv->active_ch_mask[LPASS_CDC_WSA2_MACRO_AIF_CPS]);
+			wsa2_priv->active_ch_cnt[LPASS_CDC_WSA2_MACRO_AIF_CPS]--;
+		}
+	}
+	snd_soc_dapm_mixer_update_power(widget->dapm, kcontrol, enable, NULL);
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new aif_cps_mixer[] = {
+	SOC_SINGLE_EXT("WSA2_SPKR_CPS_1", SND_SOC_NOPM, LPASS_CDC_WSA2_MACRO_TX0, 1, 0,
+			lpass_cdc_wsa2_macro_cps_feed_mixer_get,
+			lpass_cdc_wsa2_macro_cps_feed_mixer_put),
+	SOC_SINGLE_EXT("WSA2_SPKR_CPS_2", SND_SOC_NOPM, LPASS_CDC_WSA2_MACRO_TX1, 1, 0,
+			lpass_cdc_wsa2_macro_cps_feed_mixer_get,
+			lpass_cdc_wsa2_macro_cps_feed_mixer_put),
+};
+
 static const struct snd_soc_dapm_widget lpass_cdc_wsa2_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("WSA2 AIF1 PB", "WSA2_AIF1 Playback", 0,
 		SND_SOC_NOPM, 0, 0),
@@ -2465,6 +2571,8 @@ static const struct snd_soc_dapm_widget lpass_cdc_wsa2_macro_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MIXER("WSA2_AIF_VI Mixer", SND_SOC_NOPM, LPASS_CDC_WSA2_MACRO_AIF_VI,
 		0, aif_vi_mixer, ARRAY_SIZE(aif_vi_mixer)),
+	SND_SOC_DAPM_MIXER("WSA2_AIF_CPS Mixer", SND_SOC_NOPM, LPASS_CDC_WSA2_MACRO_AIF_CPS,
+		0, aif_cps_mixer, ARRAY_SIZE(aif_cps_mixer)),
 	SND_SOC_DAPM_MUX_E("WSA2 RX_MIX EC0_MUX", SND_SOC_NOPM,
 			LPASS_CDC_WSA2_MACRO_EC0_MUX, 0,
 			&rx_mix_ec0_mux, lpass_cdc_wsa2_macro_enable_echo,
@@ -2567,6 +2675,8 @@ static const struct snd_soc_dapm_widget lpass_cdc_wsa2_macro_dapm_widgets[] = {
 
 	SND_SOC_DAPM_INPUT("VIINPUT_WSA2"),
 
+	SND_SOC_DAPM_INPUT("CPSINPUT_WSA2"),
+
 	SND_SOC_DAPM_OUTPUT("WSA2_SPK1 OUT"),
 	SND_SOC_DAPM_OUTPUT("WSA2_SPK2 OUT"),
 
@@ -2580,6 +2690,12 @@ static const struct snd_soc_dapm_route wsa2_audio_map[] = {
 	{"WSA2_AIF_VI Mixer", "WSA2_SPKR_VI_2", "VIINPUT_WSA2"},
 	{"WSA2 AIF_VI", NULL, "WSA2_AIF_VI Mixer"},
 	{"WSA2 AIF_VI", NULL, "WSA2_MCLK"},
+
+	/* VI Feedback */
+	{"WSA2_AIF_CPS Mixer", "WSA2_SPKR_CPS_1", "CPSINPUT_WSA2"},
+	{"WSA2_AIF_CPS Mixer", "WSA2_SPKR_CPS_2", "CPSINPUT_WSA2"},
+	{"WSA2 AIF_CPS", NULL, "WSA2_AIF_CPS Mixer"},
+	{"WSA2 AIF_CPS", NULL, "WSA2_MCLK"},
 
 	{"WSA2 RX_MIX EC0_MUX", "RX_MIX_TX0", "WSA2_RX INT0 SEC MIX"},
 	{"WSA2 RX_MIX EC1_MUX", "RX_MIX_TX0", "WSA2_RX INT0 SEC MIX"},
