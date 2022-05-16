@@ -1722,14 +1722,14 @@ static void lpass_cdc_macro_idle_detect_control(struct snd_soc_component *compon
 
 	if (reg && SND_SOC_DAPM_EVENT_ON(event)) {
 		snd_soc_component_update_bits(component, reg, mask, val);
-		dev_dbg(component->dev, "%s: Idle detect clks ON \n", __func__);
+		dev_dbg(component->dev, "%s: Idle detect clks ON\n", __func__);
 	}
 
 	if (reg && SND_SOC_DAPM_EVENT_OFF(event)) {
 		snd_soc_component_update_bits(component, reg, mask, 0x00);
 		snd_soc_component_write(component,
 				LPASS_CDC_WSA_IDLE_DETECT_CFG3, 0x0);
-		dev_dbg(component->dev, "%s: Idle detect clks OFF \n", __func__);
+		dev_dbg(component->dev, "%s: Idle detect clks OFF\n", __func__);
 	}
 }
 
@@ -1808,7 +1808,7 @@ static int lpass_cdc_wsa_macro_enable_interpolator(struct snd_soc_dapm_widget *w
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_component_update_bits(component,
-				LPASS_CDC_WSA_RX0_RX_PATH_CFG1,	0x08, 0x08);
+				LPASS_CDC_WSA_RX0_RX_PATH_CFG1, 0x08, 0x08);
 		lpass_cdc_wsa_macro_config_compander(component, w->shift, event);
 		lpass_cdc_macro_idle_detect_control(component, wsa_priv,
 				w->shift, event);
@@ -3279,6 +3279,7 @@ static const struct lpass_cdc_wsa_macro_reg_mask_val
 	{LPASS_CDC_WSA_ILIM_CFG2_1, 0xFF, 0x2A},
 	{LPASS_CDC_WSA_ILIM_CFG2, 0x3F, 0x1B},
 	{LPASS_CDC_WSA_ILIM_CFG9, 0x0F, 0x05},
+	{LPASS_CDC_WSA_IDLE_DETECT_CFG1, 0xFF, 0x1D},
 };
 
 static void lpass_cdc_wsa_macro_init_reg(struct snd_soc_component *component)
@@ -3879,7 +3880,7 @@ static int lpass_cdc_wsa_macro_probe(struct platform_device *pdev)
 			__func__, "qcom,noise-gate-mode");
 		wsa_priv->noise_gate_mode = IDLE_DETECT;
 	} else {
-		if (IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
+		if (noise_gate_mode >= IDLE_DETECT && noise_gate_mode <= NG3)
 			wsa_priv->noise_gate_mode = noise_gate_mode;
 		else
 			wsa_priv->noise_gate_mode = IDLE_DETECT;
