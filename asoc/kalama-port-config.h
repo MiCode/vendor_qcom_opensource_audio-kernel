@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _KALAMA_PORT_CONFIG
@@ -29,7 +29,7 @@ static struct port_params wsa_frame_params_default[SWR_MSTR_PORT_LEN] = {
 	{15,   6,    0xFF, 0xFF, 0xFF, 0xFF, 1, 0xFF, 0xFF, 0x01, 0x00}, /* IVS1 */
 	{15,   13,   0xFF, 0xFF, 0xFF, 0xFF, 1, 0xFF, 0xFF, 0x01, 0x00}, /* IVS2 */
 	{0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0, 0xFF, 0xFF, 0x01, 0x01}, /* ICPM */
-	{799,  0xFF, 0xFF, 15,   15,   24,   0, 0xFF, 0xFF, 0x01, 0x01}, /* CPS */
+	{799,  0,    0xFF, 15,   15,   24,   0, 0xFF, 0xFF, 0x01, 0x01}, /* CPS */
 };
 
 static struct port_params wsa_frame_params_receiver[SWR_MSTR_PORT_LEN] = {
