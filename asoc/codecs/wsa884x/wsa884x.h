@@ -9,7 +9,6 @@
 #include <linux/regmap.h>
 #include <sound/soc.h>
 #include <sound/info.h>
-#include "wsa884x-registers.h"
 #include "wsa884x-reg-masks.h"
 #include "wsa884x-reg-shifts.h"
 

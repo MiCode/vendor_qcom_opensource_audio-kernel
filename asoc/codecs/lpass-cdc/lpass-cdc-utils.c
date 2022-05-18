@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018, 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -51,15 +52,15 @@ static int regmap_bus_read(void *context, const void *reg, size_t reg_size,
 	int ret = -EINVAL;
 
 	if (!priv) {
-		dev_err(dev, "%s: priv is NULL\n", __func__);
+		dev_err_ratelimited(dev, "%s: priv is NULL\n", __func__);
 		return ret;
 	}
 	if (!reg || !val) {
-		dev_err(dev, "%s: reg or val is NULL\n", __func__);
+		dev_err_ratelimited(dev, "%s: reg or val is NULL\n", __func__);
 		return ret;
 	}
 	if (reg_size != REG_BYTES) {
-		dev_err(dev, "%s: register size %zd bytes, not supported\n",
+		dev_err_ratelimited(dev, "%s: register size %zd bytes, not supported\n",
 			__func__, reg_size);
 		return ret;
 	}
@@ -101,15 +102,15 @@ static int regmap_bus_gather_write(void *context,
 	int ret = -EINVAL;
 
 	if (!priv) {
-		dev_err(dev, "%s: priv is NULL\n", __func__);
+		dev_err_ratelimited(dev, "%s: priv is NULL\n", __func__);
 		return ret;
 	}
 	if (!reg || !val) {
-		dev_err(dev, "%s: reg or val is NULL\n", __func__);
+		dev_err_ratelimited(dev, "%s: reg or val is NULL\n", __func__);
 		return ret;
 	}
 	if (reg_size != REG_BYTES) {
-		dev_err(dev, "%s: register size %zd bytes, not supported\n",
+		dev_err_ratelimited(dev, "%s: register size %zd bytes, not supported\n",
 			__func__, reg_size);
 		return ret;
 	}
@@ -146,7 +147,7 @@ static int regmap_bus_write(void *context, const void *data, size_t count)
 		return -EINVAL;
 
 	if (count < REG_BYTES) {
-		dev_err(dev, "%s: count %zd bytes < %d, not supported\n",
+		dev_err_ratelimited(dev, "%s: count %zd bytes < %d, not supported\n",
 			__func__, count, REG_BYTES);
 		return -EINVAL;
 	}

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/device.h>
@@ -15,28 +16,28 @@ static bool wdsp_is_valid_elf_hdr(const struct elf32_hdr *ehdr,
 				  size_t fw_size)
 {
 	if (fw_size < sizeof(*ehdr)) {
-		pr_err("%s: Firmware too small\n", __func__);
+		pr_err_ratelimited("%s: Firmware too small\n", __func__);
 		goto elf_check_fail;
 	}
 
 	if (memcmp(ehdr->e_ident, ELFMAG, SELFMAG) != 0) {
-		pr_err("%s: Not an ELF file\n", __func__);
+		pr_err_ratelimited("%s: Not an ELF file\n", __func__);
 		goto elf_check_fail;
 	}
 
 	if (ehdr->e_type != ET_EXEC && ehdr->e_type != ET_DYN) {
-		pr_err("%s: Not an executable image\n", __func__);
+		pr_err_ratelimited("%s: Not an executable image\n", __func__);
 		goto elf_check_fail;
 	}
 
 	if (ehdr->e_phnum == 0) {
-		pr_err("%s: no segments to load\n", __func__);
+		pr_err_ratelimited("%s: no segments to load\n", __func__);
 		goto elf_check_fail;
 	}
 
 	if (sizeof(struct elf32_phdr) * ehdr->e_phnum +
 	    sizeof(struct elf32_hdr) > fw_size) {
-		pr_err("%s: Too small MDT file\n", __func__);
+		pr_err_ratelimited("%s: Too small MDT file\n", __func__);
 		goto elf_check_fail;
 	}
 
@@ -69,13 +70,13 @@ static int wdsp_add_segment_to_list(struct device *dev,
 		 "%s.b%02d", img_fname, phdr_idx);
 	ret = request_firmware(&seg->split_fw, seg->split_fname, dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: firmware %s not found\n",
+		dev_err_ratelimited(dev, "%s: firmware %s not found\n",
 			__func__, seg->split_fname);
 		goto bad_seg;
 	}
 
 	if (phdr->p_filesz != seg->split_fw->size) {
-		dev_err(dev,
+		dev_err_ratelimited(dev,
 			"%s: %s size mismatch, phdr_size: 0x%x fw_size: 0x%zx",
 			__func__, seg->split_fname, phdr->p_filesz,
 			seg->split_fw->size);
@@ -144,20 +145,20 @@ int wdsp_get_segment_list(struct device *dev,
 
 	if (!dev) {
 		ret = -EINVAL;
-		pr_err("%s: Invalid device handle\n", __func__);
+		pr_err_ratelimited("%s: Invalid device handle\n", __func__);
 		goto done;
 	}
 
 	if (!img_fname || !seg_list || !entry_point) {
 		ret = -EINVAL;
-		dev_err(dev, "%s: Invalid input params\n",
+		dev_err_ratelimited(dev, "%s: Invalid input params\n",
 			__func__);
 		goto done;
 	}
 
 	if (segment_type != WDSP_ELF_FLAG_RE &&
 	    segment_type != WDSP_ELF_FLAG_WRITE) {
-		dev_err(dev, "%s: Invalid request for segment_type %d\n",
+		dev_err_ratelimited(dev, "%s: Invalid request for segment_type %d\n",
 			__func__, segment_type);
 		ret = -EINVAL;
 		goto done;
@@ -166,7 +167,7 @@ int wdsp_get_segment_list(struct device *dev,
 	snprintf(mdt_name, sizeof(mdt_name), "%s.mdt", img_fname);
 	ret = request_firmware(&fw, mdt_name, dev);
 	if (ret < 0) {
-		dev_err(dev, "%s: firmware %s not found\n",
+		dev_err_ratelimited(dev, "%s: firmware %s not found\n",
 			__func__, mdt_name);
 		goto done;
 	}
@@ -174,7 +175,7 @@ int wdsp_get_segment_list(struct device *dev,
 	ehdr = (struct elf32_hdr *) fw->data;
 	*entry_point = ehdr->e_entry;
 	if (!wdsp_is_valid_elf_hdr(ehdr, fw->size)) {
-		dev_err(dev, "%s: fw mdt %s is invalid\n",
+		dev_err_ratelimited(dev, "%s: fw mdt %s is invalid\n",
 			__func__, mdt_name);
 		ret = -EINVAL;
 		goto bad_elf;

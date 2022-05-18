@@ -32,6 +32,7 @@
 #include "asoc/wcd-mbhc-v2.h"
 #include "codecs/wcd938x/wcd938x-mbhc.h"
 #include "codecs/wsa884x/wsa884x.h"
+#include "codecs/wsa883x/wsa883x.h"
 #include "codecs/wcd938x/wcd938x.h"
 #include "codecs/lpass-cdc/lpass-cdc.h"
 #include <bindings/audio-codec-port-types.h>
@@ -92,6 +93,8 @@ static void *def_wcd_mbhc_cal(void);
 
 static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime*);
 static int msm_int_wsa_init(struct snd_soc_pcm_runtime*);
+static int msm_int_wsa884x_init(struct snd_soc_pcm_runtime*);
+static int msm_int_wsa883x_init(struct snd_soc_pcm_runtime*);
 
 /*
  * Need to report LINEIN
@@ -137,6 +140,7 @@ static void msm_parse_upd_configuration(struct platform_device *pdev,
 {
 	int ret = 0;
 	u32 dt_values[2];
+	struct snd_soc_card *card = NULL;
 
 	if (!pdev || !pdata)
 		return;
@@ -149,10 +153,15 @@ static void msm_parse_upd_configuration(struct platform_device *pdev,
 		return;
 	}
 
-	if (!strcmp(pdata->upd_config.backend_used, "wsa"))
-		pdata->get_dev_num = wsa884x_codec_get_dev_num;
-	else
+	if (!strcmp(pdata->upd_config.backend_used, "wsa")) {
+		card = (struct snd_soc_card *)platform_get_drvdata(pdev);
+		if (strstr(card->name, "wsa883x"))
+			pdata->get_dev_num = wsa883x_codec_get_dev_num;
+		else
+			pdata->get_dev_num = wsa884x_codec_get_dev_num;
+    } else {
 		pdata->get_dev_num = wcd938x_codec_get_dev_num;
+    }
 
 	ret = of_property_read_u32_array(pdev->dev.of_node,
 			"qcom,upd_lpass_reg_addr", dt_values, MAX_EARPA_REG);
@@ -184,24 +193,24 @@ static void msm_set_upd_config(struct snd_soc_pcm_runtime *rtd)
 	struct msm_asoc_mach_data *pdata = NULL;
 
 	if (!rtd) {
-		pr_err("%s: rtd is NULL\n", __func__);
+		pr_err_ratelimited("%s: rtd is NULL\n", __func__);
 		return;
 	}
 
 	pdata = snd_soc_card_get_drvdata(rtd->card);
 	if (!pdata) {
-		pr_err("%s: pdata is NULL\n", __func__);
+		pr_err_ratelimited("%s: pdata is NULL\n", __func__);
 		return;
 	}
 	if (!pdata->get_dev_num) {
-		pr_err("%s: get_dev_num is NULL\n", __func__);
+		pr_err_ratelimited("%s: get_dev_num is NULL\n", __func__);
 		return;
 	}
 
 	if (!pdata->upd_config.ear_pa_hw_reg_cfg.lpass_cdc_rx0_rx_path_ctl_phy_addr ||
 		!pdata->upd_config.ear_pa_hw_reg_cfg.lpass_wr_fifo_reg_phy_addr ||
                 !pdata->upd_config.ear_pa_pkd_reg_addr) {
-		pr_err("%s: upd static configuration is not set\n", __func__);
+		pr_err_ratelimited("%s: upd static configuration is not set\n", __func__);
 		return;
 	}
 
@@ -215,14 +224,14 @@ static void msm_set_upd_config(struct snd_soc_pcm_runtime *rtd)
 
 	component = snd_soc_rtdcom_lookup(rtd, cdc_name);
 	if (!component) {
-		pr_err("%s: %s component is NULL\n", __func__,
+		pr_err_ratelimited("%s: %s component is NULL\n", __func__,
 			cdc_name);
 		return;
 	}
 
 	dev_num = pdata->get_dev_num(component);
 	if (dev_num < 0 || dev_num > 6) {
-		pr_err("%s: invalid slave dev num : %d\n", __func__,
+		pr_err_ratelimited("%s: invalid slave dev num : %d\n", __func__,
 							dev_num);
 		return;
 	}
@@ -257,7 +266,7 @@ static void msm_set_upd_config(struct snd_soc_pcm_runtime *rtd)
 
 	ret = audio_prm_set_cdc_earpa_duty_cycling_req(&pdata->upd_config, 1);
 	if (ret < 0)
-		pr_err("%s: upd cdc duty cycling registration failed\n", __func__);
+		pr_err_ratelimited("%s: upd cdc duty cycling registration failed\n", __func__);
 }
 
 static struct snd_soc_ops msm_common_be_ops = {
@@ -279,13 +288,13 @@ static int msm_dmic_event(struct snd_soc_dapm_widget *w,
 
 	wname = strpbrk(w->name, "01234567");
 	if (!wname) {
-		dev_err(component->dev, "%s: widget not found\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: widget not found\n", __func__);
 		return -EINVAL;
 	}
 
 	ret = kstrtouint(wname, 10, &dmic_idx);
 	if (ret < 0) {
-		dev_err(component->dev, "%s: Invalid DMIC line on the codec\n",
+		dev_err_ratelimited(component->dev, "%s: Invalid DMIC line on the codec\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -314,7 +323,7 @@ static int msm_dmic_event(struct snd_soc_dapm_widget *w,
 		dmic_gpio = pdata->dmic67_gpio_p;
 		break;
 	default:
-		dev_err(component->dev, "%s: Invalid DMIC Selection\n",
+		dev_err_ratelimited(component->dev, "%s: Invalid DMIC Selection\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -329,7 +338,7 @@ static int msm_dmic_event(struct snd_soc_dapm_widget *w,
 			ret = msm_cdc_pinctrl_select_active_state(
 						dmic_gpio);
 			if (ret < 0) {
-				pr_err("%s: gpio set cannot be activated %sd",
+				pr_err_ratelimited("%s: gpio set cannot be activated %sd",
 					__func__, "dmic_gpio");
 				return ret;
 			}
@@ -342,14 +351,14 @@ static int msm_dmic_event(struct snd_soc_dapm_widget *w,
 			ret = msm_cdc_pinctrl_select_sleep_state(
 					dmic_gpio);
 			if (ret < 0) {
-				pr_err("%s: gpio set cannot be de-activated %sd",
+				pr_err_ratelimited("%s: gpio set cannot be de-activated %sd",
 					__func__, "dmic_gpio");
 				return ret;
 			}
 		}
 		break;
 	default:
-		pr_err("%s: invalid DAPM event %d\n", __func__, event);
+		pr_err_ratelimited("%s: invalid DAPM event %d\n", __func__, event);
 		return -EINVAL;
 	}
 	return 0;
@@ -1140,7 +1149,7 @@ static int msm_populate_dai_link_component_of_node(
 	struct snd_soc_dai_link_component *codecs_comp = NULL;
 
 	if (!cdev) {
-		dev_err(cdev, "%s: Sound card device memory NULL\n", __func__);
+		dev_err_ratelimited(cdev, "%s: Sound card device memory NULL\n", __func__);
 		return -ENODEV;
 	}
 
@@ -1164,7 +1173,8 @@ static int msm_populate_dai_link_component_of_node(
 						      "asoc-codec",
 						      index);
 				if (!np) {
-					dev_err(cdev, "%s: retrieving phandle for codec %s failed\n",
+					dev_err_ratelimited(cdev,
+						"%s: retrieving phandle for codec %s failed\n",
 						__func__,
 						dai_link[i].codecs[j].name);
 					ret = -ENODEV;
@@ -1186,7 +1196,7 @@ static int msm_populate_dai_link_component_of_node(
 
 				np = dai_link[i].codecs[j].of_node;
 				if (!of_device_is_available(np)) {
-				    dev_err(cdev, "%s: codec is disabled: %s\n",
+				    dev_err_ratelimited(cdev, "%s: codec is disabled: %s\n",
 								__func__,
 								np->full_name);
 							dai_link[i].codecs[j].of_node = NULL;
@@ -1201,7 +1211,8 @@ static int msm_populate_dai_link_component_of_node(
 				    sizeof(struct snd_soc_dai_link_component)
 				    * codecs_enabled, GFP_KERNEL);
 				if (!codecs_comp) {
-					dev_err(cdev, "%s: %s dailink codec component alloc failed\n",
+					dev_err_ratelimited(cdev,
+						"%s: %s dailink codec component alloc failed\n",
 						__func__, dai_link[i].name);
 					ret = -ENOMEM;
 					goto err;
@@ -1328,7 +1339,7 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int w
 
 	match = of_match_node(kalama_asoc_machine_of_match, dev->of_node);
 	if (!match) {
-		dev_err(dev, "%s: No DT match found for sound card\n",
+		dev_err_ratelimited(dev, "%s: No DT match found for sound card\n",
 			__func__);
 		return NULL;
 	}
@@ -1440,7 +1451,88 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int w
 	return card;
 }
 
-static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
+static int msm_int_wsa883x_init(struct snd_soc_pcm_runtime *rtd)
+{
+	u8 spkleft_ports[WSA883X_MAX_SWR_PORTS] = {0, 1, 2, 3};
+	u8 spkright_ports[WSA883X_MAX_SWR_PORTS] = {0, 1, 2, 3};
+	u8 spkleft_port_types[WSA883X_MAX_SWR_PORTS] = {SPKR_L, SPKR_L_COMP,
+		SPKR_L_BOOST, SPKR_L_VI};
+	u8 spkright_port_types[WSA883X_MAX_SWR_PORTS] = {SPKR_R, SPKR_R_COMP,
+		SPKR_R_BOOST, SPKR_R_VI};
+	unsigned int ch_rate[WSA883X_MAX_SWR_PORTS] = {SWR_CLK_RATE_2P4MHZ, SWR_CLK_RATE_0P6MHZ,
+		SWR_CLK_RATE_0P3MHZ, SWR_CLK_RATE_1P2MHZ};
+	unsigned int ch_mask[WSA883X_MAX_SWR_PORTS] = {0x1, 0xF, 0x3, 0x3};
+	struct snd_soc_component *component = NULL;
+	struct msm_asoc_mach_data *pdata =
+		snd_soc_card_get_drvdata(rtd->card);
+
+	if (pdata->wsa_max_devs > 0) {
+		component = snd_soc_rtdcom_lookup(rtd, "wsa-codec.1");
+		if (!component) {
+			pr_err("%s: wsa-codec.1 component is NULL\n", __func__);
+			return -EINVAL;
+		}
+
+		wsa883x_set_channel_map(component, &spkleft_ports[0],
+				WSA883X_MAX_SWR_PORTS, &ch_mask[0],
+				&ch_rate[0], &spkleft_port_types[0]);
+
+		wsa883x_codec_info_create_codec_entry(pdata->codec_root,
+				component);
+	}
+
+	/* If current platform has more than one WSA */
+	if (pdata->wsa_max_devs > 1) {
+		component = snd_soc_rtdcom_lookup(rtd, "wsa-codec.2");
+		if (!component) {
+			pr_err("%s: wsa-codec.2 component is NULL\n", __func__);
+			return -EINVAL;
+		}
+
+		wsa883x_set_channel_map(component, &spkright_ports[0],
+				WSA883X_MAX_SWR_PORTS, &ch_mask[0],
+				&ch_rate[0], &spkright_port_types[0]);
+
+		wsa883x_codec_info_create_codec_entry(pdata->codec_root,
+				component);
+	}
+
+	if (pdata->wsa_max_devs > 2) {
+		component = snd_soc_rtdcom_lookup(rtd, "wsa-codec.3");
+		if (!component) {
+			pr_err("%s: wsa-codec.3 component is NULL\n", __func__);
+			return -EINVAL;
+		}
+
+		wsa883x_set_channel_map(component, &spkleft_ports[0],
+				WSA883X_MAX_SWR_PORTS, &ch_mask[0],
+				&ch_rate[0], &spkleft_port_types[0]);
+
+		wsa883x_codec_info_create_codec_entry(pdata->codec_root,
+				component);
+	}
+
+	if (pdata->wsa_max_devs > 3) {
+		component = snd_soc_rtdcom_lookup(rtd, "wsa-codec.4");
+		if (!component) {
+			pr_err("%s: wsa-codec.4 component is NULL\n", __func__);
+			return -EINVAL;
+		}
+
+		wsa883x_set_channel_map(component, &spkright_ports[0],
+				WSA883X_MAX_SWR_PORTS, &ch_mask[0],
+				&ch_rate[0], &spkright_port_types[0]);
+
+		wsa883x_codec_info_create_codec_entry(pdata->codec_root,
+				component);
+	}
+
+	msm_common_dai_link_init(rtd);
+
+	return 0;
+}
+
+static int msm_int_wsa884x_init(struct snd_soc_pcm_runtime *rtd)
 {
 	u8 spkleft_ports[WSA884X_MAX_SWR_PORTS] = {0, 1, 2, 3, 4, 5};
 	u8 spkright_ports[WSA884X_MAX_SWR_PORTS] = {0, 1, 2, 3, 4, 5};
@@ -1522,6 +1614,14 @@ static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
 	msm_common_dai_link_init(rtd);
 
 	return 0;
+}
+
+static int msm_int_wsa_init(struct snd_soc_pcm_runtime *rtd)
+{
+	if (strstr(rtd->card->name, "wsa883x"))
+		return msm_int_wsa883x_init(rtd);
+
+	return msm_int_wsa884x_init(rtd);
 }
 
 static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
@@ -1622,7 +1722,7 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 		ret = lpass_cdc_rx_set_fir_capability(lpass_cdc_component, false);
 
 	if (ret < 0) {
-		dev_err(component->dev, "%s: set fir capability failed: %d\n",
+		dev_err_ratelimited(component->dev, "%s: set fir capability failed: %d\n",
 			__func__, ret);
 		return ret;
 	}
@@ -1642,7 +1742,7 @@ static int kalama_ssr_enable(struct device *dev, void *data)
 	int ret = 0;
 
 	if (!card) {
-		dev_err(dev, "%s: card is NULL\n", __func__);
+		dev_err_ratelimited(dev, "%s: card is NULL\n", __func__);
 		ret = -EINVAL;
 		goto err;
 	}
@@ -1693,7 +1793,7 @@ static int kalama_ssr_enable(struct device *dev, void *data)
 		else
 			rtd = rtd_wcd;
 	} else {
-		dev_err(card->dev, "%s: Invalid backend to set UPD config\n",
+		dev_err_ratelimited(card->dev, "%s: Invalid backend to set UPD config\n",
 			__func__);
 		goto err;
 	}
@@ -1710,7 +1810,7 @@ static void kalama_ssr_disable(struct device *dev, void *data)
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
 	if (!card) {
-		dev_err(dev, "%s: card is NULL\n", __func__);
+		dev_err_ratelimited(dev, "%s: card is NULL\n", __func__);
 		return;
 	}
 

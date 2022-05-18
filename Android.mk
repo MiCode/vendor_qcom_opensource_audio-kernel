@@ -10,6 +10,10 @@ ifeq ($(call is-board-platform, kalama),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_KALAMA=m
 endif
 
+ifeq ($(ENABLE_AUDIO_LEGACY_TECHPACK),true)
+include $(call all-subdir-makefiles)
+endif
+
 # Build/Package only in case of supported target
 ifeq ($(call is-board-platform-in-list,taro kalama), true)
 
@@ -293,6 +297,15 @@ LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/Build_external_kernelmodule.mk
 
+########################### WSA883x CODEC  ###########################
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := wsa883x_dlkm.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/codecs/wsa883x/wsa883x_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
 
 ########################### WCD938x CODEC  ################################
 include $(CLEAR_VARS)

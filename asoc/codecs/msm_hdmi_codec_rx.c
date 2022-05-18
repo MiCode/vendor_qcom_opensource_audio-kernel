@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2012-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/platform_device.h>
 #include <linux/slab.h>
@@ -88,7 +89,7 @@ static int msm_ext_disp_edid_ctl_info(struct snd_kcontrol *kcontrol,
 
 	codec_data = snd_soc_component_get_drvdata(component);
 	if (!codec_data) {
-		dev_err(component->dev, "%s: codec_data is NULL\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: codec_data is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -139,7 +140,7 @@ static int msm_ext_disp_edid_get(struct snd_kcontrol *kcontrol,
 
 	codec_data = snd_soc_component_get_drvdata(component);
 	if (!codec_data) {
-		dev_err(component->dev, "%s: codec_data is NULL\n",
+		dev_err_ratelimited(component->dev, "%s: codec_data is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -156,7 +157,8 @@ static int msm_ext_disp_edid_get(struct snd_kcontrol *kcontrol,
 	rc = msm_ext_disp_select_audio_codec(codec_data->ext_disp_core_pdev,
 						 &codec_info);
 	if (!codec_data->ext_disp_ops.get_audio_edid_blk || rc) {
-		dev_err(component->dev, "%s: codec_data or get_audio_edid_blk() is NULL\n",
+		dev_err_ratelimited(component->dev,
+			"%s: codec_data or get_audio_edid_blk() is NULL\n",
 			__func__);
 		mutex_unlock(&codec_data->dp_ops_lock);
 		return -EINVAL;
@@ -168,7 +170,7 @@ static int msm_ext_disp_edid_get(struct snd_kcontrol *kcontrol,
 		if (sizeof(ucontrol->value.bytes.data) <
 			  (edid_blk.audio_data_blk_size +
 			   edid_blk.spk_alloc_data_blk_size)) {
-			dev_err(component->dev,
+			dev_err_ratelimited(component->dev,
 				"%s: Not enough memory to copy EDID data\n",
 				__func__);
 			return -ENOMEM;
@@ -205,7 +207,7 @@ static int msm_ext_disp_audio_type_get(struct snd_kcontrol *kcontrol,
 
 	codec_data = snd_soc_component_get_drvdata(component);
 	if (!codec_data) {
-		dev_err(component->dev, "%s: codec_data is NULL\n",
+		dev_err_ratelimited(component->dev, "%s: codec_data is NULL\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -233,7 +235,7 @@ static int msm_ext_disp_audio_type_get(struct snd_kcontrol *kcontrol,
 	cable_state = codec_data->ext_disp_ops.cable_status(
 				codec_data->ext_disp_core_pdev, 1);
 	if (cable_state < 0) {
-		dev_err(component->dev, "%s: Error retrieving cable state from ext_disp, err:%d\n",
+		dev_err_ratelimited(component->dev, "%s: Error retrieving cable state from ext_disp, err:%d\n",
 			__func__, cable_state);
 		rc = cable_state;
 		goto cable_err;
@@ -241,7 +243,7 @@ static int msm_ext_disp_audio_type_get(struct snd_kcontrol *kcontrol,
 
 	codec_data->cable_status[dai_id] = cable_state;
 	if (cable_state == EXT_DISPLAY_CABLE_DISCONNECT) {
-		dev_err(component->dev, "%s: Display cable disconnected\n",
+		dev_err_ratelimited(component->dev, "%s: Display cable disconnected\n",
 			__func__);
 		ucontrol->value.integer.value[0] = 0;
 		rc = 0;
@@ -263,14 +265,14 @@ static int msm_ext_disp_audio_type_get(struct snd_kcontrol *kcontrol,
 			break;
 		default:
 			rc = -EINVAL;
-			dev_err(component->dev, "%s: Invalid disp_type:%d\n",
+			dev_err_ratelimited(component->dev, "%s: Invalid disp_type:%d\n",
 			       __func__, disp_type);
 			goto done;
 		}
 		dev_dbg(component->dev, "%s: Display type: %d\n",
 			__func__, disp_type);
 	} else {
-		dev_err(component->dev, "%s: Error retrieving disp_type from ext_disp, err:%d\n",
+		dev_err_ratelimited(component->dev, "%s: Error retrieving disp_type from ext_disp, err:%d\n",
 			__func__, disp_type);
 		rc = disp_type;
 	}
@@ -296,7 +298,7 @@ static int msm_ext_disp_audio_ack_set(struct snd_kcontrol *kcontrol,
 
 	codec_data = snd_soc_component_get_drvdata(component);
 	if (!codec_data) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: codec_data is NULL\n",
 			__func__);
 		return -EINVAL;
@@ -315,7 +317,7 @@ static int msm_ext_disp_audio_ack_set(struct snd_kcontrol *kcontrol,
 						 &codec_info);
 
 	if (!codec_data->ext_disp_ops.acknowledge || rc) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: codec_data ops acknowledge() is NULL\n",
 			__func__);
 		rc = -EINVAL;
@@ -334,7 +336,7 @@ static int msm_ext_disp_audio_ack_set(struct snd_kcontrol *kcontrol,
 		break;
 	default:
 		rc = -EINVAL;
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: invalid value %d for mixer ctl\n",
 			__func__, ucontrol->value.enumerated.item[0]);
 		goto err;
@@ -346,7 +348,7 @@ static int msm_ext_disp_audio_ack_set(struct snd_kcontrol *kcontrol,
 			 codec_data->ext_disp_core_pdev, ack_state);
 	mutex_unlock(&codec_data->dp_ops_lock);
 	if (rc < 0) {
-		dev_err(component->dev, "%s: error from acknowledge(), err:%d\n",
+		dev_err_ratelimited(component->dev, "%s: error from acknowledge(), err:%d\n",
 			__func__, rc);
 	}
 	return rc;
@@ -367,7 +369,7 @@ static int msm_ext_disp_audio_device_get(struct snd_kcontrol *kcontrol,
 				kcontrol->private_value)->shift;
 
 	if (dai_id < 0 || dai_id > DP_DAI2) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: invalid dai id: %d\n", __func__, dai_id);
 		rc = -EINVAL;
 		goto done;
@@ -375,7 +377,7 @@ static int msm_ext_disp_audio_device_get(struct snd_kcontrol *kcontrol,
 
 	codec_data = snd_soc_component_get_drvdata(component);
 	if (!codec_data) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: codec_data or ops acknowledge() is NULL\n",
 			__func__);
 		rc = -EINVAL;
@@ -399,7 +401,7 @@ static int msm_ext_disp_audio_device_set(struct snd_kcontrol *kcontrol,
 				kcontrol->private_value)->shift;
 
 	if (dai_id < 0 || dai_id > DP_DAI2) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: invalid dai id: %d\n", __func__, dai_id);
 		rc = -EINVAL;
 		goto done;
@@ -407,7 +409,7 @@ static int msm_ext_disp_audio_device_set(struct snd_kcontrol *kcontrol,
 
 	codec_data = snd_soc_component_get_drvdata(component);
 	if (!codec_data) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: codec_data or ops acknowledge() is NULL\n",
 			__func__);
 		rc = -EINVAL;
@@ -418,7 +420,7 @@ static int msm_ext_disp_audio_device_set(struct snd_kcontrol *kcontrol,
 		(ucontrol->value.integer.value[1] > (DP_STREAM_MAX - 1)) ||
 		(ucontrol->value.integer.value[0] < 0) ||
 		(ucontrol->value.integer.value[1] < 0)) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: DP audio control index invalid\n",
 			__func__);
 		rc = -EINVAL;
@@ -516,7 +518,7 @@ static int msm_ext_disp_audio_codec_rx_dai_startup(
 	int type;
 
 	if (!codec_data) {
-		dev_err(dai->dev, "%s() codec_data is null\n",
+		dev_err_ratelimited(dai->dev, "%s() codec_data is null\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -535,7 +537,7 @@ static int msm_ext_disp_audio_codec_rx_dai_startup(
 						 &codec_info);
 
 	if (!codec_data->ext_disp_ops.cable_status || rc) {
-		dev_err(dai->dev, "%s() cable_status is null\n",
+		dev_err_ratelimited(dai->dev, "%s() cable_status is null\n",
 			__func__);
 		mutex_unlock(&codec_data->dp_ops_lock);
 		return -EINVAL;
@@ -546,12 +548,12 @@ static int msm_ext_disp_audio_codec_rx_dai_startup(
 		codec_data->ext_disp_core_pdev, 1);
 	mutex_unlock(&codec_data->dp_ops_lock);
 	if (codec_data->cable_status[dai->id] < 0) {
-		dev_err(dai->dev,
+		dev_err_ratelimited(dai->dev,
 			"%s() ext disp core is not ready (ret val = %d)\n",
 			__func__, codec_data->cable_status[dai->id]);
 		ret = codec_data->cable_status[dai->id];
 	} else if (!codec_data->cable_status[dai->id]) {
-		dev_err(dai->dev,
+		dev_err_ratelimited(dai->dev,
 			"%s() ext disp cable is not connected (ret val = %d)\n",
 			__func__, codec_data->cable_status[dai->id]);
 		ret = -ENODEV;
@@ -577,7 +579,7 @@ static int msm_ext_disp_audio_codec_rx_dai_hw_params(
 			dev_get_drvdata(dai->component->dev);
 
 	if (!codec_data) {
-		dev_err(dai->dev, "%s() codec_data is null\n",
+		dev_err_ratelimited(dai->dev, "%s() codec_data is null\n",
 			__func__);
 		return -EINVAL;
 	}
@@ -596,7 +598,7 @@ static int msm_ext_disp_audio_codec_rx_dai_hw_params(
 						 &codec_info);
 
 	if (!codec_data->ext_disp_ops.audio_info_setup || rc) {
-		dev_err(dai->dev, "%s: audio_info_setup is null\n",
+		dev_err_ratelimited(dai->dev, "%s: audio_info_setup is null\n",
 			__func__);
 		mutex_unlock(&codec_data->dp_ops_lock);
 		return -EINVAL;
@@ -645,7 +647,7 @@ static int msm_ext_disp_audio_codec_rx_dai_hw_params(
 		audio_setup_params.sample_present = 0xf;
 		break;
 	default:
-		dev_err(dai->dev, "invalid Channels = %u\n", num_channels);
+		dev_err_ratelimited(dai->dev, "invalid Channels = %u\n", num_channels);
 		return -EINVAL;
 	}
 
@@ -691,7 +693,7 @@ static void msm_ext_disp_audio_codec_rx_dai_shutdown(
 	int type;
 
 	if (!codec_data) {
-		dev_err(dai->dev, "%s() codec_data is null\n",
+		dev_err_ratelimited(dai->dev, "%s() codec_data is null\n",
 			__func__);
 		return;
 	}
@@ -711,7 +713,7 @@ static void msm_ext_disp_audio_codec_rx_dai_shutdown(
 
 	if (!codec_data->ext_disp_ops.teardown_done ||
 	    !codec_data->ext_disp_ops.cable_status || rc) {
-		dev_err(dai->dev, "%s: teardown_done or cable_status is null\n",
+		dev_err_ratelimited(dai->dev, "%s: teardown_done or cable_status is null\n",
 			__func__);
 		mutex_unlock(&codec_data->dp_ops_lock);
 		return;
@@ -720,7 +722,7 @@ static void msm_ext_disp_audio_codec_rx_dai_shutdown(
 	rc = codec_data->ext_disp_ops.cable_status(
 			codec_data->ext_disp_core_pdev, 0);
 	if (rc < 0) {
-		dev_err(dai->dev,
+		dev_err_ratelimited(dai->dev,
 			"%s: ext disp core had problems releasing audio flag\n",
 			__func__);
 	}

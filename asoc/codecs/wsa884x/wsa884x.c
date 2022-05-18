@@ -28,6 +28,7 @@
 #include <sound/tlv.h>
 #include <asoc/msm-cdc-pinctrl.h>
 #include <asoc/msm-cdc-supply.h>
+#include "wsa884x-registers.h"
 #include "wsa884x.h"
 #include "internal.h"
 #include "asoc/bolero-slave-internal.h"
@@ -85,7 +86,7 @@ enum {
 };
 
 #define WSA884X_VTH_TO_REG(vth) \
-	((vth) != 0 ? (((vth) - 150 / PBR_MAX_VOLTAGE) * PBR_MAX_CODE / 100) : 0)
+	((vth) != 0 ? (((vth) - 150) * PBR_MAX_CODE / (PBR_MAX_VOLTAGE * 100) + 1) : 0)
 
 struct wsa_reg_mask_val {
 	u16 reg;
@@ -267,7 +268,11 @@ static bool is_swr_slave_reg_readable(int reg)
 
 	if (((reg > 0x46) && (reg < 0x4A)) ||
 	    ((reg > 0x4A) && (reg < 0x50)) ||
-	    ((reg > 0x55) && (reg < 0xD0)) ||
+	    ((reg > 0x55) && (reg < 0x60)) ||
+	    ((reg > 0x60) && (reg < 0x70)) ||
+	    ((reg > 0x70) && (reg < 0xC0)) ||
+	    ((reg > 0xC1) && (reg < 0xC8)) ||
+	    ((reg > 0xC8) && (reg < 0xD0)) ||
 	    ((reg > 0xD0) && (reg < 0xE0)) ||
 	    ((reg > 0xE0) && (reg < 0xF0)) ||
 	    ((reg > 0xF0) && (reg < 0x100)) ||
@@ -315,14 +320,14 @@ static ssize_t swr_slave_reg_show(struct swr_device *pdev, char __user *ubuf,
 		len = snprintf(tmp_buf, sizeof(tmp_buf), "0x%.3x: 0x%.2x\n", i,
 			       (reg_val & 0xFF));
 		if (len < 0) {
-			pr_err("%s: fail to fill the buffer\n", __func__);
+			pr_err_ratelimited("%s: fail to fill the buffer\n", __func__);
 			total = -EFAULT;
 			goto copy_err;
 		}
 		if ((total + len) >= count - 1)
 			break;
 		if (copy_to_user((ubuf + total), tmp_buf, len)) {
-			pr_err("%s: fail to copy reg dump\n", __func__);
+			pr_err_ratelimited("%s: fail to copy reg dump\n", __func__);
 			total = -EFAULT;
 			goto copy_err;
 		}
@@ -419,7 +424,7 @@ static ssize_t codec_debug_peek_write(struct file *file,
 	if (rc == 0)
 		rc = cnt;
 	else
-		pr_err("%s: rc = %d\n", __func__, rc);
+		pr_err_ratelimited("%s: rc = %d\n", __func__, rc);
 
 	return rc;
 }
@@ -455,7 +460,7 @@ static ssize_t codec_debug_write(struct file *file,
 	if (rc == 0)
 		rc = cnt;
 	else
-		pr_err("%s: rc = %d\n", __func__, rc);
+		pr_err_ratelimited("%s: rc = %d\n", __func__, rc);
 
 	return rc;
 }
@@ -756,11 +761,11 @@ static void wsa_noise_gate_write(struct snd_soc_component *component,
 		break;
 	case NG2:
 		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,
-			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x28);
+			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x20);
 		break;
 	case NG3:
 		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,
-			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x18);
+			WSA884X_IDLE_DETECT_NG_BLOCK_MASK, 0x10);
 		break;
 	default:
 		snd_soc_component_update_bits(component, WSA884X_PA_FSM_CTL1,
@@ -768,13 +773,6 @@ static void wsa_noise_gate_write(struct snd_soc_component *component,
 		break;
 	}
 }
-
-static const char * const wsa_dev_mode_text[] = {
-	"speaker", "receiver"
-};
-
-static const struct soc_enum wsa_dev_mode_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(wsa_dev_mode_text), wsa_dev_mode_text);
 
 static int wsa_dev_mode_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
@@ -798,17 +796,17 @@ static int wsa_dev_mode_put(struct snd_kcontrol *kcontrol,
 			snd_soc_kcontrol_component(kcontrol);
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
 	int dev_mode;
+	int wsa_dev_index;
 
 	dev_mode = ucontrol->value.integer.value[0];
-	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d  = %ld\n",
+	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d\n",
 		__func__, wsa884x->dev_mode, dev_mode);
 
 	/* Check if input parameter is in range */
-	if ((wsa884x->dev_mode + (wsa884x->dev_index - 1) * 2) <
-		(MAX_DEV_MODE * 2)) {
+	wsa_dev_index = (wsa884x->dev_index - 1) % 2;
+	if ((dev_mode + wsa_dev_index * 2) < (MAX_DEV_MODE * 2)) {
 		wsa884x->dev_mode =  dev_mode;
-		wsa884x->system_gain = wsa884x->sys_gains[
-			wsa884x->dev_mode + (wsa884x->dev_index - 1) * 2];
+		wsa884x->system_gain = wsa884x->sys_gains[dev_mode + wsa_dev_index * 2];
 	} else {
 		return -EINVAL;
 	}
@@ -884,7 +882,7 @@ static ssize_t wsa884x_codec_version_read(struct snd_info_entry *entry,
 
 	wsa884x = (struct wsa884x_priv *) entry->private_data;
 	if (!wsa884x) {
-		pr_err("%s: wsa884x priv is null\n", __func__);
+		pr_err_ratelimited("%s: wsa884x priv is null\n", __func__);
 		return -EINVAL;
 	}
 
@@ -916,7 +914,7 @@ static ssize_t wsa884x_variant_read(struct snd_info_entry *entry,
 
 	wsa884x = (struct wsa884x_priv *) entry->private_data;
 	if (!wsa884x) {
-		pr_err("%s: wsa884x priv is null\n", __func__);
+		pr_err_ratelimited("%s: wsa884x priv is null\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1056,7 +1054,7 @@ int wsa884x_codec_get_dev_num(struct snd_soc_component *component)
 
 	wsa884x = snd_soc_component_get_drvdata(component);
 	if (!wsa884x) {
-		pr_err("%s: wsa884x component is NULL\n", __func__);
+		pr_err_ratelimited("%s: wsa884x component is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1076,7 +1074,7 @@ static int wsa884x_get_dev_num(struct snd_kcontrol *kcontrol,
 
 	wsa884x = snd_soc_component_get_drvdata(component);
 	if (!wsa884x) {
-		pr_err("%s: wsa884x component is NULL\n", __func__);
+		pr_err_ratelimited("%s: wsa884x component is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1099,14 +1097,19 @@ static int wsa884x_get_compander(struct snd_kcontrol *kcontrol,
  * wsa884x_validate_dt_configuration_params - returns 1 or 0
  * Return: 0 Valid configuration, 1 Invalid configuration
  */
-static bool wsa884x_validate_dt_configuration_params(u8 irload, u8 ibat_cfg,
-					u8 isystem_gain)
+static bool wsa884x_validate_dt_configuration_params(struct snd_soc_component *component,
+					u8 irload, u8 ibat_cfg_dts, u8 isystem_gain)
 {
+	u8 bat_cfg_reg;
 	bool is_invalid_flag = true;
 
+	bat_cfg_reg = snd_soc_component_read(component, WSA884X_VPHX_SYS_EN_STATUS);
+	if ((ibat_cfg_dts == EXT_1S) || (ibat_cfg_dts == EXT_2S) || (ibat_cfg_dts == EXT_3S))
+		ibat_cfg_dts = EXT_ABOVE_3S;
 	if ((WSA_4_OHMS <= irload && irload < WSA_MAX_OHMS) &&
 		(G_21_DB <= isystem_gain && isystem_gain < G_MAX_DB) &&
-		(EXT_ABOVE_3S <= ibat_cfg && ibat_cfg < CONFIG_MAX))
+		(EXT_ABOVE_3S <= ibat_cfg_dts && ibat_cfg_dts < CONFIG_MAX) &&
+		(ibat_cfg_dts == bat_cfg_reg))
 			is_invalid_flag = false;
 
 	return is_invalid_flag;
@@ -1211,7 +1214,7 @@ static const struct snd_kcontrol_new wsa884x_snd_controls[] = {
 	SOC_SINGLE_EXT("WSA Get DevNum", SND_SOC_NOPM, 0, UINT_MAX, 0,
 			wsa884x_get_dev_num, NULL),
 
-	SOC_ENUM_EXT("WSA MODE", wsa_dev_mode_enum,
+	SOC_SINGLE_EXT("WSA MODE", SND_SOC_NOPM, 0, 1, 0,
 			wsa_dev_mode_get, wsa_dev_mode_put),
 
 	SOC_SINGLE_EXT("COMP Switch", SND_SOC_NOPM, 0, 1, 0,
@@ -1349,7 +1352,7 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		if (swr_set_device_group(wsa884x->swr_slave, SWR_GROUP_NONE))
-			dev_err(component->dev,
+			dev_err_ratelimited(component->dev,
 				"%s: set num ch failed\n", __func__);
 
 		swr_slvdev_datapath_control(wsa884x->swr_slave,
@@ -1467,7 +1470,7 @@ int wsa884x_set_channel_map(struct snd_soc_component *component, u8 *port,
 
 	if (!port || !ch_mask || !ch_rate ||
 		(num_port > WSA884X_MAX_SWR_PORTS)) {
-		dev_err(component->dev,
+		dev_err_ratelimited(component->dev,
 			"%s: Invalid port=%pK, ch_mask=%pK, ch_rate=%pK\n",
 			__func__, port, ch_mask, ch_rate);
 		return -EINVAL;
@@ -1497,9 +1500,6 @@ static void wsa884x_codec_init(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, reg_init[i].reg,
 					reg_init[i].mask, reg_init[i].val);
 
-	if (wsa884x->variant == WSA8845H)
-		snd_soc_component_update_bits(wsa884x->component,
-		REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x01));
 	wsa_noise_gate_write(component, wsa884x->noise_gate_mode);
 
 }
@@ -1510,7 +1510,7 @@ static int32_t wsa884x_temp_reg_read(struct snd_soc_component *component,
 	struct wsa884x_priv *wsa884x = snd_soc_component_get_drvdata(component);
 
 	if (!wsa884x) {
-		dev_err(component->dev, "%s: wsa884x is NULL\n", __func__);
+		dev_err_ratelimited(component->dev, "%s: wsa884x is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1571,7 +1571,7 @@ static int wsa884x_get_temperature(struct snd_soc_component *component,
 	do {
 		ret = wsa884x_temp_reg_read(component, &reg);
 		if (ret) {
-			pr_err("%s: temp read failed: %d, current temp: %d\n",
+			pr_err_ratelimited("%s: temp read failed: %d, current temp: %d\n",
 				__func__, ret, wsa884x->curr_temp);
 			if (temp)
 				*temp = wsa884x->curr_temp;
@@ -1736,7 +1736,7 @@ static int wsa884x_gpio_ctrl(struct wsa884x_priv *wsa884x, bool enable)
 		ret = msm_cdc_pinctrl_select_sleep_state(
 						wsa884x->wsa_rst_np);
 	if (ret != 0)
-		dev_err(wsa884x->dev,
+		dev_err_ratelimited(wsa884x->dev,
 			"%s: Failed to turn state %d; ret=%d\n",
 			__func__, enable, ret);
 
@@ -1749,7 +1749,7 @@ static int wsa884x_swr_up(struct wsa884x_priv *wsa884x)
 
 	ret = wsa884x_gpio_ctrl(wsa884x, true);
 	if (ret)
-		dev_err(wsa884x->dev, "%s: Failed to enable gpio\n", __func__);
+		dev_err_ratelimited(wsa884x->dev, "%s: Failed to enable gpio\n", __func__);
 
 	return ret;
 }
@@ -1760,7 +1760,7 @@ static int wsa884x_swr_down(struct wsa884x_priv *wsa884x)
 
 	ret = wsa884x_gpio_ctrl(wsa884x, false);
 	if (ret)
-		dev_err(wsa884x->dev, "%s: Failed to disable gpio\n", __func__);
+		dev_err_ratelimited(wsa884x->dev, "%s: Failed to disable gpio\n", __func__);
 
 	return ret;
 }
@@ -1947,6 +1947,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	struct regmap_irq_chip *wsa884x_sub_regmap_irq_chip = NULL;
 	u8 wo0_val;
 	int sys_gain_size, sys_gain_length;
+	int wsa_dev_index;
 
 
 	wsa884x = devm_kzalloc(&pdev->dev, sizeof(struct wsa884x_priv),
@@ -2139,6 +2140,8 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	/* Start in speaker mode by default */
 	wsa884x->dev_mode = SPEAKER;
 	wsa884x->dev_index = dev_index;
+	/* wsa_dev_index is macro_agnostic index */
+	wsa_dev_index = (wsa884x->dev_index - 1) % 2;
 	wsa884x->macro_np = of_parse_phandle(pdev->dev.of_node,
 				"qcom,wsa-macro-handle", 0);
 	if (wsa884x->macro_np) {
@@ -2148,11 +2151,23 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 			ret = of_property_read_u32_index(
 				wsa884x->macro_dev->dev.of_node,
 				"qcom,wsa-rloads",
-				dev_index - 1,
+				wsa_dev_index,
 				&wsa884x->rload);
 			if (ret) {
 				dev_err(&pdev->dev,
 					"%s: Failed to read wsa rloads\n",
+							__func__);
+				goto err_mem;
+			}
+
+			ret = of_property_read_u32_index(
+				wsa884x->macro_dev->dev.of_node,
+				"qcom,wsa-bat-cfgs",
+				dev_index - 1,
+				&wsa884x->bat_cfg);
+			if (ret) {
+				dev_err(&pdev->dev,
+					"%s: Failed to read wsa bat cfgs\n",
 							__func__);
 				goto err_mem;
 			}
@@ -2192,7 +2207,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 				goto err_mem;
 			}
 			wsa884x->system_gain = wsa884x->sys_gains[
-				wsa884x->dev_mode + (dev_index - 1) * 2];
+				wsa884x->dev_mode + wsa_dev_index * 2];
 		} else {
 			dev_err(&pdev->dev, "%s: parent dev not found\n",
 				__func__);
@@ -2203,18 +2218,23 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 		goto err_mem;
 	}
 
-	wsa884x->bat_cfg = snd_soc_component_read(component,
-						  WSA884X_VPHX_SYS_EN_STATUS);
 	dev_dbg(component->dev,
-		"%s: Bat_cfg: 0x%x, Rload: 0x%x, Sys_gain: 0x%x\n", __func__,
+		"%s: Bat_cfg: 0x%x rload: 0x%x, sys_gain: 0x%x\n", __func__,
 		wsa884x->bat_cfg, wsa884x->rload, wsa884x->system_gain);
-	ret = wsa884x_validate_dt_configuration_params(wsa884x->rload,
+	ret = wsa884x_validate_dt_configuration_params(component, wsa884x->rload,
 		wsa884x->bat_cfg, wsa884x->system_gain);
 	if (ret) {
-		dev_err(&pdev->dev, "%s: invalid dt parameter\n", __func__);
+		dev_err(&pdev->dev,
+			"%s: invalid dt parameter: Bat_cfg: 0x%x rload: 0x%x, sys_gain: 0x%x\n",
+			__func__, wsa884x->bat_cfg, wsa884x->rload, wsa884x->system_gain);
 		ret = -EINVAL;
 		goto err_mem;
 	}
+	/* Assume that compander is enabled by default unless it is haptics sku */
+	if (wsa884x->variant == WSA8845H)
+		wsa884x->comp_enable = false;
+	else
+		wsa884x->comp_enable = true;
 	wsa884x_set_gain_parameters(component);
 	wsa884x_set_pbr_parameters(component);
 	/* Must write WO registers in a single write */
@@ -2369,7 +2389,7 @@ static int wsa884x_swr_suspend(struct device *dev)
 	struct wsa884x_priv *wsa884x = swr_get_dev_data(to_swr_device(dev));
 
 	if (!wsa884x) {
-		dev_err(dev, "%s: wsa884x private data is NULL\n", __func__);
+		dev_err_ratelimited(dev, "%s: wsa884x private data is NULL\n", __func__);
 		return -EINVAL;
 	}
 	dev_dbg(dev, "%s: system suspend\n", __func__);
