@@ -3803,11 +3803,11 @@ static int lpass_cdc_wsa2_macro_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	lpass_cdc_wsa2_macro_read_array(pdev, "qcom,wsa2-rloads",
+	lpass_cdc_wsa2_macro_read_array(pdev, "qcom,wsa-rloads",
 		LPASS_CDC_WSA2_MACRO_RX1 + 1, wsa2_priv->wsa2_rload);
-	lpass_cdc_wsa2_macro_read_array(pdev, "qcom,wsa2-system-gains",
+	lpass_cdc_wsa2_macro_read_array(pdev, "qcom,wsa-system-gains",
 		2 * (LPASS_CDC_WSA2_MACRO_RX1 + 1), wsa2_priv->wsa2_sys_gain);
-	lpass_cdc_wsa2_macro_read_array(pdev, "qcom,wsa2-bat-cfgs",
+	lpass_cdc_wsa2_macro_read_array(pdev, "qcom,wsa-bat-cfgs",
 		LPASS_CDC_WSA2_MACRO_RX1 + 1, wsa2_priv->wsa2_bat_cfg);
 
 
