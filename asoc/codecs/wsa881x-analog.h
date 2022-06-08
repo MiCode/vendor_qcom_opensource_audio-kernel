@@ -10,6 +10,8 @@
 #include "wsa881x-registers-analog.h"
 #include <sound/soc.h>
 
+#define WSA881X_I2C_DRV_NAME "wsa881x_i2c_codec"
+
 #define WSA881X_I2C_SPK0_SLAVE0_ADDR	0x0E
 #define WSA881X_I2C_SPK0_SLAVE1_ADDR	0x44
 #define WSA881X_I2C_SPK1_SLAVE0_ADDR	0x0F

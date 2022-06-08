@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of_platform.h>
@@ -1454,7 +1455,7 @@ int bolero_runtime_resume(struct device *dev)
 	}
 
 	if (priv->core_hw_vote_count == 0) {
-		ret = digital_cdc_rsc_mgr_hw_vote_enable(priv->lpass_core_hw_vote);
+		ret = digital_cdc_rsc_mgr_hw_vote_enable(priv->lpass_core_hw_vote, dev);
 		if (ret < 0) {
 			dev_err(dev, "%s:lpass core hw enable failed\n",
 				__func__);
@@ -1472,7 +1473,7 @@ audio_vote:
 	}
 
 	if (priv->core_audio_vote_count == 0) {
-		ret = digital_cdc_rsc_mgr_hw_vote_enable(priv->lpass_audio_hw_vote);
+		ret = digital_cdc_rsc_mgr_hw_vote_enable(priv->lpass_audio_hw_vote, dev);
 		if (ret < 0) {
 			if (__ratelimit(&rtl))
 				dev_err(dev, "%s:lpass audio hw enable failed\n",
@@ -1499,7 +1500,7 @@ int bolero_runtime_suspend(struct device *dev)
 	if (priv->lpass_core_hw_vote != NULL) {
 		if (--priv->core_hw_vote_count == 0)
 			digital_cdc_rsc_mgr_hw_vote_disable(
-					priv->lpass_core_hw_vote);
+					priv->lpass_core_hw_vote, dev);
 		if (priv->core_hw_vote_count < 0)
 			priv->core_hw_vote_count = 0;
 	} else {
@@ -1512,7 +1513,7 @@ int bolero_runtime_suspend(struct device *dev)
 	if (priv->lpass_audio_hw_vote != NULL) {
 		if (--priv->core_audio_vote_count == 0)
 			digital_cdc_rsc_mgr_hw_vote_disable(
-					priv->lpass_audio_hw_vote);
+					priv->lpass_audio_hw_vote, dev);
 		if (priv->core_audio_vote_count < 0)
 			priv->core_audio_vote_count = 0;
 	} else {

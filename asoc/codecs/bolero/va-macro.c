@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -496,7 +497,7 @@ static int va_macro_swr_pwr_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		if (va_priv->lpass_audio_hw_vote) {
 			ret = digital_cdc_rsc_mgr_hw_vote_enable(
-					va_priv->lpass_audio_hw_vote);
+					va_priv->lpass_audio_hw_vote, va_dev);
 			if (ret)
 				dev_err(va_dev,
 					"%s: lpass audio hw enable failed\n",
@@ -521,7 +522,7 @@ static int va_macro_swr_pwr_event(struct snd_soc_dapm_widget *w,
 			dev_dbg(va_dev, "%s: clock switch failed\n",__func__);
 		if (va_priv->lpass_audio_hw_vote)
 			digital_cdc_rsc_mgr_hw_vote_disable(
-				va_priv->lpass_audio_hw_vote);
+				va_priv->lpass_audio_hw_vote, va_dev);
 		break;
 	default:
 		dev_err(va_priv->dev,
