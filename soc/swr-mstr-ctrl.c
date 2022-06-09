@@ -705,7 +705,11 @@ static bool swrm_check_link_status(struct swr_mstr_ctrl *swrm, bool active)
 		return true;
 
 	do {
+#ifdef CONFIG_SWRM_VER_2P0
 		comp_sts = swr_master_read(swrm, SWRM_LINK_STATUS(swrm->ee_val)) & 0x01;
+#else
+		comp_sts = swr_master_read(swrm, SWRM_COMP_STATUS) & 0x01;
+#endif
 		/* check comp status and status requested met */
 		if ((comp_sts && status) || (!comp_sts && !status)) {
 			ret = true;
@@ -2293,9 +2297,9 @@ handle_irq:
 			break;
 		}
 	}
+
 	swr_master_write(swrm, SWRM_INTERRUPT_CLEAR(swrm->ee_val), intr_sts);
 	swr_master_write(swrm, SWRM_INTERRUPT_CLEAR(swrm->ee_val), 0x0);
-
 	if (swrm->enable_slave_irq) {
 		/* Enable slave irq here */
 		swrm_enable_slave_irq(swrm);
@@ -2611,8 +2615,10 @@ static int swrm_master_init(struct swr_mstr_ctrl *swrm)
 		reg[len] = SWRM_LINK_MANAGER_EE;
 		value[len++] = swrm->ee_val;
 	}
+#ifdef CONFIG_SWRM_VER_2P0
 	reg[len] = SWRM_CLK_CTRL(swrm->ee_val);
 	value[len++] = 0x01;
+#endif
 
 	/* Set IRQ to PULSE */
 	reg[len] = SWRM_COMP_CFG;
@@ -3302,8 +3308,12 @@ static int swrm_runtime_resume(struct device *dev)
 				iowrite32(temp, swrm->swrm_hctl_reg);
 			}
 			/*wake up from clock stop*/
+#ifdef CONFIG_SWRM_VER_2P0
 			swr_master_write(swrm,
 				SWRM_CLK_CTRL(swrm->ee_val), 0x01);
+#else
+			swr_master_write(swrm, SWRM_MCP_BUS_CTRL, 0x2);
+#endif
 			/* clear and enable bus clash interrupt */
 			swr_master_write(swrm,
 				SWRM_INTERRUPT_CLEAR(swrm->ee_val), 0x08);

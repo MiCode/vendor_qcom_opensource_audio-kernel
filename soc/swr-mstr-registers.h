@@ -43,18 +43,18 @@
 #define SWRM_INTERRUPT_MAX                                      0x17
 
 #else
-#define SWRM_INTERRUPT_STATUS                     (SWRM_BASE+0x0200)
-#define SWRM_INTERRUPT_CLEAR                      (SWRM_BASE+0x0208)
-#define SWRM_INTERRUPT_STATUS_1                   (SWRM_BASE+0x0220)
-#define SWRM_INTERRUPT_CLEAR_1                    (SWRM_BASE+0x0228)
-#define SWRM_CPU1_INTERRUPT_EN                    (SWRM_BASE+0x0210)
-#define SWRM_CPU1_INTERRUPT_EN_1                  (SWRM_BASE+0x0230)
-#define SWRM_CPU0_CMD_RESPONSE                    (SWRM_BASE+0x0250)
+#define SWRM_INTERRUPT_STATUS(n)                  (SWRM_BASE+0x0200*n)
+#define SWRM_INTERRUPT_CLEAR(n)                   (SWRM_BASE+0x0208*n)
+#define SWRM_INTERRUPT_STATUS_1(n)                (SWRM_BASE+0x0220*n)
+#define SWRM_INTERRUPT_CLEAR_1(n)                 (SWRM_BASE+0x0228*n)
+#define SWRM_CPU1_INTERRUPT_EN(n)                 (SWRM_BASE+0x0210*n)
+#define SWRM_CPU1_INTERRUPT_EN_1(n)               (SWRM_BASE+0x0230*n)
+#define SWRM_CPU0_CMD_RESPONSE(n)                 (SWRM_BASE+0x0250*n)
 
-#define SWRM_CPU1_CMD_FIFO_WR_CMD                 (SWRM_BASE+0x031C)
-#define SWRM_CPU1_CMD_FIFO_RD_CMD                 (SWRM_BASE+0x0320)
-#define SWRM_CPU1_CMD_FIFO_STATUS                 (SWRM_BASE+0x0328)
-#define SWRM_CPU1_CMD_FIFO_RD_FIFO                (SWRM_BASE+0x0334)
+#define SWRM_CPU1_CMD_FIFO_WR_CMD(n)              (SWRM_BASE+0x031C*n)
+#define SWRM_CPU1_CMD_FIFO_RD_CMD(n)              (SWRM_BASE+0x0320*n)
+#define SWRM_CPU1_CMD_FIFO_STATUS(n)              (SWRM_BASE+0x0328*n)
+#define SWRM_CPU1_CMD_FIFO_RD_FIFO(n)             (SWRM_BASE+0x0334*n)
 
 #ifdef CONFIG_SWRM_VER_1P7
 #define SWRM_INTERRUPT_EN                    SWRM_CPU1_INTERRUPT_EN
@@ -69,12 +69,12 @@
 #define SWRM_INTERRUPT_STATUS_SPECIAL_CMD_ID_FINISHED           0x100000
 #define SWRM_INTERRUPT_MAX                                      0x20
 #else
-#define SWRM_INTERRUPT_EN                         (SWRM_BASE+0x0204)
-#define SWRM_INTERRUPT_EN_1                       (SWRM_BASE+0x0224)
-#define SWRM_CMD_FIFO_WR_CMD                      (SWRM_BASE+0x0300)
-#define SWRM_CMD_FIFO_RD_CMD                      (SWRM_BASE+0x0304)
-#define SWRM_CMD_FIFO_STATUS                      (SWRM_BASE+0x030C)
-#define SWRM_CMD_FIFO_RD_FIFO                     (SWRM_BASE+0x0318)
+#define SWRM_INTERRUPT_EN(n)                      SWRM_CPU1_INTERRUPT_EN(n)
+#define SWRM_INTERRUPT_EN_1(n)                    (SWRM_BASE+0x0224*n)
+#define SWRM_CMD_FIFO_WR_CMD(n)                   (SWRM_BASE+0x0300*n)
+#define SWRM_CMD_FIFO_RD_CMD(n)                   (SWRM_BASE+0x0304*n)
+#define SWRM_CMD_FIFO_STATUS(n)                   (SWRM_BASE+0x030C*n)
+#define SWRM_CMD_FIFO_RD_FIFO(n)                  (SWRM_BASE+0x0318*n)
 #define SWRM_INTERRUPT_STATUS_MASK                              0x1FDFD
 #define SWRM_INTERRUPT_STATUS_RD_FIFO_OVERFLOW                  0x10
 #define SWRM_INTERRUPT_STATUS_RD_FIFO_UNDERFLOW                 0x20
