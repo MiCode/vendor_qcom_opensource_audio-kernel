@@ -197,6 +197,7 @@ struct swr_mstr_ctrl {
 	u32 is_always_on;
 	bool clk_stop_wakeup;
 	struct swr_port_params pp[SWR_UC_MAX][SWR_MAX_MSTR_PORT_NUM];/*max_devNum * max_ports 11 * 14 */
+	u64 dev_mapping[SWR_MAX_DEV_NUM + 1]; /* Dev Num is 1-indexed */
 #ifdef CONFIG_DEBUG_FS
 	struct dentry *debugfs_swrm_dent;
 	struct dentry *debugfs_peek;

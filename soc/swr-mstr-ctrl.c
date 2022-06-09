@@ -1400,7 +1400,7 @@ static void swrm_get_device_frame_shape(struct swr_mstr_ctrl *swrm,
 
 	if (swrm->master_id == MASTER_ID_TX) {
 		uc = swrm_get_uc(swrm->bus_clk);
-		port_id_offset = (port_req->dev_num - 1) *
+		port_id_offset = swrm->dev_mapping[port_req->dev_num] *
 					SWR_MAX_DEV_PORT_NUM +
 					port_req->slave_port_id;
 		if (port_id_offset >= SWR_MAX_MSTR_PORT_NUM)
@@ -1429,7 +1429,7 @@ static void swrm_get_device_frame_shape(struct swr_mstr_ctrl *swrm,
 	}
 	if (swrm->master_id == MASTER_ID_WSA) {
 		uc = swrm_get_uc(swrm->bus_clk);
-		port_id_offset = (port_req->dev_num - 1) *
+		port_id_offset = swrm->dev_mapping[port_req->dev_num] *
 					SWR_MAX_DEV_PORT_NUM +
 					port_req->slave_port_id;
 		if (port_id_offset >= SWR_MAX_MSTR_PORT_NUM ||
@@ -2464,6 +2464,7 @@ static int swrm_get_logical_dev_num(struct swr_master *mstr, u64 dev_id,
 					if ((id & SWR_DEV_ID_MASK) == dev_id) {
 						*dev_num = i;
 						ret = 0;
+						swrm->dev_mapping[*dev_num] = dev_id;
 						dev_info(swrm->dev,
 							"%s: devnum %d assigned for dev %llx\n",
 							__func__, i,
