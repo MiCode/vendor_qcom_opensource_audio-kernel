@@ -425,7 +425,7 @@ static int swrm_request_hw_vote(struct swr_mstr_ctrl *swrm,
 				if (++swrm->hw_core_clk_en == 1) {
 					ret =
 					   digital_cdc_rsc_mgr_hw_vote_enable(
-							swrm->lpass_core_hw_vote);
+							swrm->lpass_core_hw_vote, swrm->dev);
 					if (ret < 0) {
 						dev_err_ratelimited(swrm->dev,
 							"%s:lpass core hw enable failed\n",
@@ -439,7 +439,7 @@ static int swrm_request_hw_vote(struct swr_mstr_ctrl *swrm,
 					swrm->hw_core_clk_en = 0;
 				else if (swrm->hw_core_clk_en == 0)
 					digital_cdc_rsc_mgr_hw_vote_disable(
-							swrm->lpass_core_hw_vote);
+							swrm->lpass_core_hw_vote, swrm->dev);
 			}
 		}
 	}
@@ -457,7 +457,7 @@ static int swrm_request_hw_vote(struct swr_mstr_ctrl *swrm,
 				if (++swrm->aud_core_clk_en == 1) {
 					ret =
 					   digital_cdc_rsc_mgr_hw_vote_enable(
-							swrm->lpass_core_audio);
+							swrm->lpass_core_audio, swrm->dev);
 					if (ret < 0) {
 						dev_err_ratelimited(swrm->dev,
 							"%s:lpass audio hw enable failed\n",
@@ -471,7 +471,7 @@ static int swrm_request_hw_vote(struct swr_mstr_ctrl *swrm,
 					swrm->aud_core_clk_en = 0;
 				else if (swrm->aud_core_clk_en == 0)
 					digital_cdc_rsc_mgr_hw_vote_disable(
-							swrm->lpass_core_audio);
+							swrm->lpass_core_audio, swrm->dev);
 			}
 		}
 	}
@@ -3681,7 +3681,13 @@ int swrm_wcd_notify(struct platform_device *pdev, u32 id, void *data)
 			swrm_device_down(&pdev->dev);
 		mutex_lock(&swrm->devlock);
 		swrm->dev_up = false;
+		if (swrm->hw_core_clk_en)
+			digital_cdc_rsc_mgr_hw_vote_disable(
+				swrm->lpass_core_hw_vote, swrm->dev);
 		swrm->hw_core_clk_en = 0;
+		if (swrm->aud_core_clk_en)
+			digital_cdc_rsc_mgr_hw_vote_disable(
+				swrm->lpass_core_audio, swrm->dev);
 		swrm->aud_core_clk_en = 0;
 		mutex_unlock(&swrm->devlock);
 		mutex_lock(&swrm->reslock);

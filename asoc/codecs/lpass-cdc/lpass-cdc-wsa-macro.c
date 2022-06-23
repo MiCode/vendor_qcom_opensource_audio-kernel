@@ -42,6 +42,9 @@
 		SNDRV_PCM_FMTBIT_S24_LE |\
 		SNDRV_PCM_FMTBIT_S24_3LE)
 
+#define LPASS_CDC_WSA_MACRO_CPS_RATES (48000)
+#define LPASS_CDC_WSA_MACRO_CPS_FORMATS (SNDRV_PCM_FMTBIT_S32_LE)
+
 #define NUM_INTERPOLATORS 2
 
 #define LPASS_CDC_WSA_MACRO_MUX_INP_SHFT 0x3
@@ -231,6 +234,7 @@ enum {
 	LPASS_CDC_WSA_MACRO_AIF_MIX1_PB,
 	LPASS_CDC_WSA_MACRO_AIF_VI,
 	LPASS_CDC_WSA_MACRO_AIF_ECHO,
+	LPASS_CDC_WSA_MACRO_AIF_CPS,
 	LPASS_CDC_WSA_MACRO_MAX_DAIS,
 };
 
@@ -311,6 +315,7 @@ struct lpass_cdc_wsa_macro_priv {
 	u32 wsa_rload[LPASS_CDC_WSA_MACRO_RX1 + 1];
 	u8 idle_detect_en;
 	int noise_gate_mode;
+	bool pre_dev_up;
 };
 
 static struct snd_soc_dai_driver lpass_cdc_wsa_macro_dai[];
@@ -496,6 +501,20 @@ static struct snd_soc_dai_driver lpass_cdc_wsa_macro_dai[] = {
 			.formats = LPASS_CDC_WSA_MACRO_ECHO_FORMATS,
 			.rate_max = 48000,
 			.rate_min = 8000,
+			.channels_min = 1,
+			.channels_max = 2,
+		},
+		.ops = &lpass_cdc_wsa_macro_dai_ops,
+	},
+	{
+		.name = "wsa_macro_cpsfeedback",
+		.id = LPASS_CDC_WSA_MACRO_AIF_CPS,
+		.capture = {
+			.stream_name = "WSA_AIF_CPS Capture",
+			.rates = LPASS_CDC_WSA_MACRO_CPS_RATES,
+			.formats = LPASS_CDC_WSA_MACRO_CPS_FORMATS,
+			.rate_max = 48000,
+			.rate_min = 48000,
 			.channels_min = 1,
 			.channels_max = 2,
 		},
@@ -770,6 +789,9 @@ static int lpass_cdc_wsa_macro_hw_params(struct snd_pcm_substream *substream,
 		case 24:
 			wsa_priv->bit_width[dai->id] = 24;
 			break;
+		case 32:
+			wsa_priv->bit_width[dai->id] = 32;
+			break;
 		default:
 			dev_err_ratelimited(component->dev, "%s: Invalid format 0x%x\n",
 				__func__, params_width(params));
@@ -799,6 +821,7 @@ static int lpass_cdc_wsa_macro_get_channel_map(struct snd_soc_dai *dai,
 
 	switch (dai->id) {
 	case LPASS_CDC_WSA_MACRO_AIF_VI:
+	case LPASS_CDC_WSA_MACRO_AIF_CPS:
 		*tx_slot = wsa_priv->active_ch_mask[dai->id];
 		*tx_num = wsa_priv->active_ch_cnt[dai->id];
 		break;
@@ -1009,6 +1032,7 @@ static int lpass_cdc_wsa_macro_event_handler(struct snd_soc_component *component
 
 	switch (event) {
 	case LPASS_CDC_MACRO_EVT_SSR_DOWN:
+		wsa_priv->pre_dev_up = false;
 		trace_printk("%s, enter SSR down\n", __func__);
 		if (wsa_priv->swr_ctrl_data) {
 			swrm_wcd_notify(
@@ -1029,6 +1053,7 @@ static int lpass_cdc_wsa_macro_event_handler(struct snd_soc_component *component
 		break;
 	case LPASS_CDC_MACRO_EVT_SSR_UP:
 		trace_printk("%s, enter SSR up\n", __func__);
+		wsa_priv->pre_dev_up = true;
 		/* reset swr after ssr/pdr */
 		wsa_priv->reset_swr = true;
 		if (wsa_priv->swr_ctrl_data)
@@ -1301,6 +1326,12 @@ static int lpass_cdc_wsa_macro_config_compander(struct snd_soc_component *compon
 
 	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
 		return -EINVAL;
+
+	if (comp >= LPASS_CDC_WSA_MACRO_COMP_MAX) {
+		dev_err(component->dev, "%s: Invalid compander value: %d\n",
+					__func__, comp);
+		return -EINVAL;
+	}
 
 	dev_dbg(component->dev, "%s: event %d compander %d, enabled %d\n",
 		__func__, event, comp + 1, wsa_priv->comp_enabled[comp]);
@@ -1700,14 +1731,14 @@ static void lpass_cdc_macro_idle_detect_control(struct snd_soc_component *compon
 
 	if (reg && SND_SOC_DAPM_EVENT_ON(event)) {
 		snd_soc_component_update_bits(component, reg, mask, val);
-		dev_dbg(component->dev, "%s: Idle detect clks ON \n", __func__);
+		dev_dbg(component->dev, "%s: Idle detect clks ON\n", __func__);
 	}
 
 	if (reg && SND_SOC_DAPM_EVENT_OFF(event)) {
 		snd_soc_component_update_bits(component, reg, mask, 0x00);
 		snd_soc_component_write(component,
 				LPASS_CDC_WSA_IDLE_DETECT_CFG3, 0x0);
-		dev_dbg(component->dev, "%s: Idle detect clks OFF \n", __func__);
+		dev_dbg(component->dev, "%s: Idle detect clks OFF\n", __func__);
 	}
 }
 
@@ -1786,7 +1817,7 @@ static int lpass_cdc_wsa_macro_enable_interpolator(struct snd_soc_dapm_widget *w
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_component_update_bits(component,
-				LPASS_CDC_WSA_RX0_RX_PATH_CFG1,	0x08, 0x08);
+				LPASS_CDC_WSA_RX0_RX_PATH_CFG1, 0x08, 0x08);
 		lpass_cdc_wsa_macro_config_compander(component, w->shift, event);
 		lpass_cdc_macro_idle_detect_control(component, wsa_priv,
 				w->shift, event);
@@ -2398,7 +2429,7 @@ static int lpass_cdc_wsa_macro_rx_mux_put(struct snd_kcontrol *kcontrol,
 			dev_err_ratelimited(wsa_dev, "%s: AIF reset already\n", __func__);
 			return 0;
 		}
-		if (aif_rst >= LPASS_CDC_WSA_MACRO_RX_MAX) {
+		if (aif_rst >= LPASS_CDC_WSA_MACRO_MAX_DAIS) {
 			dev_err_ratelimited(wsa_dev, "%s: Invalid AIF reset\n", __func__);
 			return 0;
 		}
@@ -2714,6 +2745,94 @@ static const struct snd_kcontrol_new aif_vi_mixer[] = {
 			lpass_cdc_wsa_macro_vi_feed_mixer_put),
 };
 
+static int lpass_cdc_wsa_macro_cps_feed_mixer_get(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget =
+		snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_component *component =
+				snd_soc_dapm_to_component(widget->dapm);
+	struct soc_multi_mixer_control *mixer =
+		((struct soc_multi_mixer_control *)kcontrol->private_value);
+	u32 dai_id = widget->shift;
+	u32 spk_tx_id = mixer->shift;
+	struct device *wsa_dev = NULL;
+	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+
+	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
+		return -EINVAL;
+
+	if (test_bit(spk_tx_id, &wsa_priv->active_ch_mask[dai_id]))
+		ucontrol->value.integer.value[0] = 1;
+	else
+		ucontrol->value.integer.value[0] = 0;
+
+	return 0;
+}
+
+static int lpass_cdc_wsa_macro_cps_feed_mixer_put(struct snd_kcontrol *kcontrol,
+				   struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_dapm_widget *widget =
+		snd_soc_dapm_kcontrol_widget(kcontrol);
+	struct snd_soc_component *component =
+				snd_soc_dapm_to_component(widget->dapm);
+	struct soc_multi_mixer_control *mixer =
+		((struct soc_multi_mixer_control *)kcontrol->private_value);
+	u32 dai_id = widget->shift;
+	u32 spk_tx_id = mixer->shift;
+	u32 enable = ucontrol->value.integer.value[0];
+	struct device *wsa_dev = NULL;
+	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
+
+	if (!lpass_cdc_wsa_macro_get_data(component, &wsa_dev, &wsa_priv, __func__))
+		return -EINVAL;
+
+	if (enable) {
+		if (spk_tx_id == LPASS_CDC_WSA_MACRO_TX0 &&
+			!test_bit(LPASS_CDC_WSA_MACRO_TX0,
+				&wsa_priv->active_ch_mask[dai_id])) {
+			set_bit(LPASS_CDC_WSA_MACRO_TX0,
+				&wsa_priv->active_ch_mask[dai_id]);
+			wsa_priv->active_ch_cnt[dai_id]++;
+		}
+		if (spk_tx_id == LPASS_CDC_WSA_MACRO_TX1 &&
+			!test_bit(LPASS_CDC_WSA_MACRO_TX1,
+				&wsa_priv->active_ch_mask[dai_id])) {
+			set_bit(LPASS_CDC_WSA_MACRO_TX1,
+				&wsa_priv->active_ch_mask[dai_id]);
+			wsa_priv->active_ch_cnt[dai_id]++;
+		}
+	} else {
+		if (spk_tx_id == LPASS_CDC_WSA_MACRO_TX0 &&
+			test_bit(LPASS_CDC_WSA_MACRO_TX0,
+				&wsa_priv->active_ch_mask[dai_id])) {
+			clear_bit(LPASS_CDC_WSA_MACRO_TX0,
+				&wsa_priv->active_ch_mask[dai_id]);
+			wsa_priv->active_ch_cnt[dai_id]--;
+		}
+		if (spk_tx_id == LPASS_CDC_WSA_MACRO_TX1 &&
+			test_bit(LPASS_CDC_WSA_MACRO_TX1,
+				&wsa_priv->active_ch_mask[dai_id])) {
+			clear_bit(LPASS_CDC_WSA_MACRO_TX1,
+				&wsa_priv->active_ch_mask[dai_id]);
+			wsa_priv->active_ch_cnt[dai_id]--;
+		}
+	}
+	snd_soc_dapm_mixer_update_power(widget->dapm, kcontrol, enable, NULL);
+
+	return 0;
+}
+
+static const struct snd_kcontrol_new aif_cps_mixer[] = {
+	SOC_SINGLE_EXT("WSA_SPKR_CPS_1", SND_SOC_NOPM, LPASS_CDC_WSA_MACRO_TX0, 1, 0,
+			lpass_cdc_wsa_macro_cps_feed_mixer_get,
+			lpass_cdc_wsa_macro_cps_feed_mixer_put),
+	SOC_SINGLE_EXT("WSA_SPKR_CPS_2", SND_SOC_NOPM, LPASS_CDC_WSA_MACRO_TX1, 1, 0,
+			lpass_cdc_wsa_macro_cps_feed_mixer_get,
+			lpass_cdc_wsa_macro_cps_feed_mixer_put),
+};
+
 static const struct snd_soc_dapm_widget lpass_cdc_wsa_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_IN("WSA AIF1 PB", "WSA_AIF1 Playback", 0,
 		SND_SOC_NOPM, 0, 0),
@@ -2729,8 +2848,16 @@ static const struct snd_soc_dapm_widget lpass_cdc_wsa_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("WSA AIF_ECHO", "WSA_AIF_ECHO Capture", 0,
 		SND_SOC_NOPM, 0, 0),
 
+	SND_SOC_DAPM_AIF_OUT("WSA AIF_CPS", "WSA_AIF_CPS Capture", 0,
+		SND_SOC_NOPM, 0, 0),
+
+	SND_SOC_DAPM_AIF_OUT("WSA AIF_CPS", "WSA_AIF_CPS Capture", 0,
+		SND_SOC_NOPM, 0, 0),
+
 	SND_SOC_DAPM_MIXER("WSA_AIF_VI Mixer", SND_SOC_NOPM, LPASS_CDC_WSA_MACRO_AIF_VI,
 		0, aif_vi_mixer, ARRAY_SIZE(aif_vi_mixer)),
+	SND_SOC_DAPM_MIXER("WSA_AIF_CPS Mixer", SND_SOC_NOPM, LPASS_CDC_WSA_MACRO_AIF_CPS,
+		0, aif_cps_mixer, ARRAY_SIZE(aif_cps_mixer)),
 	SND_SOC_DAPM_MUX_E("WSA RX_MIX EC0_MUX", SND_SOC_NOPM,
 			LPASS_CDC_WSA_MACRO_EC0_MUX, 0,
 			&rx_mix_ec0_mux, lpass_cdc_wsa_macro_enable_echo,
@@ -2833,6 +2960,8 @@ static const struct snd_soc_dapm_widget lpass_cdc_wsa_macro_dapm_widgets[] = {
 
 	SND_SOC_DAPM_INPUT("VIINPUT_WSA"),
 
+	SND_SOC_DAPM_INPUT("CPSINPUT_WSA"),
+
 	SND_SOC_DAPM_OUTPUT("WSA_SPK1 OUT"),
 	SND_SOC_DAPM_OUTPUT("WSA_SPK2 OUT"),
 
@@ -2846,6 +2975,12 @@ static const struct snd_soc_dapm_route wsa_audio_map[] = {
 	{"WSA_AIF_VI Mixer", "WSA_SPKR_VI_2", "VIINPUT_WSA"},
 	{"WSA AIF_VI", NULL, "WSA_AIF_VI Mixer"},
 	{"WSA AIF_VI", NULL, "WSA_MCLK"},
+
+	/* CPS Feedback */
+	{"WSA_AIF_CPS Mixer", "WSA_SPKR_CPS_1", "CPSINPUT_WSA"},
+	{"WSA_AIF_CPS Mixer", "WSA_SPKR_CPS_2", "CPSINPUT_WSA"},
+	{"WSA AIF_CPS", NULL, "WSA_AIF_CPS Mixer"},
+	{"WSA AIF_CPS", NULL, "WSA_MCLK"},
 
 	{"WSA RX_MIX EC0_MUX", "RX_MIX_TX0", "WSA_RX INT0 SEC MIX"},
 	{"WSA RX_MIX EC1_MUX", "RX_MIX_TX0", "WSA_RX INT0 SEC MIX"},
@@ -3118,10 +3253,10 @@ static const struct lpass_cdc_wsa_macro_reg_mask_val
 				lpass_cdc_wsa_macro_reg_init[] = {
 	{LPASS_CDC_WSA_BOOST0_BOOST_CFG1, 0x3F, 0x12},
 	{LPASS_CDC_WSA_BOOST0_BOOST_CFG2, 0x1C, 0x08},
-	{LPASS_CDC_WSA_COMPANDER0_CTL7, 0x2E, 0x38},
+	{LPASS_CDC_WSA_COMPANDER0_CTL7, 0x3E, 0x2e},
 	{LPASS_CDC_WSA_BOOST1_BOOST_CFG1, 0x3F, 0x12},
 	{LPASS_CDC_WSA_BOOST1_BOOST_CFG2, 0x1C, 0x08},
-	{LPASS_CDC_WSA_COMPANDER1_CTL7, 0x2E, 0x38},
+	{LPASS_CDC_WSA_COMPANDER1_CTL7, 0x3E, 0x2e},
 	{LPASS_CDC_WSA_BOOST0_BOOST_CTL, 0x70, 0x58},
 	{LPASS_CDC_WSA_BOOST1_BOOST_CTL, 0x70, 0x58},
 	{LPASS_CDC_WSA_RX0_RX_PATH_CFG1, 0x08, 0x08},
@@ -3153,6 +3288,7 @@ static const struct lpass_cdc_wsa_macro_reg_mask_val
 	{LPASS_CDC_WSA_ILIM_CFG2_1, 0xFF, 0x2A},
 	{LPASS_CDC_WSA_ILIM_CFG2, 0x3F, 0x1B},
 	{LPASS_CDC_WSA_ILIM_CFG9, 0x0F, 0x05},
+	{LPASS_CDC_WSA_IDLE_DETECT_CFG1, 0xFF, 0x1D},
 };
 
 static void lpass_cdc_wsa_macro_init_reg(struct snd_soc_component *component)
@@ -3176,6 +3312,11 @@ static int lpass_cdc_wsa_macro_core_vote(void *handle, bool enable)
 		pr_err_ratelimited("%s: wsa priv data is NULL\n", __func__);
 		return -EINVAL;
 	}
+	if (!wsa_priv->pre_dev_up && enable) {
+		pr_debug("%s: adsp is not up\n", __func__);
+		return -EINVAL;
+	}
+
 	if (enable) {
 		pm_runtime_get_sync(wsa_priv->dev);
 		if (lpass_cdc_check_core_votes(wsa_priv->dev))
@@ -3401,9 +3542,11 @@ static int lpass_cdc_wsa_macro_init(struct snd_soc_component *component)
 	snd_soc_dapm_ignore_suspend(dapm, "WSA_AIF_MIX1 Playback");
 	snd_soc_dapm_ignore_suspend(dapm, "WSA_AIF_VI Capture");
 	snd_soc_dapm_ignore_suspend(dapm, "WSA_AIF_ECHO Capture");
+	snd_soc_dapm_ignore_suspend(dapm, "WSA_AIF_CPS Capture");
 	snd_soc_dapm_ignore_suspend(dapm, "WSA_SPK1 OUT");
 	snd_soc_dapm_ignore_suspend(dapm, "WSA_SPK2 OUT");
 	snd_soc_dapm_ignore_suspend(dapm, "VIINPUT_WSA");
+	snd_soc_dapm_ignore_suspend(dapm, "CPSINPUT_WSA");
 	snd_soc_dapm_ignore_suspend(dapm, "WSA SRC0_INP");
 	snd_soc_dapm_ignore_suspend(dapm, "WSA_TX DEC0_INP");
 	snd_soc_dapm_ignore_suspend(dapm, "WSA_TX DEC1_INP");
@@ -3632,6 +3775,7 @@ static int lpass_cdc_wsa_macro_probe(struct platform_device *pdev)
 	if (!wsa_priv)
 		return -ENOMEM;
 
+	wsa_priv->pre_dev_up = true;
 	wsa_priv->dev = &pdev->dev;
 	ret = of_property_read_u32(pdev->dev.of_node, "reg",
 				   &wsa_base_addr);
@@ -3751,7 +3895,7 @@ static int lpass_cdc_wsa_macro_probe(struct platform_device *pdev)
 			__func__, "qcom,noise-gate-mode");
 		wsa_priv->noise_gate_mode = IDLE_DETECT;
 	} else {
-		if (IDLE_DETECT <= noise_gate_mode && noise_gate_mode <= NG3)
+		if (noise_gate_mode >= IDLE_DETECT && noise_gate_mode <= NG3)
 			wsa_priv->noise_gate_mode = noise_gate_mode;
 		else
 			wsa_priv->noise_gate_mode = IDLE_DETECT;

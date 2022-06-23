@@ -585,6 +585,15 @@ static struct snd_soc_dai_link msm_wsa_cdc_dma_be_dai_links[] = {
 		SND_SOC_DAILINK_REG(vi_feedback),
 	},
 	{
+		.name = LPASS_BE_WSA_CDC_DMA_TX_2,
+		.stream_name = LPASS_BE_WSA_CDC_DMA_TX_2,
+		.capture_only = 1,
+		.ignore_suspend = 1,
+		.ops = &msm_common_be_ops,
+		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
+		SND_SOC_DAILINK_REG(cps_feedback),
+	},
+	{
 		.name = LPASS_BE_WSA_CDC_DMA_RX_0_VIRT,
 		.stream_name = LPASS_BE_WSA_CDC_DMA_RX_0_VIRT,
 		.playback_only = 1,
@@ -641,6 +650,15 @@ static struct snd_soc_dai_link msm_wsa2_cdc_dma_be_dai_links[] = {
 		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
 		SND_SOC_DAILINK_REG(wsa2_vi_feedback),
 	},
+	{
+		.name = LPASS_BE_WSA2_CDC_DMA_TX_2,
+		.stream_name = LPASS_BE_WSA2_CDC_DMA_TX_2,
+		.capture_only = 1,
+		.ignore_suspend = 1,
+		.ops = &msm_common_be_ops,
+		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
+		SND_SOC_DAILINK_REG(wsa2_cps_feedback),
+	},
 };
 
 static struct snd_soc_dai_link msm_wsa_wsa2_cdc_dma_be_dai_links[] = {
@@ -686,6 +704,15 @@ static struct snd_soc_dai_link msm_wsa_wsa2_cdc_dma_be_dai_links[] = {
 		.ops = &msm_common_be_ops,
 		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
 		SND_SOC_DAILINK_REG(wsa_wsa2_vi_feedback),
+	},
+	{
+		.name = LPASS_BE_WSA_CDC_DMA_TX_2,
+		.stream_name = LPASS_BE_WSA_CDC_DMA_TX_2,
+		.capture_only = 1,
+		.ignore_suspend = 1,
+		.ops = &msm_common_be_ops,
+		/* .no_host_mode = SND_SOC_DAI_LINK_NO_HOST, */
+		SND_SOC_DAILINK_REG(wsa_wsa2_cps_feedback),
 	},
 };
 
@@ -1294,8 +1321,16 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component = NULL;
 	struct snd_soc_pcm_runtime *rtd;
+	struct msm_asoc_mach_data *pdata;
 	int ret = 0;
 	void *mbhc_calibration;
+
+	pdata = snd_soc_card_get_drvdata(card);
+	if (!pdata)
+		return -EINVAL;
+
+	if (pdata->wcd_disabled)
+		return 0;
 
 	rtd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	if (!rtd) {

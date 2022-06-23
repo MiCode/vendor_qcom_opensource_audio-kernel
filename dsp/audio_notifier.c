@@ -18,7 +18,7 @@
 #include <dsp/audio_notifier.h>
 #include "audio_ssr.h"
 #include "audio_pdr.h"
-
+#include <trace/events/rproc_qcom.h>
 
 
 /* Audio states internal to notifier. Client */
@@ -425,10 +425,14 @@ static int audio_notifier_convert_opcode(unsigned long opcode,
 	switch (opcode) {
 	case QCOM_SSR_BEFORE_SHUTDOWN:
 	case SERVREG_SERVICE_STATE_DOWN:
+		trace_rproc_qcom_event("audio",
+			"QCOM_SSR_BEFORE_SHUTDOWN", "audio_notifier_convert_opcode_enter");
 		*notifier_opcode = AUDIO_NOTIFIER_SERVICE_DOWN;
 		break;
 	case QCOM_SSR_AFTER_POWERUP:
 	case SERVREG_SERVICE_STATE_UP:
+		trace_rproc_qcom_event(
+			"audio", "QCOM_SSR_AFTER_POWERUP", "audio_notifier_convert_opcode_enter");
 		*notifier_opcode = AUDIO_NOTIFIER_SERVICE_UP;
 		break;
 	default:
@@ -467,6 +471,7 @@ static int audio_notifier_service_cb(unsigned long opcode,
 
 	mutex_unlock(&notifier_mutex);
 done:
+	trace_rproc_qcom_event("audio", "audio_notifier", "audio_notifier_service_cb_exit");
 	return NOTIFY_OK;
 }
 

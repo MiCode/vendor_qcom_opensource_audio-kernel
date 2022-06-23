@@ -905,7 +905,7 @@ int lpi_pinctrl_runtime_resume(struct device *dev)
 	}
 
 	mutex_lock(&state->core_hw_vote_lock);
-	ret = digital_cdc_rsc_mgr_hw_vote_enable(hw_vote);
+	ret = digital_cdc_rsc_mgr_hw_vote_enable(hw_vote, dev);
 	if (ret < 0) {
 		pm_runtime_set_autosuspend_delay(dev,
 						 LPI_AUTO_SUSPEND_DELAY_ERROR);
@@ -941,7 +941,7 @@ int lpi_pinctrl_runtime_suspend(struct device *dev)
 
 	mutex_lock(&state->core_hw_vote_lock);
 	if (state->core_hw_vote_status) {
-		digital_cdc_rsc_mgr_hw_vote_disable(hw_vote);
+		digital_cdc_rsc_mgr_hw_vote_disable(hw_vote, dev);
 		state->core_hw_vote_status = false;
 	}
 	mutex_unlock(&state->core_hw_vote_lock);
