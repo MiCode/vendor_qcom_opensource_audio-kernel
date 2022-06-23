@@ -178,6 +178,7 @@ struct lpass_cdc_va_macro_priv {
 	bool dev_up;
 	bool pre_dev_up;
 	bool swr_dmic_enable;
+	bool use_lpi_mixer_control;
 };
 
 static bool lpass_cdc_va_macro_get_data(struct snd_soc_component *component,
@@ -423,11 +424,7 @@ static int lpass_cdc_va_macro_swr_pwr_event(struct snd_soc_dapm_widget *w,
 					 &va_priv, __func__))
 		return -EINVAL;
 
-	/**
-	 * no need to switch to va_core_clk if va is chosen to
-	 * run based off tx_core_clk
-	 */
-	if (va_priv->clk_id == TX_CORE_CLK)
+	if (!va_priv->use_lpi_mixer_control)
 		return 0;
 
 	dev_dbg(va_dev, "%s: event = %d, lpi_enable = %d\n",
@@ -574,7 +571,7 @@ static int lpass_cdc_va_macro_mclk_event(struct snd_soc_dapm_widget *w,
 		if (!ret)
 			va_priv->dapm_tx_clk_status++;
 
-		if (va_priv->clk_id == TX_CORE_CLK) {
+		if (!va_priv->use_lpi_mixer_control) {
 			ret = lpass_cdc_va_macro_mclk_enable(va_priv, 1, true);
 		} else {
 			if (va_priv->lpi_enable)
@@ -584,7 +581,7 @@ static int lpass_cdc_va_macro_mclk_event(struct snd_soc_dapm_widget *w,
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		if (va_priv->clk_id == TX_CORE_CLK) {
+		if (!va_priv->use_lpi_mixer_control) {
 			lpass_cdc_va_macro_mclk_enable(va_priv, 0, true);
 		} else {
 			if (va_priv->lpi_enable)
@@ -2522,6 +2519,13 @@ static int lpass_cdc_va_macro_probe(struct platform_device *pdev)
 	}
 	va_priv->default_clk_id = default_clk_id;
 	va_priv->current_clk_id = TX_CORE_CLK;
+
+	va_priv->use_lpi_mixer_control = false;
+	if (of_find_property(pdev->dev.of_node, "use-lpi-control", NULL)) {
+		dev_dbg(&pdev->dev, "%s(): Usage of LPI Enable mixer control is enabled\n",
+				__func__);
+		va_priv->use_lpi_mixer_control = true;
+	}
 
 	if (is_used_va_swr_gpio) {
 		va_priv->reset_swr = true;
