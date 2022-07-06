@@ -2163,7 +2163,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 			ret = of_property_read_u32_index(
 				wsa884x->macro_dev->dev.of_node,
 				"qcom,wsa-bat-cfgs",
-				dev_index - 1,
+				wsa_dev_index,
 				&wsa884x->bat_cfg);
 			if (ret) {
 				dev_err(&pdev->dev,
