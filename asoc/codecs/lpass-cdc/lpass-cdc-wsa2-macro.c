@@ -789,6 +789,9 @@ static int lpass_cdc_wsa2_macro_hw_params(struct snd_pcm_substream *substream,
 		case 24:
 			wsa2_priv->bit_width[dai->id] = 24;
 			break;
+		case 32:
+			wsa2_priv->bit_width[dai->id] = 32;
+			break;
 		default:
 			dev_err_ratelimited(component->dev, "%s: Invalid format 0x%x\n",
 				__func__, params_width(params));
@@ -818,6 +821,20 @@ static int lpass_cdc_wsa2_macro_get_channel_map(struct snd_soc_dai *dai,
 
 	switch (dai->id) {
 	case LPASS_CDC_WSA2_MACRO_AIF_VI:
+		for_each_set_bit(temp, &wsa2_priv->active_ch_mask[dai->id],
+					LPASS_CDC_WSA2_MACRO_TX_MAX) {
+			mask |= (1 << temp);
+			if (++cnt == LPASS_CDC_WSA2_MACRO_MAX_DMA_CH_PER_PORT)
+				break;
+		}
+		if (mask & 0x30)
+			mask = mask >> 0x4;
+		if (mask & 0x03)
+			mask = mask << 0x2;
+
+		*tx_slot = mask;
+		*tx_num = cnt;
+		break;
 	case LPASS_CDC_WSA2_MACRO_AIF_CPS:
 		*tx_slot = wsa2_priv->active_ch_mask[dai->id];
 		*tx_num = wsa2_priv->active_ch_cnt[dai->id];
@@ -2839,6 +2856,13 @@ static const struct snd_soc_dapm_widget lpass_cdc_wsa2_macro_dapm_widgets[] = {
 
 	SND_SOC_DAPM_AIF_OUT("WSA2 AIF_ECHO", "WSA2_AIF_ECHO Capture", 0,
 		SND_SOC_NOPM, 0, 0),
+
+	SND_SOC_DAPM_AIF_OUT("WSA2 AIF_CPS", "WSA2_AIF_CPS Capture", 0,
+		SND_SOC_NOPM, 0, 0),
+
+	SND_SOC_DAPM_AIF_OUT("WSA2 AIF_CPS", "WSA2_AIF_CPS Capture", 0,
+		SND_SOC_NOPM, 0, 0),
+
 
 	SND_SOC_DAPM_MIXER("WSA2_AIF_VI Mixer", SND_SOC_NOPM, LPASS_CDC_WSA2_MACRO_AIF_VI,
 		0, aif_vi_mixer, ARRAY_SIZE(aif_vi_mixer)),
