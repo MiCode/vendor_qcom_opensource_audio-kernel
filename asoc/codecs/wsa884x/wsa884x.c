@@ -1805,6 +1805,9 @@ static int wsa884x_event_notify(struct notifier_block *nb,
 		/* Add delay to allow enumerate */
 		usleep_range(20000, 20010);
 		wsa884x_swr_reset(wsa884x);
+		dev_err(wsa884x->dev, "%s: BOLERO_SLV_EVT_SSR_UP Called", __func__);
+		swr_init_port_params(wsa884x->swr_slave, WSA884X_MAX_SWR_PORTS,
+			wsa884x->swr_wsa_port_params);
 		break;
 
 	case BOLERO_SLV_EVT_PA_ON_POST_FSCLK:
