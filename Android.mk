@@ -14,12 +14,18 @@ ifeq ($(call is-board-platform, bengal),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_BENGAL=m
 endif
 
+ifeq ($(call is-board-platform, pineapple),true)
+AUDIO_SELECT  := CONFIG_SND_SOC_PINEAPPLE=m
+endif
+
 ifeq ($(ENABLE_AUDIO_LEGACY_TECHPACK),true)
 include $(call all-subdir-makefiles)
 endif
 
 # Build/Package only in case of supported target
-ifeq ($(call is-board-platform-in-list,taro kalama bengal), true)
+ifeq ($(call is-board-platform-in-list,taro kalama bengal pineapple), true)
+
+LOCAL_PATH := $(call my-dir)
 
 # This makefile is only for DLKM
 ifneq ($(findstring vendor,$(LOCAL_PATH)),)
