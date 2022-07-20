@@ -20,7 +20,6 @@ PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/q6_notifier_dlkm.ko\
 ifneq ($(call is-board-platform-in-list,bengal), true)
 PRODUCT_PACKAGES += $(KERNEL_MODULES_OUT)/swr_dmic_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/swr_haptics_dlkm.ko \
-	$(KERNEL_MODULES_OUT)/hdmi_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/lpass_cdc_wsa2_macro_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/lpass_cdc_wsa_macro_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/lpass_cdc_va_macro_dlkm.ko \
