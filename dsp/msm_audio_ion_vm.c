@@ -14,7 +14,7 @@
 #include <linux/list.h>
 #include <linux/dma-mapping.h>
 #include <linux/dma-buf.h>
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/iommu.h>
 #include <linux/platform_device.h>
 #include <linux/of_device.h>
@@ -43,7 +43,7 @@ struct msm_audio_ion_private {
 
 struct msm_audio_alloc_data {
 	size_t len;
-	struct dma_buf_map *vmap;
+	struct iosys_map *vmap;
 	struct dma_buf *dma_buf;
 	struct dma_buf_attachment *attach;
 	struct sg_table *table;
@@ -426,7 +426,7 @@ err:
 }
 
 static int msm_audio_ion_map_kernel(struct dma_buf *dma_buf,
-				struct dma_buf_map *dma_vmap)
+				struct iosys_map *iosys_vmap)
 {
 	int rc = 0;
 	struct msm_audio_alloc_data *alloc_data = NULL;
@@ -437,7 +437,7 @@ static int msm_audio_ion_map_kernel(struct dma_buf *dma_buf,
 		goto exit;
 	}
 
-	rc = dma_buf_vmap(dma_buf, dma_vmap);
+	rc = dma_buf_vmap(dma_buf, iosys_vmap);
 	if (rc) {
 		pr_err("%s: kernel mapping of dma_buf failed\n",
 		       __func__);
@@ -452,7 +452,7 @@ static int msm_audio_ion_map_kernel(struct dma_buf *dma_buf,
 	list_for_each_entry(alloc_data, &(msm_audio_ion_data.alloc_list),
 			    list) {
 		if (alloc_data->dma_buf == dma_buf) {
-			alloc_data->vmap = dma_vmap;
+			alloc_data->vmap = iosys_vmap;
 			break;
 		}
 	}
@@ -465,7 +465,7 @@ exit:
 static int msm_audio_ion_unmap_kernel(struct dma_buf *dma_buf)
 {
 	int rc = 0;
-	struct dma_buf_map *dma_vmap = NULL
+	struct iosys_map *iosys_vmap = NULL
 	struct msm_audio_alloc_data *alloc_data = NULL;
 	struct device *cb_dev = msm_audio_ion_data.cb_dev;
 
@@ -477,13 +477,13 @@ static int msm_audio_ion_unmap_kernel(struct dma_buf *dma_buf)
 	list_for_each_entry(alloc_data, &(msm_audio_ion_data.alloc_list),
 			    list) {
 		if (alloc_data->dma_buf == dma_buf) {
-			dma_vmap = alloc_data->vmap;
+			iosys_vmap = alloc_data->vmap;
 			break;
 		}
 	}
 	mutex_unlock(&(msm_audio_ion_data.list_mutex));
 
-	if (!dma_vmap) {
+	if (!iosys_vmap) {
 		dev_err(cb_dev,
 			"%s: cannot find allocation for dma_buf %pK",
 			__func__, dma_buf);
@@ -491,7 +491,7 @@ static int msm_audio_ion_unmap_kernel(struct dma_buf *dma_buf)
 		goto err;
 	}
 
-	dma_buf_vunmap(dma_buf, dma_vmap);
+	dma_buf_vunmap(dma_buf, iosys_vmap);
 
 	rc = dma_buf_end_cpu_access(dma_buf, DMA_BIDIRECTIONAL);
 	if (rc) {
@@ -505,7 +505,7 @@ err:
 }
 
 static int msm_audio_ion_map_buf(struct dma_buf *dma_buf, dma_addr_t *paddr,
-				 size_t *plen, struct dma_buf_map *dma_vmap)
+				 size_t *plen, struct iosys_map *iosys_vmap)
 {
 	int rc = 0;
 
@@ -522,7 +522,7 @@ static int msm_audio_ion_map_buf(struct dma_buf *dma_buf, dma_addr_t *paddr,
 		goto err;
 	}
 
-	rc = msm_audio_ion_map_kernel(dma_buf, dma_vmap);
+	rc = msm_audio_ion_map_kernel(dma_buf, iosys_vmap);
 	if (rc) {
 		pr_err("%s: ION memory mapping for AUDIO failed, err:%d\n",
 			__func__, rc);
@@ -552,12 +552,12 @@ err:
  * @bufsz: buffer size
  * @paddr: Physical address to be assigned with allocated region
  * @plen: length of allocated region to be assigned
- * @dma_vmap: Virtual mapping vmap pointer to be assigned
+ * @iosys_vmap: Virtual mapping vmap pointer to be assigned
  *
  * Returns 0 on success or error on failure
  */
 int msm_audio_ion_alloc(struct dma_buf **dma_buf, size_t bufsz,
-			dma_addr_t *paddr, size_t *plen, struct dma_buf_map *dma_vmap)
+			dma_addr_t *paddr, size_t *plen, struct iosys_map *iosys_vmap)
 {
 	int rc = -EINVAL;
 	unsigned long err_ion_ptr = 0;
@@ -593,15 +593,15 @@ int msm_audio_ion_alloc(struct dma_buf **dma_buf, size_t bufsz,
 		goto err;
 	}
 
-	rc = msm_audio_ion_map_buf(*dma_buf, paddr, plen, dma_vmap);
+	rc = msm_audio_ion_map_buf(*dma_buf, paddr, plen, iosys_vmap);
 	if (rc) {
 		pr_err("%s: failed to map ION buf, rc = %d\n", __func__, rc);
 		goto err;
 	}
 	pr_debug("%s: mapped address = %pK, size=%zd\n", __func__,
-		dma_vmap->vaddr, bufsz);
+		iosys_vmap->vaddr, bufsz);
 
-	memset(dma_vmap, 0, sizeof(struct dma_buf_map));
+	memset(iosys_vmap, 0, sizeof(struct iosys_map));
 
 err:
 	return rc;
@@ -643,13 +643,13 @@ EXPORT_SYMBOL(msm_audio_is_hypervisor_supported);
  * @bufsz: buffer size
  * @paddr: Physical address to be assigned with allocated region
  * @plen: length of allocated region to be assigned
- * @dma_vmap: Virtual mapping vmap pointer to be assigned
+ * @iosys_vmap: Virtual mapping vmap pointer to be assigned
  *
  * Returns 0 on success or error on failure
  */
 int msm_audio_ion_import(struct dma_buf **dma_buf, int fd,
 			unsigned long *ionflag, size_t bufsz,
-			dma_addr_t *paddr, size_t *plen, struct dma_buf_map *dma_vmap)
+			dma_addr_t *paddr, size_t *plen, struct iosys_map *iosys_vmap)
 {
 	int rc = 0;
 
@@ -681,13 +681,13 @@ int msm_audio_ion_import(struct dma_buf **dma_buf, int fd,
 		}
 	}
 
-	rc = msm_audio_ion_map_buf(*dma_buf, paddr, plen, dma_vmap);
+	rc = msm_audio_ion_map_buf(*dma_buf, paddr, plen, iosys_vmap);
 	if (rc) {
 		pr_err("%s: failed to map ION buf, rc = %d\n", __func__, rc);
 		goto err;
 	}
 	pr_debug("%s: mapped address = %pK, size=%zd\n", __func__,
-		dma_vmap->vaddr, bufsz);
+		iosys_vmap->vaddr, bufsz);
 
 	return 0;
 
