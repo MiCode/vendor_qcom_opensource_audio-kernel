@@ -799,6 +799,7 @@ static int lpass_cdc_wsa_macro_hw_params(struct snd_pcm_substream *substream,
 				__func__, params_width(params));
 			return -EINVAL;
 			}
+			break;
 	default:
 		break;
 	}
@@ -1420,6 +1421,7 @@ static int lpass_cdc_wsa_macro_config_compander(struct snd_soc_component *compon
 		case EXT_3S:
 			upper_gain = sys_gain_int;
 			lower_gain = 75;
+			break;
 		case EXT_ABOVE_3S:
 			upper_gain = sys_gain_int;
 			lower_gain = 120;

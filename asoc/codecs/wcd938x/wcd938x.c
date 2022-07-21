@@ -1449,6 +1449,7 @@ static int wcd938x_codec_enable_dmic(struct snd_soc_dapm_widget *w,
 		break;
 	case 2:
 		dmic2_left_en = WCD938X_DIGITAL_CDC_DMIC2_CTL;
+		fallthrough;
 	case 3:
 		dmic_clk_cnt = &(wcd938x->dmic_2_3_clk_cnt);
 		dmic_clk_reg = WCD938X_DIGITAL_CDC_DMIC_RATE_1_2;

@@ -71,8 +71,8 @@ static int audio_prm_callback(struct gpr_device *adev, void *data)
 			break;
 		default:
 			pr_err("%s: hit default case",__func__);
-			break;
 		};
+		break;
 	default:
 		break;
 	};

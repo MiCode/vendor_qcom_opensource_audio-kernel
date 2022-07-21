@@ -784,6 +784,7 @@ static int lpass_cdc_wsa2_macro_hw_params(struct snd_pcm_substream *substream,
 	case SNDRV_PCM_STREAM_CAPTURE:
 		if (dai->id == LPASS_CDC_WSA2_MACRO_AIF_VI)
 			wsa2_priv->pcm_rate_vi = params_rate(params);
+
 		switch (params_width(params)) {
 		case 16:
 			wsa2_priv->bit_width[dai->id] = 16;
@@ -798,7 +799,8 @@ static int lpass_cdc_wsa2_macro_hw_params(struct snd_pcm_substream *substream,
 			dev_err_ratelimited(component->dev, "%s: Invalid format 0x%x\n",
 				__func__, params_width(params));
 			return -EINVAL;
-			}
+		}
+		break;
 	default:
 		break;
 	}
@@ -1425,6 +1427,7 @@ static int lpass_cdc_wsa2_macro_config_compander(struct snd_soc_component *compo
 		case EXT_3S:
 			upper_gain = sys_gain_int;
 			lower_gain = 75;
+			break;
 		case EXT_ABOVE_3S:
 			upper_gain = sys_gain_int;
 			lower_gain = 120;
