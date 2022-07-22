@@ -14,7 +14,7 @@
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/of_device.h>
-#include <linux/soc/qcom/fsa4480-i2c.h>
+#include <linux/soc/qcom/wcd939x-i2c.h>
 #include <linux/pm_qos.h>
 #include <sound/control.h>
 #include <sound/core.h>
@@ -71,7 +71,7 @@ struct msm_asoc_mach_data {
 	struct device_node *dmic67_gpio_p; /* used by pinctrl API */
 	struct pinctrl *usbc_en2_gpio_p; /* used by pinctrl API */
 	bool is_afe_config_done;
-	struct device_node *fsa_handle;
+	struct device_node *wcd_usbss_handle;
 	struct clk *lpass_audio_hw_vote;
 	int core_audio_vote_count;
 	u32 wsa_max_devs;
@@ -129,10 +129,11 @@ static bool msm_usbc_swap_gnd_mic(struct snd_soc_component *component, bool acti
 	struct msm_asoc_mach_data *pdata =
 				snd_soc_card_get_drvdata(card);
 
-	if (!pdata->fsa_handle)
+	if (!pdata->wcd_usbss_handle)
 		return false;
 
-	return fsa4480_switch_event(pdata->fsa_handle, FSA_MIC_GND_SWAP);
+	return wcd_usbss_switch_update(WCD_USBSS_GND_MIC_SWAP_AATC,
+								WCD_USBSS_CABLE_CONNECT);
 }
 
 static void msm_parse_upd_configuration(struct platform_device *pdev,
@@ -2007,11 +2008,11 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	if (wcd_mbhc_cfg.enable_usbc_analog)
 		wcd_mbhc_cfg.swap_gnd_mic = msm_usbc_swap_gnd_mic;
 
-	pdata->fsa_handle = of_parse_phandle(pdev->dev.of_node,
-					"fsa4480-i2c-handle", 0);
-	if (!pdata->fsa_handle)
+	pdata->wcd_usbss_handle = of_parse_phandle(pdev->dev.of_node,
+					"wcd939x-i2c-handle", 0);
+	if (!pdata->wcd_usbss_handle)
 		dev_dbg(&pdev->dev, "property %s not detected in node %s\n",
-			"fsa4480-i2c-handle", pdev->dev.of_node->full_name);
+			"wcd939x-i2c-handle", pdev->dev.of_node->full_name);
 
 	pdata->dmic01_gpio_p = of_parse_phandle(pdev->dev.of_node,
 					      "qcom,cdc-dmic01-gpios",

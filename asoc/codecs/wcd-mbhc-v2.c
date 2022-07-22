@@ -17,7 +17,12 @@
 #include <linux/input.h>
 #include <linux/firmware.h>
 #include <linux/completion.h>
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+#include <linux/soc/qcom/wcd939x-i2c.h>
+#endif
+#if IS_ENABLED(CONFIG_QCOM_FSA4480_I2C)
 #include <linux/soc/qcom/fsa4480-i2c.h>
+#endif
 #include <linux/usb/typec.h>
 #include <sound/soc.h>
 #include <sound/jack.h>
@@ -1659,22 +1664,56 @@ static int wcd_mbhc_set_keycode(struct wcd_mbhc *mbhc)
 	return result;
 }
 
-#if IS_ENABLED(CONFIG_QCOM_FSA4480_I2C)
+#if IS_ENABLED(CONFIG_QCOM_FSA4480_I2C) || IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 					   unsigned long mode, void *ptr)
 {
-	struct wcd_mbhc *mbhc = container_of(nb, struct wcd_mbhc, fsa_nb);
+	struct wcd_mbhc *mbhc = container_of(nb, struct wcd_mbhc, aatc_dev_nb);
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	int l_det_en = 0, detection_type = 0;
+#endif
 
 	if (!mbhc)
 		return -EINVAL;
 
-	dev_dbg(mbhc->component->dev, "%s: mode = %lu\n", __func__, mode);
 
 	if (mode == TYPEC_ACCESSORY_AUDIO) {
+		dev_dbg(mbhc->component->dev, "enter, %s: mode = %lu\n", __func__, mode);
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+		wcd_usbss_switch_update(WCD_USBSS_AATC, WCD_USBSS_CABLE_CONNECT);
+#endif
 		if (mbhc->mbhc_cb->clk_setup)
 			mbhc->mbhc_cb->clk_setup(mbhc->component, true);
+
 		/* insertion detected, enable L_DET_EN */
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_L_DET_EN, 1);
+
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+		if (unlikely((mbhc->mbhc_cb->lock_sleep(mbhc, true)) == false))
+			pr_warn("%s: failed to hold suspend\n", __func__);
+		else {
+			if (mbhc->current_plug != MBHC_PLUG_TYPE_NONE)
+				wcd_mbhc_swch_irq_handler(mbhc);
+			mbhc->mbhc_cb->lock_sleep(mbhc, false);
+		}
+#endif
+	} else {
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+		WCD_MBHC_REG_READ(WCD_MBHC_L_DET_EN, l_det_en);
+		WCD_MBHC_REG_READ(WCD_MBHC_MECH_DETECTION_TYPE, detection_type);
+		if ((mode == TYPEC_ACCESSORY_NONE) && !detection_type) {
+			wcd_usbss_switch_update(WCD_USBSS_AATC, WCD_USBSS_CABLE_DISCONNECT);
+			/* removal detected, disable L_DET_EN */
+			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_L_DET_EN, 0);
+			if (unlikely((mbhc->mbhc_cb->lock_sleep(mbhc, true)) == false))
+				pr_warn("%s: failed to hold suspend\n", __func__);
+			else {
+				wcd_mbhc_swch_irq_handler(mbhc);
+				mbhc->mbhc_cb->lock_sleep(mbhc, false);
+			}
+			dev_dbg(mbhc->component->dev, "leave, %s: mode = %lu\n", __func__, mode);
+		}
+#endif
 	}
 	return 0;
 }
@@ -1682,6 +1721,7 @@ static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 					   unsigned long mode, void *ptr)
 {
+	pr_info("%s: mode = %lu, handler not implemented\n", __func__, mode);
 	return 0;
 }
 #endif
@@ -1718,16 +1758,20 @@ int wcd_mbhc_start(struct wcd_mbhc *mbhc, struct wcd_mbhc_config *mbhc_cfg)
 			"%s: skipping USB c analog configuration\n", __func__);
 	}
 
-	/* Parse fsa switch handle */
+	/* Parse wcd_usbss/fsa switch handle */
 	if (mbhc_cfg->enable_usbc_analog) {
 		dev_dbg(mbhc->component->dev, "%s: usbc analog enabled\n",
-				__func__);
+					__func__);
 		mbhc->swap_thr = GND_MIC_USBC_SWAP_THRESHOLD;
-		mbhc->fsa_np = of_parse_phandle(card->dev->of_node,
-				"fsa4480-i2c-handle", 0);
-		if (!mbhc->fsa_np) {
-			dev_err(card->dev, "%s: fsa4480 i2c node not found\n",
-				__func__);
+		if (IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C))
+			mbhc->aatc_dev_np = of_parse_phandle(card->dev->of_node,
+							"wcd939x-i2c-handle", 0);
+		else if (IS_ENABLED(CONFIG_QCOM_FSA4480_I2C))
+			mbhc->aatc_dev_np = of_parse_phandle(card->dev->of_node,
+							"fsa4480-i2c-handle", 0);
+		if (!mbhc->aatc_dev_np) {
+			dev_err(card->dev, "%s: wcd939x or fsa i2c node not found\n",
+									__func__);
 			rc = -EINVAL;
 			goto err;
 		}
@@ -1756,9 +1800,14 @@ int wcd_mbhc_start(struct wcd_mbhc *mbhc, struct wcd_mbhc_config *mbhc_cfg)
 	}
 
 	if (mbhc_cfg->enable_usbc_analog) {
-		mbhc->fsa_nb.notifier_call = wcd_mbhc_usbc_ana_event_handler;
-		mbhc->fsa_nb.priority = 0;
-		rc = fsa4480_reg_notifier(&mbhc->fsa_nb, mbhc->fsa_np);
+		mbhc->aatc_dev_nb.notifier_call = wcd_mbhc_usbc_ana_event_handler;
+		mbhc->aatc_dev_nb.priority = 0;
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+		rc = wcd_usbss_reg_notifier(&mbhc->aatc_dev_nb, mbhc->aatc_dev_np);
+#endif
+#if IS_ENABLED(CONFIG_QCOM_FSA4480_I2C)
+		rc = fsa4480_reg_notifier(&mbhc->aatc_dev_nb, mbhc->aatc_dev_np);
+#endif
 	}
 
 	return rc;
@@ -1794,8 +1843,14 @@ void wcd_mbhc_stop(struct wcd_mbhc *mbhc)
 		mbhc->mbhc_cal = NULL;
 	}
 
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 	if (mbhc->mbhc_cfg->enable_usbc_analog)
-		fsa4480_unreg_notifier(&mbhc->fsa_nb, mbhc->fsa_np);
+		wcd_usbss_unreg_notifier(&mbhc->aatc_dev_nb, mbhc->aatc_dev_np);
+#endif
+#if IS_ENABLED(CONFIG_QCOM_FSA4480_I2C)
+	if (mbhc->mbhc_cfg->enable_usbc_analog)
+		fsa4480_unreg_notifier(&mbhc->aatc_dev_nb, mbhc->aatc_dev_np);
+#endif
 
 	pr_debug("%s: leave\n", __func__);
 }
