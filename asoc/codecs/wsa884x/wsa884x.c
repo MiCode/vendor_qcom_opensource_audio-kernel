@@ -1805,6 +1805,9 @@ static int wsa884x_event_notify(struct notifier_block *nb,
 		/* Add delay to allow enumerate */
 		usleep_range(20000, 20010);
 		wsa884x_swr_reset(wsa884x);
+		dev_err(wsa884x->dev, "%s: BOLERO_SLV_EVT_SSR_UP Called", __func__);
+		swr_init_port_params(wsa884x->swr_slave, WSA884X_MAX_SWR_PORTS,
+			wsa884x->swr_wsa_port_params);
 		break;
 
 	case BOLERO_SLV_EVT_PA_ON_POST_FSCLK:
@@ -2163,7 +2166,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 			ret = of_property_read_u32_index(
 				wsa884x->macro_dev->dev.of_node,
 				"qcom,wsa-bat-cfgs",
-				dev_index - 1,
+				wsa_dev_index,
 				&wsa884x->bat_cfg);
 			if (ret) {
 				dev_err(&pdev->dev,
