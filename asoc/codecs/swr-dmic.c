@@ -28,7 +28,11 @@
 #include <asoc/msm-cdc-pinctrl.h>
 #include <asoc/msm-cdc-supply.h>
 #include <bindings/audio-codec-port-types.h>
+#ifdef CONFIG_SND_SOC_WCD939X
+#include "wcd939x/wcd939x.h"
+#else
 #include "wcd938x/wcd938x.h"
+#endif
 #include "swr-dmic.h"
 
 #define NUM_ATTEMPTS 5
@@ -485,8 +489,13 @@ static int swr_dmic_codec_probe(struct snd_soc_component *component)
 	snd_soc_dapm_sync(dapm);
 
 	swr_dmic->nblock.notifier_call = swr_dmic_event_notify;
+#ifdef CONFIG_SND_SOC_WCD939X
+	wcd939x_swr_dmic_register_notifier(swr_dmic->supply_component,
+					&swr_dmic->nblock, true);
+#else
 	wcd938x_swr_dmic_register_notifier(swr_dmic->supply_component,
 					&swr_dmic->nblock, true);
+#endif
 
 	return 0;
 }
@@ -526,12 +535,21 @@ static int enable_wcd_codec_supply(struct swr_dmic_priv *swr_dmic, bool enable)
 		__func__, swr_dmic->is_en_supply, micb_num, enable);
 
 	if (enable)
+#ifdef CONFIG_SND_SOC_WCD939X
+		rc = wcd939x_codec_force_enable_micbias_v2(component,
+					SND_SOC_DAPM_PRE_PMU, micb_num);
+#else
 		rc = wcd938x_codec_force_enable_micbias_v2(component,
 					SND_SOC_DAPM_PRE_PMU, micb_num);
+#endif
 	else
+#ifdef CONFIG_SND_SOC_WCD939X
+		rc = wcd939x_codec_force_enable_micbias_v2(component,
+					SND_SOC_DAPM_POST_PMD, micb_num);
+#else
 		rc = wcd938x_codec_force_enable_micbias_v2(component,
 					SND_SOC_DAPM_POST_PMD, micb_num);
-
+#endif
 	return rc;
 }
 
@@ -582,10 +600,18 @@ static int swr_dmic_event_notify(struct notifier_block *block,
 					struct swr_dmic_priv,
 					nblock);
 	switch (event) {
+#ifdef CONFIG_SND_SOC_WCD939X
+	case WCD939X_EVT_SSR_DOWN:
+#else
 	case WCD938X_EVT_SSR_DOWN:
+#endif
 		ret = swr_dmic_down(swr_dmic->swr_slave);
 		break;
+#ifdef CONFIG_SND_SOC_WCD939X
+	case WCD939X_EVT_SSR_UP:
+#else
 	case WCD938X_EVT_SSR_UP:
+#endif
 		ret = swr_dmic_up(swr_dmic->swr_slave);
 		if (!ret)
 			ret = swr_dmic_reset(swr_dmic->swr_slave);
