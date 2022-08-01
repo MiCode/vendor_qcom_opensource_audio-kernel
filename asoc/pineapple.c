@@ -30,10 +30,10 @@
 #include "device_event.h"
 #include "asoc/msm-cdc-pinctrl.h"
 #include "asoc/wcd-mbhc-v2.h"
-#include "codecs/wcd938x/wcd938x-mbhc.h"
+#include "codecs/wcd939x/wcd939x-mbhc.h"
 #include "codecs/wsa884x/wsa884x.h"
 #include "codecs/wsa883x/wsa883x.h"
-#include "codecs/wcd938x/wcd938x.h"
+#include "codecs/wcd939x/wcd939x.h"
 #include "codecs/lpass-cdc/lpass-cdc.h"
 #include <bindings/audio-codec-port-types.h>
 #include "codecs/lpass-cdc/lpass-cdc-wsa-macro.h"
@@ -161,7 +161,7 @@ static void msm_parse_upd_configuration(struct platform_device *pdev,
 		else
 			pdata->get_dev_num = wsa884x_codec_get_dev_num;
 	} else {
-		pdata->get_dev_num = wcd938x_codec_get_dev_num;
+		pdata->get_dev_num = wcd939x_codec_get_dev_num;
 	}
 
 	ret = of_property_read_u32_array(pdev->dev.of_node,
@@ -221,7 +221,7 @@ static void msm_set_upd_config(struct snd_soc_pcm_runtime *rtd)
 			memcpy(cdc_name, "wsa-codec.1", strlen("wsa-codec.1"));
 	}
 	else
-		memcpy(cdc_name, WCD938X_DRV_NAME, sizeof(WCD938X_DRV_NAME));
+		memcpy(cdc_name, WCD939X_DRV_NAME, sizeof(WCD939X_DRV_NAME));
 
 	component = snd_soc_rtdcom_lookup(rtd, cdc_name);
 	if (!component) {
@@ -1341,7 +1341,7 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 		return -EINVAL;
 	}
 
-	component = snd_soc_rtdcom_lookup(rtd, WCD938X_DRV_NAME);
+	component = snd_soc_rtdcom_lookup(rtd, WCD939X_DRV_NAME);
 	if (!component) {
 		pr_err("%s component is NULL\n", __func__);
 		return -EINVAL;
@@ -1351,7 +1351,7 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 	if (!mbhc_calibration)
 		return -ENOMEM;
 	wcd_mbhc_cfg.calibration = mbhc_calibration;
-	ret = wcd938x_mbhc_hs_detect(component, &wcd_mbhc_cfg);
+	ret = wcd939x_mbhc_hs_detect(component, &wcd_mbhc_cfg);
 	if (ret) {
 		dev_err(component->dev, "%s: mbhc hs detect failed, err:%d\n",
 			__func__, ret);
@@ -1718,10 +1718,10 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 	if (pdata->wcd_disabled)
 		goto done;
 
-	component = snd_soc_rtdcom_lookup(rtd, WCD938X_DRV_NAME);
+	component = snd_soc_rtdcom_lookup(rtd, WCD939X_DRV_NAME);
 	if (!component) {
 		pr_err("%s could not find component for %s\n",
-			__func__, WCD938X_DRV_NAME);
+			__func__, WCD939X_DRV_NAME);
 		return -EINVAL;
 	}
 	dapm = snd_soc_component_get_dapm(component);
@@ -1747,11 +1747,11 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 		}
 		pdata->codec_root = entry;
 	}
-	wcd938x_info_create_codec_entry(pdata->codec_root, component);
+	wcd939x_info_create_codec_entry(pdata->codec_root, component);
 
-	codec_variant = wcd938x_get_codec_variant(component);
+	codec_variant = wcd939x_get_codec_variant(component);
 	dev_dbg(component->dev, "%s: variant %d\n", __func__, codec_variant);
-	if (codec_variant == WCD9385)
+	if (codec_variant == WCD9395)
 		ret = lpass_cdc_rx_set_fir_capability(lpass_cdc_component, true);
 	else
 		ret = lpass_cdc_rx_set_fir_capability(lpass_cdc_component, false);

@@ -42,7 +42,9 @@ AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/swr_dmic_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/wsa884x_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/wsa883x_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/wcd938x_dlkm.ko \
-	$(KERNEL_MODULES_OUT)/wcd938x_slave_dlkm.ko
+	$(KERNEL_MODULES_OUT)/wcd938x_slave_dlkm.ko \
+	$(KERNEL_MODULES_OUT)/wcd939x_dlkm.ko \
+	$(KERNEL_MODULES_OUT)/wcd939x_slave_dlkm.ko
 endif
 ifeq ($(call is-board-platform-in-list,bengal), true)
 AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/bolero_cdc_dlkm.ko \
