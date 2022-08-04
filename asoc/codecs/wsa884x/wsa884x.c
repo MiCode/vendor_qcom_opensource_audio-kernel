@@ -2396,7 +2396,9 @@ static int wsa884x_swr_suspend(struct device *dev)
 		return -EINVAL;
 	}
 	dev_dbg(dev, "%s: system suspend\n", __func__);
-	if (wsa884x->dapm_bias_off) {
+	if (wsa884x->dapm_bias_off ||
+		(snd_soc_component_get_bias_level(wsa884x->component) ==
+		 SND_SOC_BIAS_OFF)) {
 		msm_cdc_set_supplies_lpm_mode(dev, wsa884x->supplies,
 					wsa884x->regulator,
 					wsa884x->num_supplies,
