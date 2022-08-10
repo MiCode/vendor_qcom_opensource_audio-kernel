@@ -2494,10 +2494,6 @@ static int swrm_init_port_params(struct swr_master *mstr, u32 dev_num,
 		pr_err("%s: Invalid handle to swr controller\n", __func__);
 		return 0;
 	}
-	if (dev_num == 0) {
-		pr_err("%s: Invalid device number 0\n", __func__);
-		return -EINVAL;
-	}
 	for (i = 0; i < SWR_UC_MAX; i++) {
 		for (j = 0; j < num_ports; j++) {
 			port_id_offset = (dev_num - 1) * SWR_MAX_DEV_PORT_NUM + j;
