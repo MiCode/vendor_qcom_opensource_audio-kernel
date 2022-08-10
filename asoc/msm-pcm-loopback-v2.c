@@ -448,12 +448,6 @@ static int msm_pcm_prepare(struct snd_pcm_substream *substream)
 	dev_dbg(component->dev, "%s: ASM loopback stream:%d\n",
 		__func__, substream->stream);
 
-	if (!pcm || !pcm->audio_client) {
-		mutex_unlock(&pcm->lock);
-		pr_err("%s: private data null or audio client freed\n", __func__);
-		return -EINVAL;
-	}
-
 	if (pcm->playback_start && pcm->capture_start) {
 		mutex_unlock(&pcm->lock);
 		return ret;
@@ -474,6 +468,12 @@ static int msm_pcm_prepare(struct snd_pcm_substream *substream)
 			pcm->capture_substream->private_data;
 		event.event_func = msm_pcm_route_event_handler;
 		event.priv_data = (void *) pcm;
+
+		if (!pcm->audio_client) {
+			mutex_unlock(&pcm->lock);
+			pr_err("%s: audio client freed\n", __func__);
+			return -EINVAL;
+		}
 		msm_pcm_routing_reg_phy_stream(soc_pcm_tx->dai_link->id,
 			pcm->audio_client->perf_mode,
 			pcm->session_id, pcm->capture_substream->stream);
@@ -551,13 +551,15 @@ static int msm_pcm_volume_ctl_put(struct snd_kcontrol *kcontrol,
 		goto exit;
 	}
 	mutex_lock(&loopback_session_lock);
-	prtd = substream->runtime->private_data;
-	if (!prtd) {
-		rc = -ENODEV;
-		mutex_unlock(&loopback_session_lock);
-		goto exit;
+	if (substream->ref_count > 0) {
+		prtd = substream->runtime->private_data;
+		if (!prtd) {
+			rc = -ENODEV;
+			mutex_unlock(&loopback_session_lock);
+			goto exit;
+		}
+		rc = pcm_loopback_set_volume(prtd, volume);
 	}
-	rc = pcm_loopback_set_volume(prtd, volume);
 	mutex_unlock(&loopback_session_lock);
 exit:
 	return rc;
@@ -583,13 +585,15 @@ static int msm_pcm_volume_ctl_get(struct snd_kcontrol *kcontrol,
 		goto exit;
 	}
 	mutex_lock(&loopback_session_lock);
-	prtd = substream->runtime->private_data;
-	if (!prtd) {
-		rc = -ENODEV;
-		mutex_unlock(&loopback_session_lock);
-		goto exit;
+	if (substream->ref_count > 0) {
+		prtd = substream->runtime->private_data;
+		if (!prtd) {
+			rc = -ENODEV;
+			mutex_unlock(&loopback_session_lock);
+			goto exit;
+		}
+		ucontrol->value.integer.value[0] = prtd->volume;
 	}
-	ucontrol->value.integer.value[0] = prtd->volume;
 	mutex_unlock(&loopback_session_lock);
 exit:
 	return rc;
@@ -629,9 +633,10 @@ static int msm_pcm_playback_app_type_cfg_ctl_put(struct snd_kcontrol *kcontrol,
 	cfg_data.acdb_dev_id = ucontrol->value.integer.value[1];
 	if (ucontrol->value.integer.value[2] != 0)
 		cfg_data.sample_rate = ucontrol->value.integer.value[2];
-	pr_debug("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d sample_rate- %d\n",
+	cfg_data.channel = ucontrol->value.integer.value[4];
+	pr_debug("%s: fe_id- %llu session_type- %d be_id- %d app_type- %d acdb_dev_id- %d sample_rate- %d, channel is %d\n",
 		__func__, fe_id, session_type, be_id,
-		cfg_data.app_type, cfg_data.acdb_dev_id, cfg_data.sample_rate);
+		cfg_data.app_type, cfg_data.acdb_dev_id, cfg_data.sample_rate, cfg_data.channel);
 	ret = msm_pcm_routing_reg_stream_app_type_cfg(fe_id, session_type,
 						      be_id, &cfg_data);
 	if (ret < 0)
@@ -662,9 +667,10 @@ static int msm_pcm_playback_app_type_cfg_ctl_get(struct snd_kcontrol *kcontrol,
 	ucontrol->value.integer.value[1] = cfg_data.acdb_dev_id;
 	ucontrol->value.integer.value[2] = cfg_data.sample_rate;
 	ucontrol->value.integer.value[3] = be_id;
-	pr_debug("%s: fedai_id %llu, session_type %d, be_id %d, app_type %d, acdb_dev_id %d, sample_rate %d\n",
+	ucontrol->value.integer.value[4] = cfg_data.channel;
+	pr_debug("%s: fedai_id %llu, session_type %d, be_id %d, app_type %d, acdb_dev_id %d, sample_rate %d, channel is %d\n",
 		__func__, fe_id, session_type, be_id,
-		cfg_data.app_type, cfg_data.acdb_dev_id, cfg_data.sample_rate);
+		cfg_data.app_type, cfg_data.acdb_dev_id, cfg_data.sample_rate, cfg_data.channel);
 done:
 	return ret;
 }
@@ -877,6 +883,12 @@ static int msm_pcm_channel_mixer_cfg_ctl_put(struct snd_kcontrol *kcontrol,
 			chmixer_pspd);
 
 	mutex_lock(&loopback_session_lock);
+	if (substream->ref_count <= 0) {
+		pr_err_ratelimited("%s: substream ref_count:%d invalid\n",
+				__func__, substream->ref_count);
+		mutex_unlock(&loopback_session_lock);
+		return -EINVAL;
+	}
 	if (chmixer_pspd->enable && substream->runtime) {
 		prtd = substream->runtime->private_data;
 		if (!prtd) {
