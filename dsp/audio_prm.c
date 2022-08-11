@@ -102,9 +102,9 @@ static int prm_gpr_send_pkt(struct gpr_pkt *pkt, wait_queue_head_t *wait)
 			(gpr_get_q6_state() == GPR_SUBSYS_LOADED)) {
 		pr_info("%s: apm ready check not done\n", __func__);
 		retry = 0;
-		while (!spf_core_is_apm_ready() || retry < MAX_RETRY_COUNT) {
+		while (!spf_core_is_apm_ready() && retry < MAX_RETRY_COUNT) {
 			msleep(APM_READY_WAIT_DURATION);
-			retry++;
+			++retry;
 		}
 		is_apm_ready_check_done = true;
 		pr_info("%s: apm ready check done\n", __func__);
@@ -501,6 +501,12 @@ static struct notifier_block service_nb = {
 static int audio_prm_probe(struct gpr_device *adev)
 {
 	int ret = 0;
+
+	if (!audio_notifier_probe_status()) {
+		pr_err("%s: Audio notify probe not completed, defer audio prm probe\n",
+				__func__);
+		return -EPROBE_DEFER;
+	}
 
 	ret = audio_notifier_register("audio_prm", AUDIO_NOTIFIER_ADSP_DOMAIN,
 				      &service_nb);

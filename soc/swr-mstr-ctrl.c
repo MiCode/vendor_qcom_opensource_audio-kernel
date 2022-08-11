@@ -797,7 +797,8 @@ static int swrm_pcm_port_config(struct swr_mstr_ctrl *swrm, u8 port_num,
 			SWRM_DOUT_DP_PCM_PORT_CTRL(port_num));
 	reg_val = enable ? 0x3 : 0x0;
 	swr_master_write(swrm, reg_addr, reg_val);
-
+	dev_dbg(swrm->dev, "%s : pcm port %s, reg_val = %d, for addr %x\n",
+			__func__, enable ? "Enabled" : "disabled", reg_val, reg_addr);
 	return 0;
 }
 
@@ -1306,8 +1307,8 @@ static void swrm_disable_ports(struct swr_master *master,
 		dev_dbg(swrm->dev, "%s: mport :%d, reg: 0x%x, val: 0x%x\n",
 			__func__, i,
 			(SWRM_DP_PORT_CTRL_BANK((i + 1), bank)), value);
-
-		swrm_pcm_port_config(swrm, (i + 1),
+		if (!mport->req_ch)
+			swrm_pcm_port_config(swrm, (i + 1),
 				mport->stream_type, mport->dir, false);
 	}
 }
@@ -2493,6 +2494,10 @@ static int swrm_init_port_params(struct swr_master *mstr, u32 dev_num,
 	if (!swrm) {
 		pr_err("%s: Invalid handle to swr controller\n", __func__);
 		return 0;
+	}
+	if (dev_num == 0) {
+		pr_err("%s: Invalid device number 0\n", __func__);
+		return -EINVAL;
 	}
 	for (i = 0; i < SWR_UC_MAX; i++) {
 		for (j = 0; j < num_ports; j++) {

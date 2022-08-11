@@ -138,6 +138,7 @@ struct lpass_cdc_va_macro_priv {
 	struct clk *lpass_audio_hw_vote;
 	struct mutex mclk_lock;
 	struct mutex swr_clk_lock;
+	struct mutex wlock;
 	struct snd_soc_component *component;
 	struct hpf_work va_hpf_work[LPASS_CDC_VA_MACRO_NUM_DECIMATORS];
 	struct va_mute_work va_mute_dwork[LPASS_CDC_VA_MACRO_NUM_DECIMATORS];
@@ -179,7 +180,32 @@ struct lpass_cdc_va_macro_priv {
 	bool pre_dev_up;
 	bool swr_dmic_enable;
 	bool use_lpi_mixer_control;
+	int wlock_holders;
 };
+
+
+static int lpass_cdc_va_macro_wake_enable(struct lpass_cdc_va_macro_priv *va_priv,
+				bool wake_enable)
+{
+	int ret = 0;
+
+	mutex_lock(&va_priv->wlock);
+	if (wake_enable) {
+		if (va_priv->wlock_holders++ == 0) {
+			dev_dbg(va_priv->dev, "%s: pm wake\n", __func__);
+			pm_stay_awake(va_priv->dev);
+		}
+	} else {
+		 if (--va_priv->wlock_holders == 0) {
+			dev_dbg(va_priv->dev, "%s: pm release\n", __func__);
+			pm_relax(va_priv->dev);
+		}
+		if (va_priv->wlock_holders < 0)
+			va_priv->wlock_holders = 0;
+	}
+	mutex_unlock(&va_priv->wlock);
+	return ret;
+}
 
 static bool lpass_cdc_va_macro_get_data(struct snd_soc_component *component,
 			      struct device **va_dev,
@@ -949,6 +975,7 @@ static void lpass_cdc_va_macro_tx_hpf_corner_freq_callback(
 		snd_soc_component_update_bits(component, hpf_gate_reg,
 					      0x02, 0x00);
 	}
+	lpass_cdc_va_macro_wake_enable(va_priv, 0);
 }
 
 static void lpass_cdc_va_macro_mute_update_callback(struct work_struct *work)
@@ -971,6 +998,7 @@ static void lpass_cdc_va_macro_mute_update_callback(struct work_struct *work)
 	snd_soc_component_update_bits(component, tx_vol_ctl_reg, 0x10, 0x00);
 	dev_dbg(va_priv->dev, "%s: decimator %u unmute\n",
 		__func__, decimator);
+	lpass_cdc_va_macro_wake_enable(va_priv, 0);
 }
 
 static int lpass_cdc_va_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
@@ -1297,14 +1325,17 @@ static int lpass_cdc_va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		 */
 		usleep_range(6000, 6010);
 		/* schedule work queue to Remove Mute */
+		lpass_cdc_va_macro_wake_enable(va_priv, 1);
 		queue_delayed_work(system_freezable_wq,
 				   &va_priv->va_mute_dwork[decimator].dwork,
 				   msecs_to_jiffies(va_tx_unmute_delay));
 		if (va_priv->va_hpf_work[decimator].hpf_cut_off_freq !=
-							CF_MIN_3DB_150HZ)
+							CF_MIN_3DB_150HZ) {
+		lpass_cdc_va_macro_wake_enable(va_priv, 1);
 			queue_delayed_work(system_freezable_wq,
 					&va_priv->va_hpf_work[decimator].dwork,
 					msecs_to_jiffies(hpf_delay));
+		}
 		/* apply gain after decimator is enabled */
 		snd_soc_component_write(component, tx_gain_ctl_reg,
 			snd_soc_component_read(component, tx_gain_ctl_reg));
@@ -1339,8 +1370,10 @@ static int lpass_cdc_va_macro_enable_dec(struct snd_soc_dapm_widget *w,
 						0x03, 0x01);
 			}
 		}
+		lpass_cdc_va_macro_wake_enable(va_priv, 0);
 		cancel_delayed_work_sync(
 				&va_priv->va_mute_dwork[decimator].dwork);
+		lpass_cdc_va_macro_wake_enable(va_priv, 0);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		/* Disable TX CLK */
@@ -2519,6 +2552,7 @@ static int lpass_cdc_va_macro_probe(struct platform_device *pdev)
 	}
 	va_priv->default_clk_id = default_clk_id;
 	va_priv->current_clk_id = TX_CORE_CLK;
+	va_priv->wlock_holders = 0;
 
 	va_priv->use_lpi_mixer_control = false;
 	if (of_find_property(pdev->dev.of_node, "use-lpi-control", NULL)) {
@@ -2544,6 +2578,7 @@ static int lpass_cdc_va_macro_probe(struct platform_device *pdev)
 	va_priv->pre_dev_up = true;
 
 	mutex_init(&va_priv->mclk_lock);
+	mutex_init(&va_priv->wlock);
 	dev_set_drvdata(&pdev->dev, va_priv);
 	lpass_cdc_va_macro_init_ops(&ops, va_io_base);
 	ops.clk_id_req = va_priv->default_clk_id;
@@ -2564,6 +2599,7 @@ static int lpass_cdc_va_macro_probe(struct platform_device *pdev)
 
 reg_macro_fail:
 	mutex_destroy(&va_priv->mclk_lock);
+	mutex_destroy(&va_priv->wlock);
 	if (is_used_va_swr_gpio)
 		mutex_destroy(&va_priv->swr_clk_lock);
 	return ret;
@@ -2591,6 +2627,7 @@ static int lpass_cdc_va_macro_remove(struct platform_device *pdev)
 	pm_runtime_set_suspended(&pdev->dev);
 	lpass_cdc_unregister_macro(&pdev->dev, VA_MACRO);
 	mutex_destroy(&va_priv->mclk_lock);
+	mutex_destroy(&va_priv->wlock);
 	if (va_priv->is_used_va_swr_gpio)
 		mutex_destroy(&va_priv->swr_clk_lock);
 	return 0;
