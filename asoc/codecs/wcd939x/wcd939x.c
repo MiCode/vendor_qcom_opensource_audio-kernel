@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -22,7 +22,6 @@
 #include <asoc/msm-cdc-supply.h>
 #include <bindings/audio-codec-port-types.h>
 #include <linux/qti-regmap-debugfs.h>
-
 #include "wcd939x-registers.h"
 #include "wcd939x.h"
 #include "internal.h"
@@ -45,6 +44,7 @@
 #define ADC_MODE_VAL_ULP2     0x0B
 
 #define NUM_ATTEMPTS 5
+#define COMP_MAX_COEFF 25
 
 #define DAPM_MICBIAS1_STANDALONE "MIC BIAS1 Standalone"
 #define DAPM_MICBIAS2_STANDALONE "MIC BIAS2 Standalone"
@@ -66,6 +66,77 @@
 #define REG_FIELD_VALUE(register_name, field_name, value) \
 WCD939X_##register_name, FIELD_MASK(register_name, field_name), \
 value << FIELD_SHIFT(register_name, field_name)
+
+#define WCD939X_COMP_OFFSET \
+		(WCD939X_R_BASE - WCD939X_COMPANDER_HPHL_BASE)
+
+enum {
+	HPH_ULP,
+	HPH_HIFI,
+	HPH_LOHIFI,
+	HPH_LP,
+	HPH_MODE_MAX,
+};
+
+static struct comp_coeff_val
+		comp_coeff_table [HPH_MODE_MAX][COMP_MAX_COEFF] = {
+	{
+		{0x40, 0x00},
+		{0x4C, 0x00},
+		{0x5A, 0x00},
+		{0x6B, 0x00},
+		{0x7F, 0x00},
+		{0x97, 0x00},
+		{0xB3, 0x00},
+		{0xD5, 0x00},
+		{0xFD, 0x00},
+		{0x2D, 0x01},
+		{0x66, 0x01},
+		{0xA7, 0x01},
+		{0xF8, 0x01},
+		{0x57, 0x02},
+		{0xC7, 0x02},
+		{0x4B, 0x03},
+		{0xE9, 0x03},
+		{0xA3, 0x04},
+		{0x7D, 0x05},
+		{0x90, 0x06},
+		{0xD1, 0x07},
+		{0x49, 0x09},
+		{0x00, 0x0B},
+		{0x01, 0x0D},
+		{0x59, 0x0F},
+	},
+	{
+	/*HPH_HIFI, HPH_LOHIFI, HPH_LP*/
+		{0x40, 0x00},
+		{0x4C, 0x00},
+		{0x5A, 0x00},
+		{0x6B, 0x00},
+		{0x80, 0x00},
+		{0x98, 0x00},
+		{0xB4, 0x00},
+		{0xD5, 0x00},
+		{0xFE, 0x00},
+		{0x2E, 0x01},
+		{0x66, 0x01},
+		{0xA9, 0x01},
+		{0xF8, 0x01},
+		{0x56, 0x02},
+		{0xC4, 0x02},
+		{0x4F, 0x03},
+		{0xF0, 0x03},
+		{0xAE, 0x04},
+		{0x8B, 0x05},
+		{0x8E, 0x06},
+		{0xBC, 0x07},
+		{0x56, 0x09},
+		{0x0F, 0x0B},
+		{0x13, 0x0D},
+		{0x6F, 0x0F},
+	},
+};
+
 enum {
 	CODEC_TX = 0,
 	CODEC_RX,
@@ -164,6 +235,64 @@ static int wcd939x_handle_post_irq(void *data)
 			((sts1 || sts2 || sts3) ? true : false);
 
 	return IRQ_HANDLED;
+}
+int wcd939x_load_compander_coeff(struct snd_soc_component *component,
+					u16 lsb_reg, u16 msb_reg,
+					struct comp_coeff_val *comp_coeff_table,
+					u16 arr_size)
+{
+	int i = 0;
+
+	/* Load Compander Coeff */
+	for (i = 0; i < arr_size; i++) {
+		snd_soc_component_write(component, lsb_reg,
+			comp_coeff_table[i].lsb);
+		snd_soc_component_write(component, msb_reg,
+			comp_coeff_table[i].msb);
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(wcd939x_load_compander_coeff);
+
+
+static int wcd939x_hph_compander_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+					snd_soc_kcontrol_component(kcontrol);
+	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
+
+	int compander = ((struct soc_multi_mixer_control *)
+			kcontrol->private_value)->shift;
+
+	ucontrol->value.integer.value[0] = wcd939x->compander_enabled[compander];
+	return 0;
+}
+
+
+static int wcd939x_hph_compander_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+					snd_soc_kcontrol_component(kcontrol);
+	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
+
+	int compander = ((struct soc_multi_mixer_control *)
+			kcontrol->private_value)->shift;
+
+	int value = ucontrol->value.integer.value[0];
+
+	if (value < WCD939X_HPH_MAX && value >= 0)
+		wcd939x->compander_enabled[compander] = value;
+	else {
+		dev_err(component->dev, "%s: Invalid comp value = %d\n", __func__, value);
+		return -EINVAL;
+	}
+
+	dev_dbg(component->dev, "%s: Compander %d  value %d\n",
+			__func__, wcd939x->compander_enabled[compander], value);
+	return 0;
 }
 
 static int wcd939x_swr_slv_get_current_bank(struct swr_device *dev, u8 devnum)
@@ -634,6 +763,88 @@ struct wcd939x_mbhc *wcd939x_soc_get_mbhc(struct snd_soc_component *component)
 }
 EXPORT_SYMBOL(wcd939x_soc_get_mbhc);
 
+static int wcd939x_config_compander(struct snd_soc_component *component,
+				int event, int compander_indx)
+{
+	u16 comp_coeff_lsb_reg = 0, comp_coeff_msb_reg = 0;
+	u16 comp_ctl7_reg = 0, comp_ctl0_reg  = 0;
+	u16 comp_en_mask_val = 0;
+	struct wcd939x_priv *wcd939x;
+	int hph_mode;
+
+
+	if (compander_indx >= WCD939X_HPH_MAX || compander_indx < 0) {
+		pr_err_ratelimited("%s: Invalid compander value: %d\n",
+				__func__, compander_indx);
+		return -EINVAL;
+	}
+
+	if (!component) {
+		pr_err_ratelimited("%s: Invalid params, NULL component\n", __func__);
+		return -EINVAL;
+	}
+	wcd939x = snd_soc_component_get_drvdata(component);
+
+	if (!wcd939x->compander_enabled[compander_indx])
+		return 0;
+
+	hph_mode = wcd939x->hph_mode;
+	dev_dbg(component->dev, "%s compander_index = %d hph mode = %d\n",
+				__func__, compander_indx, wcd939x->hph_mode);
+
+	if (compander_indx == WCD939X_HPHL) {
+		comp_coeff_lsb_reg = WCD939X_HPHL_COMP_WR_LSB;
+		comp_coeff_msb_reg = WCD939X_HPHL_COMP_WR_MSB;
+		comp_en_mask_val = 1 << 1;
+	} else if (compander_indx == WCD939X_HPHR) {
+		comp_coeff_lsb_reg = WCD939X_HPHR_COMP_WR_LSB;
+		comp_coeff_msb_reg = WCD939X_HPHR_COMP_WR_MSB;
+		comp_en_mask_val = 1 << 0;
+	} else {
+		return 0;
+	}
+
+	comp_ctl0_reg  = WCD939X_CTL0 + (compander_indx * WCD939X_COMP_OFFSET);
+	comp_ctl7_reg = WCD939X_CTL7 + (compander_indx * WCD939X_COMP_OFFSET);
+
+	if (SND_SOC_DAPM_EVENT_ON(event)){
+
+		snd_soc_component_update_bits(component,
+			comp_ctl7_reg, 0x1E, 0x00);
+		/* Enable compander clock*/
+		snd_soc_component_update_bits(component,
+			comp_ctl0_reg , 0x01, 0x01);
+
+			/* 250us sleep required as per HW Sequence */
+			usleep_range(250, 260);
+		snd_soc_component_update_bits(component,
+			comp_ctl0_reg , 0x02, 0x01);
+		snd_soc_component_update_bits(component,
+			comp_ctl0_reg , 0x02, 0x00);
+
+		/* Compander coeff values are same for below modes */
+		if (wcd939x->hph_mode == HPH_HIFI || wcd939x->hph_mode == HPH_LOHIFI
+				|| wcd939x->hph_mode == HPH_LP)
+			hph_mode = 1;
+
+		wcd939x_load_compander_coeff(component, comp_coeff_lsb_reg,
+				comp_coeff_msb_reg, comp_coeff_table[hph_mode],
+				COMP_MAX_COEFF);
+
+		/* Enable compander*/
+		snd_soc_component_update_bits(component,
+				WCD939X_CDC_COMP_CTL_0, comp_en_mask_val, comp_en_mask_val);
+
+	} if (SND_SOC_DAPM_EVENT_OFF(event)) {
+			snd_soc_component_update_bits(component,
+				WCD939X_CDC_COMP_CTL_0, comp_en_mask_val, 0x00);
+			snd_soc_component_update_bits(component,
+			comp_ctl0_reg , 0x01, 0x00);
+	}
+
+	return 0;
+}
+
 static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol,
 			int event)
@@ -641,16 +852,17 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
+	dev_dbg(component->dev, "%s event: %d wshift: %d wname: %s\n",
+					__func__, event, w->shift, w->name);
+
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		dev_err(component->dev, "before rx clk enable %s wname: %s event: %d\n", __func__,
-			w->name, event);
 		wcd939x_rx_clk_enable(component);
+		wcd939x_config_compander(component, event, w->shift);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		dev_err(component->dev, "%s wname: %s event: %d\n", __func__,
-			w->name, event);
 		wcd939x_rx_clk_disable(component);
+		wcd939x_config_compander(component, event, w->shift);
 		break;
 
 	}
@@ -2970,6 +3182,11 @@ static const struct snd_kcontrol_new wcd939x_snd_controls[] = {
 	SOC_SINGLE_TLV("ADC4 Volume", WCD939X_TX_CH4, 0, 20, 0,
 			analog_gain),
 
+	SOC_SINGLE_EXT("HPHL Compander", SND_SOC_NOPM, WCD939X_HPHL, 1, 0,
+		wcd939x_hph_compander_get, wcd939x_hph_compander_put),
+	SOC_SINGLE_EXT("HPHR Compander", SND_SOC_NOPM, WCD939X_HPHR, 1, 0,
+		wcd939x_hph_compander_get, wcd939x_hph_compander_put),
+
 	SOC_ENUM_EXT("ADC1 ChMap", tx_master_ch_enum,
 			wcd939x_tx_master_ch_get, wcd939x_tx_master_ch_put),
 	SOC_ENUM_EXT("ADC2 ChMap", tx_master_ch_enum,
@@ -3403,7 +3620,6 @@ static const struct snd_soc_dapm_widget wcd939x_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MUX_E("RX1 MUX", SND_SOC_NOPM,  WCD_RX1, 0, &rx_rx1_mux,
 		wcd939x_rx_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-
 	SND_SOC_DAPM_MUX_E("RX2 MUX", SND_SOC_NOPM, WCD_RX2, 0, &rx_rx2_mux,
 			wcd939x_rx_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
