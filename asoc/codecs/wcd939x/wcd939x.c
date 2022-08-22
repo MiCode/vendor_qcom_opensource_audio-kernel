@@ -570,6 +570,8 @@ static int wcd939x_rx_clk_enable(struct snd_soc_component *component)
 				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD0_CLK_EN, 0x01));
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD1_CLK_EN, 0x01));
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD2_CLK_EN, 0x01));
 
 	}
 	wcd939x->rx_clk_cnt++;
@@ -588,6 +590,8 @@ static int wcd939x_rx_clk_disable(struct snd_soc_component *component)
 				REG_FIELD_VALUE(RX_SUPPLIES, VNEG_EN, 0x00));
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(RX_SUPPLIES, VPOS_EN, 0x00));
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD2_CLK_EN, 0x00));
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD1_CLK_EN, 0x00));
 		snd_soc_component_update_bits(component,
@@ -629,6 +633,30 @@ struct wcd939x_mbhc *wcd939x_soc_get_mbhc(struct snd_soc_component *component)
 	return wcd939x->mbhc;
 }
 EXPORT_SYMBOL(wcd939x_soc_get_mbhc);
+
+static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol,
+			int event)
+{
+
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		dev_err(component->dev, "before rx clk enable %s wname: %s event: %d\n", __func__,
+			w->name, event);
+		wcd939x_rx_clk_enable(component);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		dev_err(component->dev, "%s wname: %s event: %d\n", __func__,
+			w->name, event);
+		wcd939x_rx_clk_disable(component);
+		break;
+
+	}
+
+	return 0;
+}
 
 static int wcd939x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *kcontrol,
@@ -1165,9 +1193,6 @@ static int wcd939x_enable_rx1(struct snd_soc_dapm_widget *w,
 		wcd939x_rx_connect_port(component, HPH_L, false);
 		if (wcd939x->comp1_enable)
 			wcd939x_rx_connect_port(component, COMP_L, false);
-		wcd939x_rx_clk_disable(component);
-		snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD0_CLK_EN, 0x00));
 		break;
 	};
 
@@ -1194,9 +1219,6 @@ static int wcd939x_enable_rx2(struct snd_soc_dapm_widget *w,
 		wcd939x_rx_connect_port(component, HPH_R, false);
 		if (wcd939x->comp2_enable)
 			wcd939x_rx_connect_port(component, COMP_R, false);
-		wcd939x_rx_clk_disable(component);
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD1_CLK_EN, 0x00));
 		break;
 	};
 
@@ -1221,9 +1243,6 @@ static int wcd939x_enable_rx3(struct snd_soc_dapm_widget *w,
 		wcd939x_rx_connect_port(component, LO, false);
 		/* 6 msec delay as per HW requirement */
 		usleep_range(6000, 6010);
-		wcd939x_rx_clk_disable(component);
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD2_CLK_EN, 0x00));
 		break;
 	}
 
@@ -3135,6 +3154,24 @@ static const struct soc_enum rdac3_enum =
 static const struct snd_kcontrol_new rx_rdac3_mux =
 	SOC_DAPM_ENUM("RDAC3_MUX Mux", rdac3_enum);
 
+
+static const char * const rx1_mux_text[] = {
+	"ZERO", "RX1 MUX"
+};
+static const struct soc_enum rx_rx1_enum =
+		SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 0, rx1_mux_text);
+static const struct snd_kcontrol_new rx_rx1_mux =
+	SOC_DAPM_ENUM("RX1 MUX Mux", rx_rx1_enum);
+
+
+static const char * const rx2_mux_text[] = {
+	"ZERO", "RX2 MUX"
+};
+static const struct soc_enum rx_rx2_enum =
+		SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 0, rx2_mux_text);
+static const struct snd_kcontrol_new rx_rx2_mux =
+	SOC_DAPM_ENUM("RX2 MUX Mux", rx_rx2_enum);
+
 static const struct snd_soc_dapm_widget wcd939x_dapm_widgets[] = {
 
 	/*input widgets*/
@@ -3364,6 +3401,12 @@ static const struct snd_soc_dapm_widget wcd939x_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MUX("RDAC3_MUX", SND_SOC_NOPM, 0, 0, &rx_rdac3_mux),
 
+	SND_SOC_DAPM_MUX_E("RX1 MUX", SND_SOC_NOPM,  WCD_RX1, 0, &rx_rx1_mux,
+		wcd939x_rx_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
+	SND_SOC_DAPM_MUX_E("RX2 MUX", SND_SOC_NOPM, WCD_RX2, 0, &rx_rx2_mux,
+			wcd939x_rx_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+
 	SND_SOC_DAPM_MIXER_E("RX1", SND_SOC_NOPM, 0, 0, NULL, 0,
 				wcd939x_enable_rx1, SND_SOC_DAPM_PRE_PMU |
 				SND_SOC_DAPM_POST_PMD),
@@ -3505,7 +3548,8 @@ static const struct snd_soc_dapm_route wcd939x_audio_map[] = {
 	{"IN1_HPHL", NULL, "WCD_RX_DUMMY"},
 	{"IN1_HPHL", NULL, "VDD_BUCK"},
 	{"IN1_HPHL", NULL, "CLS_H_PORT"},
-	{"RX1", NULL, "IN1_HPHL"},
+	{"RX1 MUX", NULL, "IN1_HPHL"},
+	{"RX1", NULL, "RX1 MUX"},
 	{"RDAC1", NULL, "RX1"},
 	{"HPHL_RDAC", "Switch", "RDAC1"},
 	{"HPHL PGA", NULL, "HPHL_RDAC"},
@@ -3514,7 +3558,8 @@ static const struct snd_soc_dapm_route wcd939x_audio_map[] = {
 	{"IN2_HPHR", NULL, "WCD_RX_DUMMY"},
 	{"IN2_HPHR", NULL, "VDD_BUCK"},
 	{"IN2_HPHR", NULL, "CLS_H_PORT"},
-	{"RX2", NULL, "IN2_HPHR"},
+	{"RX2 MUX", NULL, "IN2_HPHR"},
+	{"RX2", NULL, "RX2 MUX"},
 	{"RDAC2", NULL, "RX2"},
 	{"HPHR_RDAC", "Switch", "RDAC2"},
 	{"HPHR PGA", NULL, "HPHR_RDAC"},
