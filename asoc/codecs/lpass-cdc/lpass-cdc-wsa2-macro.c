@@ -317,6 +317,7 @@ struct lpass_cdc_wsa2_macro_priv {
 	u8 idle_detect_en;
 	int noise_gate_mode;
 	bool pre_dev_up;
+	int pbr_clk_users;
 };
 
 static struct snd_soc_dai_driver lpass_cdc_wsa2_macro_dai[];
@@ -1585,15 +1586,18 @@ static int lpass_cdc_was_macro_config_pbr(struct snd_soc_component *component,
 			reg3, 0x80, 0x80);
 		lpass_cdc_wsa2_macro_enable_softclip_clk(component, wsa2_priv,
 					softclip_path, true);
-		snd_soc_component_update_bits(component,
-			LPASS_CDC_WSA2_PBR_PATH_CTL,
-			0x01, 0x01);
+		if (wsa2_priv->pbr_clk_users == 0)
+			snd_soc_component_update_bits(component,
+				LPASS_CDC_WSA2_PBR_PATH_CTL,
+				0x01, 0x01);
+		++wsa2_priv->pbr_clk_users;
 	}
 
 	if (SND_SOC_DAPM_EVENT_OFF(event)) {
-		snd_soc_component_update_bits(component,
-			LPASS_CDC_WSA2_PBR_PATH_CTL,
-			0x01, 0x00);
+		if (wsa2_priv->pbr_clk_users)
+			snd_soc_component_update_bits(component,
+				LPASS_CDC_WSA2_PBR_PATH_CTL,
+				0x01, 0x00);
 		lpass_cdc_wsa2_macro_enable_softclip_clk(component, wsa2_priv,
 					softclip_path, false);
 		snd_soc_component_update_bits(component,
@@ -1602,6 +1606,9 @@ static int lpass_cdc_was_macro_config_pbr(struct snd_soc_component *component,
 			reg2, 0x40, 0x00);
 		snd_soc_component_update_bits(component,
 			reg3, 0x80, 0x00);
+		--wsa2_priv->pbr_clk_users;
+		if (wsa2_priv->pbr_clk_users < 0)
+			wsa2_priv->pbr_clk_users = 0;
 	}
 	return 0;
 }
