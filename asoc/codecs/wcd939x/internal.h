@@ -81,8 +81,9 @@ struct wcd939x_priv {
 	/* mbhc module */
 	struct wcd939x_mbhc *mbhc;
 
-	/*comp and xtalk*/
+	/*compander and xtalk*/
 	int compander_enabled[WCD939X_HPH_MAX];
+	int xtalk_enabled[WCD939X_HPH_MAX];
 
 	u32 hph_mode;
 	u32 tx_mode[TX_ADC_MAX];

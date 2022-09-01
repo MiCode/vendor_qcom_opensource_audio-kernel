@@ -70,6 +70,9 @@ value << FIELD_SHIFT(register_name, field_name)
 #define WCD939X_COMP_OFFSET \
 		(WCD939X_R_BASE - WCD939X_COMPANDER_HPHL_BASE)
 
+#define WCD939X_XTALK_OFFSET \
+		(WCD939X_HPHR_RX_PATH_SEC0 - WCD939X_HPHL_RX_PATH_SEC0)
+
 enum {
 	HPH_ULP,
 	HPH_HIFI,
@@ -292,6 +295,47 @@ static int wcd939x_hph_compander_put(struct snd_kcontrol *kcontrol,
 
 	dev_dbg(component->dev, "%s: Compander %d  value %d\n",
 			__func__, wcd939x->compander_enabled[compander], value);
+	return 0;
+}
+
+static int wcd939x_hph_xtalk_put(struct snd_kcontrol *kcontrol,
+					struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+					snd_soc_kcontrol_component(kcontrol);
+	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
+
+	int xtalk = ((struct soc_multi_mixer_control *)
+			kcontrol->private_value)->shift;
+
+	int value = ucontrol->value.integer.value[0];
+
+	if (value < WCD939X_HPH_MAX && value >= 0)
+		wcd939x->xtalk_enabled[xtalk] = value;
+	else {
+		dev_err(component->dev, "%s: Invalid xtalk value = %d\n", __func__, value);
+		return -EINVAL;
+	}
+
+	 dev_dbg(component->dev, "%s: xtalk %d  value %d\n",
+			 __func__, wcd939x->xtalk_enabled[xtalk], value);
+
+	return 0;
+
+}
+
+static int wcd939x_hph_xtalk_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+					snd_soc_kcontrol_component(kcontrol);
+	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
+
+	int xtalk = ((struct soc_multi_mixer_control *)
+			kcontrol->private_value)->shift;
+
+	ucontrol->value.integer.value[0] = wcd939x->xtalk_enabled[xtalk];
+
 	return 0;
 }
 
@@ -845,6 +889,55 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 	return 0;
 }
 
+static int wcd939x_config_xtalk(struct snd_soc_component *component,
+					int event, int xtalk_indx)
+{
+	u16 xtalk_sec0 = 0, xtalk_sec1 = 0, xtalk_sec2 = 0, xtalk_sec3 = 0;
+	struct wcd939x_priv *wcd939x = NULL;
+
+	if (!component) {
+		pr_err_ratelimited("%s: Invalid params, NULL component\n", __func__);
+		return -EINVAL;
+	}
+
+	 wcd939x = snd_soc_component_get_drvdata(component);
+
+	if (!wcd939x->xtalk_enabled[xtalk_indx])
+		return 0;
+
+	dev_dbg(component->dev, "%s xtalk_indx = %d event = %d\n",
+					__func__, xtalk_indx, event);
+
+	switch(event) {
+
+	case SND_SOC_DAPM_PRE_PMU:
+
+		xtalk_sec0 = WCD939X_HPHL_RX_PATH_SEC0 + (xtalk_indx * WCD939X_XTALK_OFFSET);
+		xtalk_sec1 = WCD939X_HPHL_RX_PATH_SEC1 + (xtalk_indx * WCD939X_XTALK_OFFSET);
+		xtalk_sec2 = WCD939X_HPHL_RX_PATH_SEC2 + (xtalk_indx * WCD939X_XTALK_OFFSET);
+		xtalk_sec3 = WCD939X_HPHL_RX_PATH_SEC3 + (xtalk_indx * WCD939X_XTALK_OFFSET);
+
+		snd_soc_component_update_bits(component, xtalk_sec1, 0xFF, 0xFE);
+		snd_soc_component_update_bits(component, xtalk_sec0, 0x1F, 0x06);
+		snd_soc_component_update_bits(component, xtalk_sec3, 0xFF, 0x4F);
+		snd_soc_component_update_bits(component, xtalk_sec2, 0x1F, 0x11);
+
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		/* enable xtalk for L and R channels*/
+			snd_soc_component_update_bits(component, WCD939X_RX_PATH_CFG2,
+					0x0F, 0x0F);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		/* Disable Xtalk for L and R channels*/
+		snd_soc_component_update_bits(component, WCD939X_RX_PATH_CFG2,
+				0x00, 0x00);
+		break;
+	}
+
+	return 0;
+}
+
 static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 			struct snd_kcontrol *kcontrol,
 			int event)
@@ -859,9 +952,14 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		wcd939x_rx_clk_enable(component);
 		wcd939x_config_compander(component, event, w->shift);
+		wcd939x_config_xtalk(component, event, w->shift);
+		break;
+	case SND_SOC_DAPM_POST_PMU:
+		wcd939x_config_xtalk(component, event, w->shift);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		wcd939x_rx_clk_disable(component);
+		wcd939x_config_xtalk(component, event, w->shift);
 		wcd939x_config_compander(component, event, w->shift);
 		break;
 
@@ -3187,6 +3285,11 @@ static const struct snd_kcontrol_new wcd939x_snd_controls[] = {
 	SOC_SINGLE_EXT("HPHR Compander", SND_SOC_NOPM, WCD939X_HPHR, 1, 0,
 		wcd939x_hph_compander_get, wcd939x_hph_compander_put),
 
+	SOC_SINGLE_EXT("HPHL XTALK", SND_SOC_NOPM, WCD939X_HPHL, 1, 0,
+		wcd939x_hph_xtalk_get, wcd939x_hph_xtalk_put),
+	SOC_SINGLE_EXT("HPHR XTALK", SND_SOC_NOPM, WCD939X_HPHR, 1, 0,
+		wcd939x_hph_xtalk_get, wcd939x_hph_xtalk_put),
+
 	SOC_ENUM_EXT("ADC1 ChMap", tx_master_ch_enum,
 			wcd939x_tx_master_ch_get, wcd939x_tx_master_ch_put),
 	SOC_ENUM_EXT("ADC2 ChMap", tx_master_ch_enum,
@@ -3375,19 +3478,19 @@ static const struct snd_kcontrol_new rx_rdac3_mux =
 static const char * const rx1_mux_text[] = {
 	"ZERO", "RX1 MUX"
 };
-static const struct soc_enum rx_rx1_enum =
+static const struct soc_enum rx1_enum =
 		SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 0, rx1_mux_text);
-static const struct snd_kcontrol_new rx_rx1_mux =
-	SOC_DAPM_ENUM("RX1 MUX Mux", rx_rx1_enum);
+static const struct snd_kcontrol_new rx1_mux =
+	SOC_DAPM_ENUM("RX1 MUX Mux", rx1_enum);
 
 
 static const char * const rx2_mux_text[] = {
 	"ZERO", "RX2 MUX"
 };
-static const struct soc_enum rx_rx2_enum =
+static const struct soc_enum rx2_enum =
 		SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 0, rx2_mux_text);
-static const struct snd_kcontrol_new rx_rx2_mux =
-	SOC_DAPM_ENUM("RX2 MUX Mux", rx_rx2_enum);
+static const struct snd_kcontrol_new rx2_mux =
+	SOC_DAPM_ENUM("RX2 MUX Mux", rx2_enum);
 
 static const struct snd_soc_dapm_widget wcd939x_dapm_widgets[] = {
 
@@ -3618,10 +3721,12 @@ static const struct snd_soc_dapm_widget wcd939x_dapm_widgets[] = {
 
 	SND_SOC_DAPM_MUX("RDAC3_MUX", SND_SOC_NOPM, 0, 0, &rx_rdac3_mux),
 
-	SND_SOC_DAPM_MUX_E("RX1 MUX", SND_SOC_NOPM,  WCD_RX1, 0, &rx_rx1_mux,
-		wcd939x_rx_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
-	SND_SOC_DAPM_MUX_E("RX2 MUX", SND_SOC_NOPM, WCD_RX2, 0, &rx_rx2_mux,
-			wcd939x_rx_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX_E("RX1 MUX", SND_SOC_NOPM,  WCD_RX1, 0, &rx1_mux,
+		wcd939x_rx_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU
+				| SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX_E("RX2 MUX", SND_SOC_NOPM, WCD_RX2, 0, &rx2_mux,
+			wcd939x_rx_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU
+				| SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_MIXER_E("RX1", SND_SOC_NOPM, 0, 0, NULL, 0,
 				wcd939x_enable_rx1, SND_SOC_DAPM_PRE_PMU |
