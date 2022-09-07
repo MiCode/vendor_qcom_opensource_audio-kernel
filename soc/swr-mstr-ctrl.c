@@ -546,7 +546,7 @@ static int swrm_clk_request(struct swr_mstr_ctrl *swrm, bool enable)
 		}
 		swrm->clk_ref_count++;
 		if (swrm->clk_ref_count == 1) {
-			trace_printk("%s: clock enable count %d",
+			trace_printk("%s: clock enable count %d\n",
 				__func__, swrm->clk_ref_count);
 			ret = swrm->clk(swrm->handle, true);
 			if (ret) {
@@ -557,7 +557,7 @@ static int swrm_clk_request(struct swr_mstr_ctrl *swrm, bool enable)
 			}
 		}
 	} else if (--swrm->clk_ref_count == 0) {
-		trace_printk("%s: clock disable count %d",
+		trace_printk("%s: clock disable count %d\n",
 			__func__, swrm->clk_ref_count);
 		swrm->clk(swrm->handle, false);
 		complete(&swrm->clk_off_complete);
@@ -705,7 +705,11 @@ static bool swrm_check_link_status(struct swr_mstr_ctrl *swrm, bool active)
 		return true;
 
 	do {
+#ifdef CONFIG_SWRM_VER_2P0
 		comp_sts = swr_master_read(swrm, SWRM_LINK_STATUS(swrm->ee_val)) & 0x01;
+#else
+		comp_sts = swr_master_read(swrm, SWRM_COMP_STATUS) & 0x01;
+#endif
 		/* check comp status and status requested met */
 		if ((comp_sts && status) || (!comp_sts && !status)) {
 			ret = true;
@@ -2293,9 +2297,9 @@ handle_irq:
 			break;
 		}
 	}
+
 	swr_master_write(swrm, SWRM_INTERRUPT_CLEAR(swrm->ee_val), intr_sts);
 	swr_master_write(swrm, SWRM_INTERRUPT_CLEAR(swrm->ee_val), 0x0);
-
 	if (swrm->enable_slave_irq) {
 		/* Enable slave irq here */
 		swrm_enable_slave_irq(swrm);
@@ -2611,8 +2615,10 @@ static int swrm_master_init(struct swr_mstr_ctrl *swrm)
 		reg[len] = SWRM_LINK_MANAGER_EE;
 		value[len++] = swrm->ee_val;
 	}
+#ifdef CONFIG_SWRM_VER_2P0
 	reg[len] = SWRM_CLK_CTRL(swrm->ee_val);
 	value[len++] = 0x01;
+#endif
 
 	/* Set IRQ to PULSE */
 	reg[len] = SWRM_COMP_CFG;
@@ -3302,8 +3308,12 @@ static int swrm_runtime_resume(struct device *dev)
 				iowrite32(temp, swrm->swrm_hctl_reg);
 			}
 			/*wake up from clock stop*/
+#ifdef CONFIG_SWRM_VER_2P0
 			swr_master_write(swrm,
 				SWRM_CLK_CTRL(swrm->ee_val), 0x01);
+#else
+			swr_master_write(swrm, SWRM_MCP_BUS_CTRL, 0x2);
+#endif
 			/* clear and enable bus clash interrupt */
 			swr_master_write(swrm,
 				SWRM_INTERRUPT_CLEAR(swrm->ee_val), 0x08);
@@ -3957,7 +3967,21 @@ static int swrm_suspend(struct device *dev)
 		dev_dbg(swrm->dev, "%s: suspending system, state %d, wlock %d\n",
 			 __func__, swrm->pm_state,
 			swrm->wlock_holders);
-		swrm->pm_state = SWRM_PM_ASLEEP;
+		/*
+		 * before updating the pm_state to ASLEEP, check if device is
+		 * runtime suspended or not. If it is not, then first make it
+		 * runtime suspend, and then update the pm_state to ASLEEP.
+		 */
+		mutex_unlock(&swrm->pm_lock); /* release pm_lock before dev suspend */
+		swrm_device_suspend(swrm->dev); /* runtime suspend the device */
+		mutex_lock(&swrm->pm_lock); /* acquire pm_lock and update state */
+		if (swrm->pm_state == SWRM_PM_SLEEPABLE) {
+			swrm->pm_state = SWRM_PM_ASLEEP;
+		} else if (swrm->pm_state == SWRM_PM_AWAKE) {
+			ret = -EBUSY;
+			mutex_unlock(&swrm->pm_lock);
+			goto check_ebusy;
+		}
 	} else if (swrm->pm_state == SWRM_PM_AWAKE) {
 		/*
 		 * unlock to wait for pm_state == SWRM_PM_SLEEPABLE
@@ -4010,6 +4034,7 @@ static int swrm_suspend(struct device *dev)
 			pm_runtime_enable(dev);
 		}
 	}
+check_ebusy:
 	if (ret == -EBUSY) {
 		/*
 		 * There is a possibility that some audio stream is active
