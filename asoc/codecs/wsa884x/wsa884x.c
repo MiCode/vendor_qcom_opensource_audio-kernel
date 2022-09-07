@@ -798,12 +798,7 @@ static int wsa_dev_mode_put(struct snd_kcontrol *kcontrol,
 	int dev_mode;
 	int wsa_dev_index;
 
-	if ((ucontrol->value.integer.value[0] >= SPEAKER) &&
-			(ucontrol->value.integer.value[0] < MAX_DEV_MODE))
-		dev_mode = ucontrol->value.integer.value[0];
-	else
-		return -EINVAL;
-
+	dev_mode = ucontrol->value.integer.value[0];
 	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d\n",
 		__func__, wsa884x->dev_mode, dev_mode);
 
