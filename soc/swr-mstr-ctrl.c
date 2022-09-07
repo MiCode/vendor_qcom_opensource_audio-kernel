@@ -3957,21 +3957,7 @@ static int swrm_suspend(struct device *dev)
 		dev_dbg(swrm->dev, "%s: suspending system, state %d, wlock %d\n",
 			 __func__, swrm->pm_state,
 			swrm->wlock_holders);
-		/*
-		 * before updating the pm_state to ASLEEP, check if device is
-		 * runtime suspended or not. If it is not, then first make it
-		 * runtime suspend, and then update the pm_state to ASLEEP.
-		 */
-		mutex_unlock(&swrm->pm_lock); /* release pm_lock before dev suspend */
-		swrm_device_suspend(swrm->dev); /* runtime suspend the device */
-		mutex_lock(&swrm->pm_lock); /* acquire pm_lock and update state */
-		if (swrm->pm_state == SWRM_PM_SLEEPABLE) {
-			swrm->pm_state = SWRM_PM_ASLEEP;
-		} else if (swrm->pm_state == SWRM_PM_AWAKE) {
-			ret = -EBUSY;
-			mutex_unlock(&swrm->pm_lock);
-			goto check_ebusy;
-		}
+		swrm->pm_state = SWRM_PM_ASLEEP;
 	} else if (swrm->pm_state == SWRM_PM_AWAKE) {
 		/*
 		 * unlock to wait for pm_state == SWRM_PM_SLEEPABLE
@@ -4024,7 +4010,6 @@ static int swrm_suspend(struct device *dev)
 			pm_runtime_enable(dev);
 		}
 	}
-check_ebusy:
 	if (ret == -EBUSY) {
 		/*
 		 * There is a possibility that some audio stream is active
