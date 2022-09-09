@@ -555,17 +555,22 @@ static int wcd939x_rx_clk_enable(struct snd_soc_component *component)
 
 	if (wcd939x->rx_clk_cnt == 0) {
 		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(RX_SUPPLIES, RX_BIAS_ENABLE, 0x01));
+
+		/*Analog path clock controls*/
+		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_ANA_CLK_CTL, ANA_RX_CLK_EN, 0x01));
 		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(RX_SUPPLIES, RX_BIAS_ENABLE, 0x01));
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(CDC_RX0_CTL, DEM_DITHER_ENABLE, 0x00));
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(CDC_RX1_CTL, DEM_DITHER_ENABLE, 0x00));
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(CDC_RX2_CTL, DEM_DITHER_ENABLE, 0x00));
-		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_ANA_CLK_CTL, ANA_RX_DIV2_CLK_EN, 0x01));
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CDC_ANA_CLK_CTL, ANA_RX_DIV4_CLK_EN, 0x01));
+
+		/*Digital path clock controls*/
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD0_CLK_EN, 0x01));
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD1_CLK_EN, 0x01));
+
 	}
 	wcd939x->rx_clk_cnt++;
 
@@ -578,16 +583,24 @@ static int wcd939x_rx_clk_disable(struct snd_soc_component *component)
 
 	wcd939x->rx_clk_cnt--;
 	if (wcd939x->rx_clk_cnt == 0) {
+
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(RX_SUPPLIES, VNEG_EN, 0x00));
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(RX_SUPPLIES, VPOS_EN, 0x00));
 		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(RX_SUPPLIES, RX_BIAS_ENABLE, 0x00));
+				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD1_CLK_EN, 0x00));
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD0_CLK_EN, 0x00));
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(CDC_ANA_CLK_CTL, ANA_RX_DIV4_CLK_EN, 0x00));
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_ANA_CLK_CTL, ANA_RX_DIV2_CLK_EN, 0x00));
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_ANA_CLK_CTL, ANA_RX_CLK_EN, 0x00));
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(RX_SUPPLIES, RX_BIAS_ENABLE, 0x00));
+
 	}
 	return 0;
 }
@@ -629,7 +642,6 @@ static int wcd939x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		wcd939x_rx_clk_enable(component);
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD0_CLK_EN, 0x01));
 		snd_soc_component_update_bits(component,
@@ -679,7 +691,6 @@ static int wcd939x_codec_hphr_dac_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		wcd939x_rx_clk_enable(component);
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD1_CLK_EN, 0x01));
 		snd_soc_component_update_bits(component,
@@ -728,7 +739,6 @@ static int wcd939x_codec_ear_dac_event(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		wcd939x_rx_clk_enable(component);
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_EAR_GAIN_CTL, EAR_EN, 0x01));
 		snd_soc_component_update_bits(component,
