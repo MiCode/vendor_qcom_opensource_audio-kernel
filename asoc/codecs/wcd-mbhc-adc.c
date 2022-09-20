@@ -134,9 +134,12 @@ static int wcd_measure_adc_once(struct wcd_mbhc *mbhc, int mux_ctl)
 
 	if (mbhc->mbhc_cb->hph_pa_on_status) {
 		if (mbhc->mbhc_cb->hph_pa_on_status(mbhc->component)) {
-			mbhc->mbhc_cb->hph_pa_enable(mbhc->component, 0);
-			is_pa_on = true;
-			pr_debug("%s: pa is on before detection,so disable pa and read adc \n", __func__);
+			if (mbhc->mbhc_cb->hph_pa_enable) {
+				mbhc->mbhc_cb->hph_pa_enable(mbhc->component, 0);
+				is_pa_on = true;
+				pr_debug("%s: pa is on before detection,so disable pa and read adc \n",
+						 __func__);
+			}
 		}
 	}
 
@@ -189,8 +192,10 @@ static int wcd_measure_adc_once(struct wcd_mbhc *mbhc, int mux_ctl)
 	}
 
 	if (is_pa_on) {
-		mbhc->mbhc_cb->hph_pa_enable(mbhc->component, 1);
-		pr_debug("%s: restore pa \n", __func__);
+		if (mbhc->mbhc_cb->hph_pa_enable) {
+			mbhc->mbhc_cb->hph_pa_enable(mbhc->component, 1);
+			pr_debug("%s: restore pa \n", __func__);
+		}
 	}
 
 	pr_debug("%s: leave\n", __func__);
