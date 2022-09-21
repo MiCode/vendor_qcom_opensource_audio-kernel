@@ -128,20 +128,8 @@ static int wcd_measure_adc_once(struct wcd_mbhc *mbhc, int mux_ctl)
 	int ret = 0;
 	int output_mv = 0;
 	u8 adc_en = 0;
-	bool is_pa_on = false;
 
 	pr_debug("%s: enter\n", __func__);
-
-	if (mbhc->mbhc_cb->hph_pa_on_status) {
-		if (mbhc->mbhc_cb->hph_pa_on_status(mbhc->component)) {
-			if (mbhc->mbhc_cb->hph_pa_enable) {
-				mbhc->mbhc_cb->hph_pa_enable(mbhc->component, 0);
-				is_pa_on = true;
-				pr_debug("%s: pa is on before detection,so disable pa and read adc \n",
-						 __func__);
-			}
-		}
-	}
 
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_ADC_MODE, 0);
 	/* Read ADC Enable bit to restore after adc measurement */
@@ -189,13 +177,6 @@ static int wcd_measure_adc_once(struct wcd_mbhc *mbhc, int mux_ctl)
 		pr_debug("%s: adc complete: %d, adc timeout: %d output_mV: %d\n",
 			__func__, adc_complete, adc_timeout, output_mv);
 		ret = output_mv;
-	}
-
-	if (is_pa_on) {
-		if (mbhc->mbhc_cb->hph_pa_enable) {
-			mbhc->mbhc_cb->hph_pa_enable(mbhc->component, 1);
-			pr_debug("%s: restore pa \n", __func__);
-		}
 	}
 
 	pr_debug("%s: leave\n", __func__);
