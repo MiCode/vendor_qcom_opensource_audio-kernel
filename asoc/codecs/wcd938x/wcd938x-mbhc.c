@@ -804,15 +804,6 @@ static void wcd938x_mbhc_moisture_polling_ctrl(struct wcd_mbhc *mbhc,
 			0x04, (enable << 2));
 }
 
-static void wcd938x_mbhc_hph_pa_enable(struct snd_soc_component *component,
-						bool enable)
-{
-	if (enable)
-		snd_soc_component_update_bits(component, WCD938X_ANA_HPH, 0xC0, 0xC0);
-	else
-		snd_soc_component_update_bits(component, WCD938X_ANA_HPH,0xC0, 00);
-}
-
 static void wcd938x_mbhc_bcs_enable(struct wcd_mbhc *mbhc,
 						  bool bcs_enable)
 {
@@ -847,7 +838,6 @@ static const struct wcd_mbhc_cb mbhc_cb = {
 	.mbhc_moisture_polling_ctrl = wcd938x_mbhc_moisture_polling_ctrl,
 	.mbhc_moisture_detect_en = wcd938x_mbhc_moisture_detect_en,
 	.bcs_enable = wcd938x_mbhc_bcs_enable,
-	.hph_pa_enable = wcd938x_mbhc_hph_pa_enable,
 };
 
 static int wcd938x_get_hph_type(struct snd_kcontrol *kcontrol,
