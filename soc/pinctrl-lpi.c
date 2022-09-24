@@ -535,12 +535,11 @@ static int lpi_notifier_service_cb(struct notifier_block *this,
 		lpi_dev_up = false;
 		break;
 	case AUDIO_NOTIFIER_SERVICE_UP:
-		if (initial_boot) {
+		if (initial_boot)
 			initial_boot = false;
 
-			lpi_dev_up = true;
-			snd_event_notify(lpi_dev, SND_EVENT_UP);
-		}
+		lpi_dev_up = true;
+		snd_event_notify(lpi_dev, SND_EVENT_UP);
 		break;
 	default:
 		break;
