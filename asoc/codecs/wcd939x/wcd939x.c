@@ -842,10 +842,69 @@ struct wcd939x_mbhc *wcd939x_soc_get_mbhc(struct snd_soc_component *component)
 }
 EXPORT_SYMBOL(wcd939x_soc_get_mbhc);
 
+static int  wcd939x_config_power_mode(struct snd_soc_component *component,
+				int event, int index, int mode)
+{
+
+	switch (event) {
+	case SND_SOC_DAPM_POST_PMU:
+		if (mode == CLS_H_ULP) {
+			if (index == WCD939X_HPHL) {
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL12, ZONE3_RMS, 0x21));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL13, ZONE4_RMS, 0x30));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL14, ZONE5_RMS, 0x3F));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL15, ZONE6_RMS, 0x48));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL17, PATH_GAIN, 0x0C));
+			} else if (index == WCD939X_HPHR) {
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL12, ZONE3_RMS, 0x21));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL13, ZONE4_RMS, 0x30));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL14, ZONE5_RMS, 0x3F));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL15, ZONE6_RMS, 0x48));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL17, PATH_GAIN, 0x0C));
+			}
+		} else {
+			if (index == WCD939X_HPHL) {
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL12, ZONE3_RMS, 0x1E));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL13, ZONE4_RMS, 0x2A));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL14, ZONE5_RMS, 0x36));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL15, ZONE6_RMS, 0x3C));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(CTL17, PATH_GAIN, 0x00));
+			} else if (index == WCD939X_HPHR) {
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL12, ZONE3_RMS, 0x1E));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL13, ZONE4_RMS, 0x2A));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL14, ZONE5_RMS, 0x36));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL15, ZONE6_RMS, 0x2C));
+				snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(R_CTL17, PATH_GAIN, 0x00));
+			}
+		}
+	}
+	return 0;
+}
+
 static int wcd939x_enable_hph_pcm_index(struct snd_soc_component *component,
 				int event, int hph)
 {
-	struct wcd939x_priv *wcd939x;
+	struct wcd939x_priv *wcd939x = NULL;
 
 	if (!component) {
 		pr_err_ratelimited("%s: Invalid params, NULL component\n", __func__);
@@ -1006,7 +1065,7 @@ static int wcd939x_config_xtalk(struct snd_soc_component *component,
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		/* enable xtalk for L and R channels*/
-			snd_soc_component_update_bits(component, WCD939X_RX_PATH_CFG2,
+		snd_soc_component_update_bits(component, WCD939X_RX_PATH_CFG2,
 					0x0F, 0x0F);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
@@ -1024,10 +1083,12 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 			int event)
 {
 
-	struct wcd939x_priv *wcd939x;
+	int hph_mode = 0;
+	struct wcd939x_priv *wcd939x = NULL;
 	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
 
 	wcd939x = snd_soc_component_get_drvdata(component);
+	hph_mode = wcd939x->hph_mode;
 
 	dev_dbg(component->dev, "%s event: %d wshift: %d wname: %s\n",
 					__func__, event, w->shift, w->name);
@@ -1035,6 +1096,8 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		wcd939x_rx_clk_enable(component);
+		if (wcd939x->hph_pcm_enabled[w->shift])
+			wcd939x_config_power_mode(component, event, w->shift, hph_mode);
 		wcd939x_config_compander(component, event, w->shift);
 		wcd939x_config_xtalk(component, event, w->shift);
 		break;
