@@ -4482,7 +4482,9 @@ static int wcd939x_suspend(struct device *dev)
 		}
 		clear_bit(ALLOW_BUCK_DISABLE, &wcd939x->status_mask);
 	}
-	if (wcd939x->dapm_bias_off) {
+	if (wcd939x->dapm_bias_off ||
+		(snd_soc_component_get_bias_level(wcd939x->component) ==
+		SND_SOC_BIAS_OFF)) {
 		msm_cdc_set_supplies_lpm_mode(wcd939x->dev,
 					      wcd939x->supplies,
 					      pdata->regulator,
