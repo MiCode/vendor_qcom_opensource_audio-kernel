@@ -22,7 +22,7 @@
 #include "wcd939x-registers.h"
 #include "internal.h"
 
-#define WCD939X_ZDET_SUPPORTED          false
+#define WCD939X_ZDET_SUPPORTED          true
 /* Z value defined in milliohm */
 #define WCD939X_ZDET_VAL_32             32000
 #define WCD939X_ZDET_VAL_400            400000
@@ -35,8 +35,8 @@
 #define WCD939X_MBHC_GET_C1(c)          ((c & 0xC000) >> 14)
 #define WCD939X_MBHC_GET_X1(x)          (x & 0x3FFF)
 /* Z value compared in milliOhm */
-#define WCD939X_MBHC_IS_SECOND_RAMP_REQUIRED(z) ((z > 400000) || (z < 32000))
-#define WCD939X_MBHC_ZDET_CONST         (86 * 16384)
+#define WCD939X_MBHC_IS_SECOND_RAMP_REQUIRED(z) false
+#define WCD939X_MBHC_ZDET_CONST         (1018 * 1024)
 #define WCD939X_MBHC_MOISTURE_RREF      R_24_KOHM
 
 static struct wcd_mbhc_register
@@ -451,6 +451,8 @@ static void wcd939x_mbhc_zdet_ramp(struct snd_soc_component *component,
 				0x0F, zdet_param->noff);
 	snd_soc_component_update_bits(component, WCD939X_ZDET_RAMP_CTL,
 				0x0F, zdet_param->nshift);
+	snd_soc_component_update_bits(component, WCD939X_ZDET_RAMP_CTL,
+				0x70, 0x60); /*acc1_min_63 */
 
 	if (!zl)
 		goto z_right;
@@ -487,16 +489,12 @@ static inline void wcd939x_wcd_mbhc_qfuse_cal(
 	s16 q1;
 	int q1_cal;
 
-	if (*z_val < (WCD939X_ZDET_VAL_400/1000))
-		q1 = snd_soc_component_read(component,
-			WCD939X_EFUSE_REG_23 + (2 * flag_l_r));
-	else
-		q1 = snd_soc_component_read(component,
-			WCD939X_EFUSE_REG_24 + (2 * flag_l_r));
+	q1 = snd_soc_component_read(component,
+			WCD939X_EFUSE_REG_21 + flag_l_r);
 	if (q1 & 0x80)
-		q1_cal = (10000 - ((q1 & 0x7F) * 25));
+		q1_cal = (10000 - ((q1 & 0x7F) * 10));
 	else
-		q1_cal = (10000 + (q1 * 25));
+		q1_cal = (10000 + (q1 * 10));
 	if (q1_cal > 0)
 		*z_val = ((*z_val) * 10000) / q1_cal;
 }
@@ -512,14 +510,14 @@ static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 	bool is_fsm_disable = false;
 	struct wcd939x_mbhc_zdet_param zdet_param[] = {
 		{4, 0, 4, 0x08, 0x14, 0x18}, /* < 32ohm */
-		{2, 0, 3, 0x18, 0x7C, 0x90}, /* 32ohm < Z < 400ohm */
+		{4, 0, 6, 0x18, 0x60, 0x78}, /* 32ohm < Z < 400ohm */
 		{1, 4, 5, 0x18, 0x7C, 0x90}, /* 400ohm < Z < 1200ohm */
 		{1, 6, 7, 0x18, 0x7C, 0x90}, /* >1200ohm */
 	};
 	struct wcd939x_mbhc_zdet_param *zdet_param_ptr = NULL;
 	s16 d1_a[][4] = {
 		{0, 30, 90, 30},
-		{0, 30, 30, 5},
+		{0, 30, 30, 6},
 		{0, 30, 30, 5},
 		{0, 30, 30, 5},
 	};
@@ -643,10 +641,7 @@ right_ch_impedance:
 	}
 	snd_soc_component_update_bits(component, WCD939X_R_ATEST, 0x02, 0x02);
 	snd_soc_component_update_bits(component, WCD939X_PA_CTL2, 0x40, 0x01);
-	if (*zl < (WCD939X_ZDET_VAL_32/1000))
-		wcd939x_mbhc_zdet_ramp(component, &zdet_param[0], &z1Ls, NULL, d1);
-	else
-		wcd939x_mbhc_zdet_ramp(component, &zdet_param[1], &z1Ls, NULL, d1);
+	wcd939x_mbhc_zdet_ramp(component, &zdet_param[1], &z1Ls, NULL, d1);
 	snd_soc_component_update_bits(component, WCD939X_PA_CTL2, 0x40, 0x00);
 	snd_soc_component_update_bits(component, WCD939X_R_ATEST, 0x02, 0x00);
 	z1Ls /= 1000;

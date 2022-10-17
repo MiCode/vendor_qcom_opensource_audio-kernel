@@ -1685,15 +1685,13 @@ static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 		if (mbhc->mbhc_cb->clk_setup)
 			mbhc->mbhc_cb->clk_setup(mbhc->component, true);
 
-		/* insertion detected, enable L_DET_EN */
-		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_L_DET_EN, 1);
 
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 		if (unlikely((mbhc->mbhc_cb->lock_sleep(mbhc, true)) == false))
 			pr_warn("%s: failed to hold suspend\n", __func__);
 		else {
-			if (mbhc->current_plug != MBHC_PLUG_TYPE_NONE)
-				wcd_mbhc_swch_irq_handler(mbhc);
+            if (mbhc->current_plug == MBHC_PLUG_TYPE_NONE)
+                wcd_mbhc_swch_irq_handler(mbhc);
 			mbhc->mbhc_cb->lock_sleep(mbhc, false);
 		}
 #endif
