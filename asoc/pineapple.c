@@ -1351,6 +1351,12 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 	if (!mbhc_calibration)
 		return -ENOMEM;
 	wcd_mbhc_cfg.calibration = mbhc_calibration;
+
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	if (of_find_property(card->dev->of_node, "qcom,usbss-hsj-connect-enabled", NULL))
+		wcd_usbss_switch_update(WCD_USBSS_HSJ_CONNECT, WCD_USBSS_CABLE_CONNECT);
+#endif
+
 	ret = wcd939x_mbhc_hs_detect(component, &wcd_mbhc_cfg);
 	if (ret) {
 		dev_err(component->dev, "%s: mbhc hs detect failed, err:%d\n",
