@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
  */
+#define DEBUG
 #include "lpass-cdc-comp.h"
 
 int lpass_cdc_load_compander_coeff(struct snd_soc_component *component,

@@ -4,6 +4,7 @@
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+//#define DEBUG
 #include <linux/irq.h>
 #include <linux/kernel.h>
 #include <linux/init.h>

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
+#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -745,6 +746,12 @@ correct_plug_type:
 		}
 
 		msleep(180);
+		/* In the case of system bootup with headset pluged, mbhc
+		 * begin to detect without sound card registered. delay
+		 * about 150ms to wait sound card registe.
+		 */
+		if ((mbhc->mbhc_cfg->swap_gnd_mic == NULL) && (mbhc->mbhc_cfg->enable_usbc_analog))
+			msleep(200);
 		/*
 		 * Use ADC single mode to minimize the chance of missing out
 		 * btn press/release for HEADSET type during correct work.
@@ -910,6 +917,15 @@ report:
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_ADC_MODE, 0);
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_ADC_EN, 0);
 
+#ifdef CONFIG_TARGET_PRODUCT_ZIYI
+	if (mbhc->hs_detect_work_stop) {
+		pr_debug("%s: stop requested: %d\n", __func__,
+				mbhc->hs_detect_work_stop);
+		wcd_micbias_disable(mbhc);
+		goto exit;
+	}
+#endif
+
 	WCD_MBHC_RSC_LOCK(mbhc);
 	wcd_mbhc_find_plug_and_report(mbhc, plug_type);
 	WCD_MBHC_RSC_UNLOCK(mbhc);
@@ -924,6 +940,9 @@ enable_supply:
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_DETECTION_DONE, 1);
 	else
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_DETECTION_DONE, 0);
+
+	if (plug_type == MBHC_PLUG_TYPE_HEADSET)
+		mbhc->micbias_enable = true;
 
 	if (mbhc->mbhc_cb->bcs_enable)
 		mbhc->mbhc_cb->bcs_enable(mbhc, true);
@@ -1133,7 +1152,11 @@ static irqreturn_t wcd_mbhc_adc_hs_ins_irq(int irq, void *data)
 		 * check clamp for 120ms but at 30ms chunks to leave
 		 * room for other interrupts to be processed
 		 */
+#ifdef CONFIG_TARGET_PRODUCT_ZIYI
+		usleep_range(45000, 45100);
+#else
 		usleep_range(30000, 30100);
+#endif
 	} while (--clamp_retry);
 
 	WCD_MBHC_RSC_LOCK(mbhc);
@@ -1149,7 +1172,6 @@ static irqreturn_t wcd_mbhc_adc_hs_ins_irq(int irq, void *data)
 		WCD_MBHC_RSC_UNLOCK(mbhc);
 		return IRQ_HANDLED;
 	}
-
 	if (!mbhc->mbhc_cfg->detect_extn_cable) {
 		pr_debug("%s: Returning as Extension cable feature not enabled\n",
 			__func__);

@@ -3,6 +3,7 @@
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
  */
 
+#define DEBUG
 #include <linux/of_platform.h>
 #include <linux/module.h>
 #include <linux/io.h>

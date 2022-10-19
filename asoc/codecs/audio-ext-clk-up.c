@@ -3,6 +3,7 @@
  * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#define DEBUG
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>
@@ -236,7 +237,7 @@ static void lpass_hw_vote_unprepare(struct clk_hw *hw)
 			clk_priv->lpass_core_hwvote_client_handle);
 #endif
 		if (ret < 0) {
-			pr_err("%s lpass core hw vote failed %d\n",
+			pr_err("%s lpass core hw unvote failed %d\n",
 				__func__, ret);
 		}
 	}
