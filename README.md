@@ -8,6 +8,7 @@
 | curtana-q-oss | Redmi Note 9 Pro,Redmi Note 9 Pro Max | Android Q | LA.UM.8.9.r1-07100-SM6xx.0 | [curtana-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/curtana-q-oss) |
 | cepheus-q-oss | Mi 9, Redmi K20 Pro | Android Q | LA.UM.8.1.r1-08700-sm8150.0 | [cepheus-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/cepheus-q-oss) |
 | crux-p-oss | Mi9 Pro 5G | Android P | LA.UM.7.1.r1-15600-sm8150.0 | [crux-p-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/crux-p-oss) |
+| dagu-s-oss | Xiaomi Pad 5 pro 12.4 | Android S | LA.UM.9.12.r1-13300-SMxx50.QSSI12.0-1 | [dagu-s-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/dagu-s-oss) |
 | dipper-q-oss | MI 8, MIX2S, POCOPHONE F1, MI 8UD, MIX 3, MI 8 Explorer Edition | Android Q | LA.UM.8.3.r1-05800-sdm845.0 | [dipper-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/dipper-q-oss) |
 | elish-r-oss | Xiaomi Pad 5 Pro, Xiaomi Pad 5 Pro 5G | Android R | LA.UM.9.12.r1-08000-SMxx50.0 | [elish-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/elish-r-oss) |
 | gauguin-q-oss | Redmi Note 9 Pro | Android Q | LA.UM.8.13.r1-09200-SAIPAN.0 | [gauguin-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/gauguin-q-oss) |
