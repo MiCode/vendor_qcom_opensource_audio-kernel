@@ -14,7 +14,9 @@
 #include <linux/module.h>
 #include <linux/input.h>
 #include <linux/of_device.h>
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 #include <linux/soc/qcom/wcd939x-i2c.h>
+#endif
 #include <linux/pm_qos.h>
 #include <sound/control.h>
 #include <sound/core.h>
@@ -125,6 +127,7 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 
 static bool msm_usbc_swap_gnd_mic(struct snd_soc_component *component, bool active)
 {
+	bool ret = false;
 	struct snd_soc_card *card = component->card;
 	struct msm_asoc_mach_data *pdata =
 				snd_soc_card_get_drvdata(card);
@@ -132,8 +135,11 @@ static bool msm_usbc_swap_gnd_mic(struct snd_soc_component *component, bool acti
 	if (!pdata->wcd_usbss_handle)
 		return false;
 
-	return wcd_usbss_switch_update(WCD_USBSS_GND_MIC_SWAP_AATC,
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	ret = wcd_usbss_switch_update(WCD_USBSS_GND_MIC_SWAP_AATC,
 								WCD_USBSS_CABLE_CONNECT);
+#endif
+	return ret;
 }
 
 static void msm_parse_upd_configuration(struct platform_device *pdev,
