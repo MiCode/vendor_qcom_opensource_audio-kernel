@@ -339,7 +339,7 @@ static int adsp_loader_probe(struct platform_device *pdev)
 	rproc_phandle = be32_to_cpup(prop->value);
 	adsp = rproc_get_by_phandle(rproc_phandle);
 	if (!adsp) {
-		dev_err(&pdev->dev, "fail to get rproc\n", __func__);
+		dev_err(&pdev->dev, "fail to get rproc\n");
 		return -EPROBE_DEFER;
 	}
 
