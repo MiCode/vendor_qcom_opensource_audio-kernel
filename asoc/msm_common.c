@@ -71,6 +71,17 @@ struct chmap_pdata {
 	struct snd_soc_dai *dai[MAX_CODEC_DAI];
 };
 
+static const struct snd_pcm_hardware dummy_dma_hardware = {
+	/* Random values to keep userspace happy when checking constraints */
+	.info               = SNDRV_PCM_INFO_INTERLEAVED |
+					SNDRV_PCM_INFO_BLOCK_TRANSFER,
+	.buffer_bytes_max   = 128*1024,
+	.period_bytes_min   = PAGE_SIZE,
+	.period_bytes_max   = PAGE_SIZE*2,
+	.periods_min        = 2,
+	.periods_max        = 128,
+};
+
 #define MAX_USR_INPUT 10
 
 static int qos_vote_status;
@@ -515,6 +526,9 @@ int msm_common_snd_startup(struct snd_pcm_substream *substream)
 		dev_err(rtd->card->dev, "%s: pdata is NULL\n", __func__);
 		return -EINVAL;
 	}
+
+	if (!rtd->dai_link->no_pcm)
+		snd_soc_set_runtime_hwparams(substream, &dummy_dma_hardware);
 
 	if (index >= 0) {
 		mutex_lock(&pdata->lock[index]);
