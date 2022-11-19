@@ -731,7 +731,7 @@ static int lpi_pinctrl_probe(struct platform_device *pdev)
 	} else {
 		slew_base = NULL;
 		dev_dbg(dev, "error in reading lpi slew register: %d\n",
-			__func__, ret);
+			ret);
 	}
 
 	pindesc = devm_kcalloc(dev, npins, sizeof(*pindesc), GFP_KERNEL);
