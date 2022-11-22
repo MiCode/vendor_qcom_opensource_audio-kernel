@@ -3796,7 +3796,6 @@ static int wcd939x_soc_codec_probe(struct snd_soc_component *component)
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm =
 			snd_soc_component_get_dapm(component);
-	int variant;
 	int ret = -EINVAL;
 
 	dev_info(component->dev, "%s()\n", __func__);
@@ -3810,9 +3809,8 @@ static int wcd939x_soc_codec_probe(struct snd_soc_component *component)
 
 	devm_regmap_qti_debugfs_register(&wcd939x->tx_swr_dev->dev, wcd939x->regmap);
 
-	variant = (snd_soc_component_read(component,
-			WCD939X_EFUSE_REG_0) & 0x1E) >> 1;
-	wcd939x->variant = variant;
+	/*Harmonium contains only one variant i.e wcd9395*/
+	wcd939x->variant = WCD9395;
 
 	wcd939x->fw_data = devm_kzalloc(component->dev,
 					sizeof(*(wcd939x->fw_data)),
