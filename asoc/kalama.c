@@ -140,7 +140,6 @@ static void msm_parse_upd_configuration(struct platform_device *pdev,
 {
 	int ret = 0;
 	u32 dt_values[2];
-	struct snd_soc_card *card = NULL;
 
 	if (!pdev || !pdata)
 		return;
@@ -152,16 +151,6 @@ static void msm_parse_upd_configuration(struct platform_device *pdev,
 			__func__, "qcom,upd_backends_used");
 		return;
 	}
-
-	if (!strcmp(pdata->upd_config.backend_used, "wsa")) {
-		card = (struct snd_soc_card *)platform_get_drvdata(pdev);
-		if (strstr(card->name, "wsa883x"))
-			pdata->get_dev_num = wsa883x_codec_get_dev_num;
-		else
-			pdata->get_dev_num = wsa884x_codec_get_dev_num;
-    } else {
-		pdata->get_dev_num = wcd938x_codec_get_dev_num;
-    }
 
 	ret = of_property_read_u32_array(pdev->dev.of_node,
 			"qcom,upd_lpass_reg_addr", dt_values, MAX_EARPA_REG);
@@ -188,7 +177,6 @@ static void msm_set_upd_config(struct snd_soc_pcm_runtime *rtd)
 {
 	int val1 = 0, val2 = 0, ret = 0;
 	u8  dev_num = 0;
-	char cdc_name[DEV_NAME_STR_LEN];
 	struct snd_soc_component *component = NULL;
 	struct msm_asoc_mach_data *pdata = NULL;
 
@@ -202,10 +190,6 @@ static void msm_set_upd_config(struct snd_soc_pcm_runtime *rtd)
 		pr_err_ratelimited("%s: pdata is NULL\n", __func__);
 		return;
 	}
-	if (!pdata->get_dev_num) {
-		pr_err_ratelimited("%s: get_dev_num is NULL\n", __func__);
-		return;
-	}
 
 	if (!pdata->upd_config.ear_pa_hw_reg_cfg.lpass_cdc_rx0_rx_path_ctl_phy_addr ||
 		!pdata->upd_config.ear_pa_hw_reg_cfg.lpass_wr_fifo_reg_phy_addr ||
@@ -214,18 +198,34 @@ static void msm_set_upd_config(struct snd_soc_pcm_runtime *rtd)
 		return;
 	}
 
-	memset(cdc_name, '\0', DEV_NAME_STR_LEN);
 	if (!strcmp(pdata->upd_config.backend_used, "wsa")) {
-		if (pdata->wsa_max_devs > 0)
-			memcpy(cdc_name, "wsa-codec.1", strlen("wsa-codec.1"));
+		if (pdata->wsa_max_devs > 0) {
+			component = snd_soc_rtdcom_lookup(rtd, "wsa-codec.1");
+			if (!component) {
+				pr_err("%s: %s component is NULL\n", __func__,
+					"wsa-codec.1");
+				return;
+			}
+		}
+	} else {
+		component = snd_soc_rtdcom_lookup(rtd, WCD938X_DRV_NAME);
+		if (!component) {
+			pr_err("%s component is NULL\n", __func__);
+			return;
+		}
 	}
-	else
-		memcpy(cdc_name, WCD938X_DRV_NAME, sizeof(WCD938X_DRV_NAME));
 
-	component = snd_soc_rtdcom_lookup(rtd, cdc_name);
-	if (!component) {
-		pr_err_ratelimited("%s: %s component is NULL\n", __func__,
-			cdc_name);
+	if (!strcmp(pdata->upd_config.backend_used, "wsa")) {
+		if (strstr(rtd->card->name, "wsa883x"))
+			pdata->get_dev_num = wsa883x_codec_get_dev_num;
+		else
+			pdata->get_dev_num = wsa884x_codec_get_dev_num;
+	} else {
+		pdata->get_dev_num = wcd938x_codec_get_dev_num;
+	}
+
+	if (!pdata->get_dev_num) {
+		pr_err("%s: get_dev_num is NULL\n", __func__);
 		return;
 	}
 
