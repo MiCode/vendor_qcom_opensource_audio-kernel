@@ -1378,7 +1378,7 @@ int lpass_cdc_runtime_resume(struct device *dev)
 	trace_printk("%s, enter\n", __func__);
 	dev_dbg(dev,"%s, enter\n", __func__);
 	mutex_lock(&priv->vote_lock);
-	if (priv->lpass_core_hw_vote == NULL) {
+	if ((priv->lpass_core_hw_vote == NULL) || (priv->lpass_core_hw_vote->core == NULL)) {
 		dev_dbg(dev, "%s: Invalid lpass core hw node\n", __func__);
 		goto audio_vote;
 	}
@@ -1396,7 +1396,7 @@ int lpass_cdc_runtime_resume(struct device *dev)
 		__func__, priv->core_hw_vote_count);
 
 audio_vote:
-	if (priv->lpass_audio_hw_vote == NULL) {
+	if ((priv->lpass_audio_hw_vote == NULL) || (priv->lpass_audio_hw_vote->core == NULL)) {
 		dev_dbg(dev, "%s: Invalid lpass audio hw node\n", __func__);
 		goto done;
 	}
