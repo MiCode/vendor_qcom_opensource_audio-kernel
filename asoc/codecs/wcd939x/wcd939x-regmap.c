@@ -469,7 +469,7 @@ static struct reg_default wcd939x_defaults[] = {
 	{WCD939X_DSM_1_STATIC_DATA_1,            0x00},
 	{WCD939X_DSM_1_STATIC_DATA_2,            0x00},
 	{WCD939X_DSM_1_STATIC_DATA_3,            0x00},
-	{WCD939X_RX_PAGE,                        0x00},
+	{WCD939X_RX_TOP_PAGE,                    0x00},
 	{WCD939X_TOP_CFG0,                       0x00},
 	{WCD939X_HPHL_COMP_WR_LSB,               0x00},
 	{WCD939X_HPHL_COMP_WR_MSB,               0x00},
