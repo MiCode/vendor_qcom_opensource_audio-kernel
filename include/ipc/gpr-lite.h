@@ -228,7 +228,7 @@ struct gpr_hdr {
 
 struct gpr_pkt {
        struct gpr_hdr hdr;
-       uint8_t payload[0];
+       DECLARE_FLEX_ARRAY(uint8_t, payload);
 };
 
 #define GPR_IBASIC_RSP_RESULT 0x02001005
