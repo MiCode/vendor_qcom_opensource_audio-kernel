@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -27,6 +27,7 @@
 #include "wcd937x.h"
 #include "internal.h"
 #include "asoc/bolero-slave-internal.h"
+#include <linux/qti-regmap-debugfs.h>
 
 #define WCD9370_VARIANT 0
 #define WCD9375_VARIANT 5
@@ -2839,6 +2840,9 @@ static int wcd937x_soc_codec_probe(struct snd_soc_component *component)
 
 	wcd937x->component = component;
 	snd_soc_component_init_regmap(component, wcd937x->regmap);
+
+	devm_regmap_qti_debugfs_register(&wcd937x->tx_swr_dev->dev, wcd937x->regmap);
+
 	variant = (snd_soc_component_read(
 			component, WCD937X_DIGITAL_EFUSE_REG_0) & 0x1E) >> 1;
 	wcd937x->variant = variant;
