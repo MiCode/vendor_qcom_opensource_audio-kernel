@@ -59,6 +59,17 @@ static const char *const ext_disp_audio_type_text[] = {"None", "HDMI", "DP"};
 static const char *const ext_disp_audio_ack_text[] = {"Disconnect",  "Connect",
 						      "Ack_Enable"};
 
+static const struct snd_pcm_hardware dummy_dma_hardware = {
+	/* Random values to keep userspace happy when checking constraints */
+	.info               = SNDRV_PCM_INFO_INTERLEAVED |
+					SNDRV_PCM_INFO_BLOCK_TRANSFER,
+	.buffer_bytes_max   = 128*1024,
+	.period_bytes_min   = PAGE_SIZE,
+	.period_bytes_max   = PAGE_SIZE*2,
+	.periods_min        = 2,
+	.periods_max        = 128,
+};
+
 SOC_EXT_DISP_AUDIO_TYPE(1);
 SOC_EXT_DISP_AUDIO_ACK_STATE(1);
 SOC_EXT_DISP_AUDIO_TYPE(2);
@@ -516,12 +527,16 @@ static int msm_ext_disp_audio_codec_rx_dai_startup(
 	struct msm_ext_disp_audio_codec_rx_data *codec_data =
 			dev_get_drvdata(dai->component->dev);
 	int type;
+	struct snd_soc_pcm_runtime *rtd = asoc_substream_to_rtd(substream);
 
 	if (!codec_data) {
 		dev_err_ratelimited(dai->dev, "%s() codec_data is null\n",
 			__func__);
 		return -EINVAL;
 	}
+
+	if (!rtd->dai_link->no_pcm)
+		snd_soc_set_runtime_hwparams(substream, &dummy_dma_hardware);
 
 	dev_dbg(dai->component->dev, "%s: DP ctl id %d Stream id %d\n",
 		__func__,
