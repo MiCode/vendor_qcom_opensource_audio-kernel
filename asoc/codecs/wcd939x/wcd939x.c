@@ -1305,7 +1305,8 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 		wcd_clsh_set_hph_mode(component, CLS_H_HIFI);
 		if (hph_mode == CLS_H_LP || hph_mode == CLS_H_LOHIFI ||
 		    hph_mode == CLS_H_ULP) {
-			snd_soc_component_update_bits(component,
+			if (!wcd939x->hph_pcm_enabled)
+				snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x01));
 		}
 		snd_soc_component_update_bits(component,
@@ -1331,7 +1332,8 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 			if (hph_mode == CLS_H_LP ||
 			    hph_mode == CLS_H_LOHIFI ||
 			    hph_mode == CLS_H_ULP)
-				snd_soc_component_update_bits(component,
+				if (!wcd939x->hph_pcm_enabled)
+					snd_soc_component_update_bits(component,
 						REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x00));
 			clear_bit(HPH_PA_DELAY, &wcd939x->status_mask);
 		}
@@ -1345,7 +1347,9 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 			wcd939x->update_wcd_event(wcd939x->handle,
 						SLV_BOLERO_EVT_RX_MUTE,
 						(WCD_RX2 << 0x10));
-		wcd_enable_irq(&wcd939x->irq_info,
+		/*Enable PDM INT for PDM data path only*/
+		if (!wcd939x->hph_pcm_enabled)
+			wcd_enable_irq(&wcd939x->irq_info,
 					WCD939X_IRQ_HPHR_PDM_WD_INT);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
@@ -1440,7 +1444,8 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 		wcd_clsh_set_hph_mode(component, CLS_H_HIFI);
 		if (hph_mode == CLS_H_LP || hph_mode == CLS_H_LOHIFI ||
 		    hph_mode == CLS_H_ULP) {
-			snd_soc_component_update_bits(component,
+			if (!wcd939x->hph_pcm_enabled)
+				snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x01));
 		}
 		snd_soc_component_update_bits(component,
@@ -1466,8 +1471,9 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 			if (hph_mode == CLS_H_LP ||
 			    hph_mode == CLS_H_LOHIFI ||
 			    hph_mode == CLS_H_ULP)
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x00));
+				if (!wcd939x->hph_pcm_enabled)
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x00));
 			clear_bit(HPH_PA_DELAY, &wcd939x->status_mask);
 		}
 		snd_soc_component_update_bits(component,
@@ -1480,7 +1486,9 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 			wcd939x->update_wcd_event(wcd939x->handle,
 						SLV_BOLERO_EVT_RX_MUTE,
 						(WCD_RX1 << 0x10));
-		wcd_enable_irq(&wcd939x->irq_info,
+		/*Enable PDM INT for PDM data path only*/
+		if (!wcd939x->hph_pcm_enabled)
+			wcd_enable_irq(&wcd939x->irq_info,
 					WCD939X_IRQ_HPHL_PDM_WD_INT);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
