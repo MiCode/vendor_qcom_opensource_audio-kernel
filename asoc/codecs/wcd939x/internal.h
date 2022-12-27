@@ -84,7 +84,7 @@ struct wcd939x_priv {
 	/*compander and xtalk*/
 	int compander_enabled[WCD939X_HPH_MAX];
 	int xtalk_enabled[WCD939X_HPH_MAX];
-	bool hph_pcm_enabled[WCD939X_HPH_MAX];
+	u8 hph_pcm_enabled;
 
 	u32 hph_mode;
 	u32 tx_mode[TX_ADC_MAX];
