@@ -1652,14 +1652,22 @@ static int wcd939x_enable_rx1(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		wcd939x_rx_connect_port(component, HPH_L, true);
-		if (wcd939x->comp1_enable)
-			wcd939x_rx_connect_port(component, COMP_L, true);
+		if (wcd939x->hph_pcm_enabled[WCD939X_HPHL])
+			wcd939x_rx_connect_port(component, HIFI_PCM_L, true);
+		else {
+			wcd939x_rx_connect_port(component, HPH_L, true);
+			if (wcd939x->comp1_enable)
+				wcd939x_rx_connect_port(component, COMP_L, true);
+		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		wcd939x_rx_connect_port(component, HPH_L, false);
-		if (wcd939x->comp1_enable)
-			wcd939x_rx_connect_port(component, COMP_L, false);
+		if (wcd939x->hph_pcm_enabled[WCD939X_HPHL])
+			wcd939x_rx_connect_port(component, HIFI_PCM_L, false);
+		else {
+			wcd939x_rx_connect_port(component, HPH_L, false);
+			if (wcd939x->comp1_enable)
+				wcd939x_rx_connect_port(component, COMP_L, false);
+		}
 		break;
 	};
 
@@ -1678,14 +1686,22 @@ static int wcd939x_enable_rx2(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		wcd939x_rx_connect_port(component, HPH_R, true);
-		if (wcd939x->comp2_enable)
-			wcd939x_rx_connect_port(component, COMP_R, true);
+		if (wcd939x->hph_pcm_enabled[WCD939X_HPHR])
+			wcd939x_rx_connect_port(component, HIFI_PCM_R, true);
+		else {
+			wcd939x_rx_connect_port(component, HPH_R, true);
+			if (wcd939x->comp2_enable)
+				wcd939x_rx_connect_port(component, COMP_R, true);
+		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		wcd939x_rx_connect_port(component, HPH_R, false);
-		if (wcd939x->comp2_enable)
-			wcd939x_rx_connect_port(component, COMP_R, false);
+		if (wcd939x->hph_pcm_enabled[WCD939X_HPHR])
+			wcd939x_rx_connect_port(component, HIFI_PCM_R, false);
+		else {
+			wcd939x_rx_connect_port(component, HPH_R, false);
+			if (wcd939x->comp2_enable)
+				wcd939x_rx_connect_port(component, COMP_R, false);
+		}
 		break;
 	};
 
