@@ -65,7 +65,7 @@ static struct port_params rx_frame_params_dsd[SWR_MSTR_PORT_LEN] = {
 /* Headset + PCM Haptics */
 static struct port_params rx_frame_params_default[SWR_MSTR_PORT_LEN] = {
 	{3,     0,    0,    0xFF, 0xFF, 1,    0xFF, 0xFF, 1,    0x00, 0x00}, /* HPH/EAR */
-	{31,    0,    0,    3,    6,    7,    0,    0xFF, 0,    0x00, 0x02}, /* HPH_CLH */
+	{63,    0,    0,    3,    6,    7,    0,    0xFF, 0,    0x00, 0x02}, /* HPH_CLH */
 	{31,    11,   11,   0xFF, 0xFF, 4,    1,    0xFF, 0,    0x00, 0x02}, /* HPH_CMP */
 	{7,     1,    0,    0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0,    0x00, 0x00}, /* LO/AUX */
 	{0,     0,    0,    0xFF, 0xFF, 0xFF, 0xFF, 0,    0,    0x00, 0x00}, /* DSD */
