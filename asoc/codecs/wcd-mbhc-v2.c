@@ -1141,6 +1141,17 @@ static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 	struct wcd_mbhc *mbhc = data;
 
 	pr_debug("%s: enter\n", __func__);
+
+	/* WCD USB AATC did not required mech plug detection, will receive
+	 * insertion/removal events from UCSI layer
+	 */
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	if (mbhc->mbhc_cfg->enable_usbc_analog) {
+		pr_debug("%s: leave, (irq_none)", __func__);
+		return IRQ_NONE;
+	}
+#endif
+
 	if (mbhc == NULL) {
 		pr_err("%s: NULL irq data\n", __func__);
 		return IRQ_NONE;
