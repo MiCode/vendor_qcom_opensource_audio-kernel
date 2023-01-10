@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of_platform.h>
@@ -739,6 +739,36 @@ void lpass_cdc_unregister_macro(struct device *dev, u16 macro_id)
 		snd_soc_unregister_component(dev->parent);
 }
 EXPORT_SYMBOL(lpass_cdc_unregister_macro);
+
+void lpass_cdc_notify_wcd_rx_clk(struct device *dev, bool is_native_on)
+{
+	struct lpass_cdc_priv *priv;
+	u32 val;
+
+	if (!dev) {
+		pr_err_ratelimited("%s: dev is null\n", __func__);
+		return;
+	}
+	if (!lpass_cdc_is_valid_child_dev(dev)) {
+		dev_err_ratelimited(dev, "%s: not a valid child dev\n",
+			__func__);
+		return;
+	}
+	priv = dev_get_drvdata(dev->parent);
+	if (!priv) {
+		dev_err_ratelimited(dev, "%s: priv is null\n", __func__);
+		return;
+	}
+	if (is_native_on)
+		val = 0x2;  /* 11.2896M */
+	else
+		val = 0x0; /* 9.6M */
+
+	lpass_cdc_notifier_call(priv,
+		((val << 16) | LPASS_CDC_WCD_EVT_CLK_NOTIFY));
+
+}
+EXPORT_SYMBOL(lpass_cdc_notify_wcd_rx_clk);
 
 void lpass_cdc_wsa_pa_on(struct device *dev, bool adie_lb)
 {

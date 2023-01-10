@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _LPASS_CDC_INTERNAL_H
@@ -17,6 +18,7 @@ enum {
 	LPASS_CDC_WCD_EVT_SSR_UP,
 	LPASS_CDC_WCD_EVT_PA_ON_POST_FSCLK,
 	LPASS_CDC_WCD_EVT_PA_ON_POST_FSCLK_ADIE_LB,
+	LPASS_CDC_WCD_EVT_CLK_NOTIFY,
 };
 
 enum {

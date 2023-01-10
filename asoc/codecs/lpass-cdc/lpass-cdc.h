@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef LPASS_CDC_H
@@ -273,6 +274,7 @@ int lpass_cdc_set_port_map(struct snd_soc_component *component, u32 size, void *
 int lpass_cdc_register_event_listener(struct snd_soc_component *component,
 				   bool enable);
 void lpass_cdc_wsa_pa_on(struct device *dev, bool adie_lb);
+void lpass_cdc_notify_wcd_rx_clk(struct device *dev, bool is_native_on);
 bool lpass_cdc_check_core_votes(struct device *dev);
 int lpass_cdc_tx_mclk_enable(struct snd_soc_component *c, bool enable);
 int lpass_cdc_get_version(struct device *dev);
@@ -354,6 +356,10 @@ static inline int lpass_cdc_register_event_listener(
 }
 
 static void lpass_cdc_wsa_pa_on(struct device *dev, bool adie_lb)
+{
+}
+
+static void lpass_cdc_notify_wcd_rx_clk(struct device *dev, bool is_native_on)
 {
 }
 

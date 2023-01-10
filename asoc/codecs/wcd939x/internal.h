@@ -26,6 +26,12 @@
 #define SWR_NUM_PORTS	4
 
 enum {
+	RX_CLK_9P6MHZ,
+	RX_CLK_12P288MHZ,
+	RX_CLK_11P2896MHZ,
+};
+
+enum {
 	WCD939X_HPHL,
 	WCD939X_HPHR,
 	WCD939X_HPH_MAX,
@@ -128,6 +134,7 @@ struct wcd939x_priv {
 	bool dev_up;
 	u8 tx_master_ch_map[WCD939X_MAX_SLAVE_CH_TYPES];
 	bool usbc_hs_status;
+	u8 rx_clk_config;
 	/* wcd to swr dmic notification */
 	bool notify_swr_dmic;
 	struct blocking_notifier_head notifier;
