@@ -1786,6 +1786,14 @@ int wcd_mbhc_start(struct wcd_mbhc *mbhc, struct wcd_mbhc_config *mbhc_cfg)
 		}
 	}
 
+	/* Disable moisture detect and duty cycle for WCD USB AATC HS*/
+	if (mbhc_cfg->enable_usbc_analog) {
+		mbhc_cfg->moisture_en = false;
+		mbhc_cfg->moisture_duty_cycle_en = false;
+		pr_debug("%s: Disable moisture detect and duty cycle of AATC",
+			__func__);
+	}
+
 	/* Set btn key code */
 	if ((!mbhc->is_btn_already_regd) && wcd_mbhc_set_keycode(mbhc))
 		pr_err("Set btn key code error!!!\n");
