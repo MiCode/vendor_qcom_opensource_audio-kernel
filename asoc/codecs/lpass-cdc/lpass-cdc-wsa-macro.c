@@ -314,10 +314,12 @@ struct lpass_cdc_wsa_macro_priv {
 	u32 wsa_sys_gain[2 * (LPASS_CDC_WSA_MACRO_RX1 + 1)];
 	u32 wsa_bat_cfg[LPASS_CDC_WSA_MACRO_RX1 + 1];
 	u32 wsa_rload[LPASS_CDC_WSA_MACRO_RX1 + 1];
+	u32 wsa_fs_ctl_reg;
 	u8 idle_detect_en;
 	int noise_gate_mode;
 	bool pre_dev_up;
 	int pbr_clk_users;
+	char __iomem *wsa_fs_reg_base;
 };
 
 static struct snd_soc_dai_driver lpass_cdc_wsa_macro_dai[];
@@ -590,7 +592,7 @@ static int lpass_cdc_wsa_macro_set_prim_interpolator_rate(struct snd_soc_dai *da
 			 LPASS_CDC_WSA_MACRO_RX_MAX) {
 		int_1_mix1_inp = port;
 		if ((int_1_mix1_inp < LPASS_CDC_WSA_MACRO_RX0) ||
-			(int_1_mix1_inp > LPASS_CDC_WSA_MACRO_RX_MIX1)) {
+			(int_1_mix1_inp > LPASS_CDC_WSA_MACRO_RX_MAX)) {
 			dev_err_ratelimited(wsa_dev,
 				"%s: Invalid RX port, Dai ID is %d\n",
 				__func__, dai->id);
@@ -900,6 +902,7 @@ static int lpass_cdc_wsa_macro_mute_stream(struct snd_soc_dai *dai, int mute, in
 	struct device *wsa_dev = NULL;
 	struct lpass_cdc_wsa_macro_priv *wsa_priv = NULL;
 	bool adie_lb = false;
+	uint32_t temp;
 
 	if (mute)
 		return 0;
@@ -912,10 +915,23 @@ static int lpass_cdc_wsa_macro_mute_stream(struct snd_soc_dai *dai, int mute, in
 		lpass_cdc_wsa_pa_on(wsa_dev, adie_lb);
 		lpass_cdc_wsa_unmute_interpolator(dai);
 		lpass_cdc_wsa_macro_enable_vi_decimator(component);
-	break;
+		break;
 	default:
-	break;
+		break;
 	}
+	if ((test_bit(LPASS_CDC_WSA_MACRO_RX4,
+			&wsa_priv->active_ch_mask[dai->id]) ||
+			test_bit(LPASS_CDC_WSA_MACRO_RX5,
+			&wsa_priv->active_ch_mask[dai->id])) &&
+			wsa_priv->wsa_fs_reg_base) {
+		temp = ioread32(wsa_priv->wsa_fs_reg_base);
+		if (temp != 0) {
+			temp = 0;
+			iowrite32(temp, wsa_priv->wsa_fs_reg_base);
+		}
+		dev_dbg(wsa_dev, "%s: LPASS_WSA_FS_CTL : %d", __func__, temp);
+	}
+
 	return 0;
 }
 
@@ -3847,6 +3863,17 @@ static int lpass_cdc_wsa_macro_probe(struct platform_device *pdev)
 			__func__, "reg");
 		return ret;
 	}
+	ret = of_property_read_u32(pdev->dev.of_node, "wsa_data_fs_ctl_reg",
+					&wsa_priv->wsa_fs_ctl_reg);
+	if (ret) {
+		dev_dbg(&pdev->dev, "%s: error finding %s entry in dt\n",
+			__func__, "wsa_data_fs_ctl_reg");
+	}
+
+	if (!wsa_priv->wsa_fs_reg_base && wsa_priv->wsa_fs_ctl_reg)
+		wsa_priv->wsa_fs_reg_base = devm_ioremap(&pdev->dev,
+			wsa_priv->wsa_fs_ctl_reg, LPASS_CDC_WSA_MACRO_MAX_OFFSET);
+
 	if (of_find_property(pdev->dev.of_node, is_used_wsa_swr_gpio_dt,
 			     NULL)) {
 		ret = of_property_read_u32(pdev->dev.of_node,
