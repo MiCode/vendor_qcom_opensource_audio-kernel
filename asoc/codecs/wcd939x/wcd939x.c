@@ -1325,6 +1325,10 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(HPH, HPHR_REF_ENABLE, 0x01));
 		wcd_clsh_set_hph_mode(component, hph_mode);
+		/* update Mode for LOHIFI */
+		if (hph_mode == CLS_H_LOHIFI)
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
 		/* 100 usec delay as per HW requirement */
 		usleep_range(100, 110);
 		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
@@ -1464,6 +1468,10 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(HPH, HPHL_REF_ENABLE, 0x01));
 		wcd_clsh_set_hph_mode(component, hph_mode);
+		/* update Mode for LOHIFI */
+		if (hph_mode == CLS_H_LOHIFI)
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
 		/* 100 usec delay as per HW requirement */
 		usleep_range(100, 110);
 		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
