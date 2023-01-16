@@ -29,6 +29,9 @@
 #include "asoc/bolero-slave-internal.h"
 #include "wcd939x-reg-masks.h"
 #include "wcd939x-reg-shifts.h"
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+#include <linux/soc/qcom/wcd939x-i2c.h>
+#endif
 
 
 #define NUM_SWRS_DT_PARAMS 5
@@ -3116,6 +3119,22 @@ static int wcd939x_rx_hph_mode_put(struct snd_kcontrol *kcontrol,
 		mode_val = CLS_H_ULP;
 	}
 	wcd939x->hph_mode = mode_val;
+
+	switch (mode_val) {
+	case CLS_H_HIFI:
+	case CLS_H_LOHIFI:
+		mode_val = 0x4;
+		break;
+	default:
+		/* set default mode to ULP */
+		mode_val = 0x2;
+		break;
+	}
+
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE, mode_val);
+#endif
+
 	return 0;
 }
 
