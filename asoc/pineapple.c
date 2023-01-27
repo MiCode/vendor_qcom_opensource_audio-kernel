@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022. Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023. Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -213,6 +213,9 @@ static void msm_set_upd_config(struct snd_soc_pcm_runtime *rtd)
 					"wsa-codec.1");
 				return;
 			}
+		} else {
+			pr_err("%s wsa_max_devs are NULL\n", __func__);
+			return;
 		}
 	} else {
 		component = snd_soc_rtdcom_lookup(rtd, WCD939X_DRV_NAME);
