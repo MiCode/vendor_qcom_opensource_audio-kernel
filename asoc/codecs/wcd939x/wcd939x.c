@@ -45,6 +45,7 @@
 
 #define NUM_ATTEMPTS 5
 #define COMP_MAX_COEFF 25
+#define HPH_MODE_MAX 4
 
 #define DAPM_MICBIAS1_STANDALONE "MIC BIAS1 Standalone"
 #define DAPM_MICBIAS2_STANDALONE "MIC BIAS2 Standalone"
@@ -72,14 +73,6 @@ value << FIELD_SHIFT(register_name, field_name)
 
 #define WCD939X_XTALK_OFFSET \
 		(WCD939X_HPHR_RX_PATH_SEC0 - WCD939X_HPHL_RX_PATH_SEC0)
-
-enum {
-	HPH_ULP,
-	HPH_HIFI,
-	HPH_LOHIFI,
-	HPH_LP,
-	HPH_MODE_MAX,
-};
 
 static struct comp_coeff_val
 		comp_coeff_table [HPH_MODE_MAX][COMP_MAX_COEFF] = {
@@ -1017,10 +1010,10 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 			comp_ctl0_reg , 0x02, 0x00);
 
 		/* Compander coeff values are same for below modes */
-		if (wcd939x->hph_mode == HPH_HIFI || wcd939x->hph_mode == HPH_LOHIFI
-				|| wcd939x->hph_mode == HPH_LP)
+		if (wcd939x->hph_mode == CLS_H_HIFI || wcd939x->hph_mode == CLS_H_LOHIFI
+				|| wcd939x->hph_mode == CLS_H_LP)
 			hph_mode = 1;
-		else if (wcd939x->hph_mode == HPH_ULP)
+		else if (wcd939x->hph_mode == CLS_H_ULP)
 			hph_mode = 0;
 
 		wcd939x_load_compander_coeff(component, comp_coeff_lsb_reg,
