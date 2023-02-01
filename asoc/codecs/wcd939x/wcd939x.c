@@ -486,6 +486,8 @@ static int wcd939x_init_reg(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component,
 			REG_FIELD_VALUE(HPHLR_SURGE_EN, EN_SURGE_PROTECTION_HPHR, 0x01));
 
+	snd_soc_component_write(component, WCD939X_CFG0, 0x05);
+
 	return 0;
 }
 
