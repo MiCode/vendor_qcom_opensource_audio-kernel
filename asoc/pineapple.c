@@ -136,10 +136,12 @@ static bool msm_usbc_swap_gnd_mic(struct snd_soc_component *component, bool acti
 		return false;
 
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
-	ret = wcd_usbss_switch_update(WCD_USBSS_GND_MIC_SWAP_AATC,
-								WCD_USBSS_CABLE_CONNECT);
-	if (ret == 0)
-		return true;
+	if (wcd_mbhc_cfg.usbss_hsj_connect_enable)
+		ret = wcd_usbss_switch_update(WCD_USBSS_GND_MIC_SWAP_HSJ,
+							WCD_USBSS_CABLE_CONNECT);
+	else if (wcd_mbhc_cfg.enable_usbc_analog)
+		ret = wcd_usbss_switch_update(WCD_USBSS_GND_MIC_SWAP_AATC,
+							WCD_USBSS_CABLE_CONNECT);
 #endif
 	return ret;
 }
@@ -1417,6 +1419,12 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 	if (!mbhc_calibration)
 		return -ENOMEM;
 	wcd_mbhc_cfg.calibration = mbhc_calibration;
+
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	if (of_find_property(card->dev->of_node,
+				"qcom,usbss-hsj-connect-enabled", NULL))
+		wcd_mbhc_cfg.usbss_hsj_connect_enable = true;
+#endif
 
 	ret = wcd939x_mbhc_hs_detect(component, &wcd_mbhc_cfg);
 	if (ret) {
