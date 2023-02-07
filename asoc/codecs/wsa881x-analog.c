@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2016, 2018-2020, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -26,7 +26,6 @@
 #include <linux/i2c.h>
 #include <linux/kernel.h>
 #include <linux/gpio.h>
-#include <soc/internal.h>
 #include <linux/regmap.h>
 #include <asoc/msm-cdc-pinctrl.h>
 #include "wsa881x-analog.h"
