@@ -208,16 +208,13 @@ static int wsa884x_handle_post_irq(void *data)
 	u32 sts1 = 0, sts2 = 0;
 	int retry = WSA884X_IRQ_RETRY;
 
-	struct snd_soc_component *component = NULL;
-
 	if (!wsa884x)
 		return IRQ_NONE;
 
-	component = wsa884x->component;
 	if (!wsa884x->pa_mute) {
 		do {
 			wsa884x->pa_mute = 0;
-			snd_soc_component_update_bits(component,
+			regmap_update_bits(wsa884x->regmap,
 				REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x01));
 			usleep_range(1000, 1100);
 
@@ -231,7 +228,7 @@ static int wsa884x_handle_post_irq(void *data)
 			if (wsa884x->swr_slave->slave_irq_pending) {
 				pr_debug("%s: IRQ retries left: %0d\n",
 					__func__, retry);
-				snd_soc_component_update_bits(component,
+				regmap_update_bits(wsa884x->regmap,
 					REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x00));
 				wsa884x->pa_mute = 1;
 				if (retry--)
