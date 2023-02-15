@@ -100,6 +100,7 @@ struct wcd939x_priv {
 	bool ldoh;
 	bool bcs_dis;
 	bool dapm_bias_off;
+	bool in_2Vpk_mode;
 	struct irq_domain *virq;
 	struct wcd_irq_info irq_info;
 	u32 rx_clk_cnt;

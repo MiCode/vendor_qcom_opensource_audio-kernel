@@ -20,6 +20,7 @@
 #include <asoc/wcdcal-hwdep.h>
 #include <asoc/msm-cdc-pinctrl.h>
 #include <asoc/msm-cdc-supply.h>
+#include <asoc/wcd-mbhc-v2-api.h>
 #include <bindings/audio-codec-port-types.h>
 #include <linux/qti-regmap-debugfs.h>
 #include "wcd939x-registers.h"
@@ -42,6 +43,8 @@
 #define ADC_MODE_VAL_LP       0x05
 #define ADC_MODE_VAL_ULP1     0x09
 #define ADC_MODE_VAL_ULP2     0x0B
+
+#define HPH_IMPEDANCE_2VPK_MODE_OHMS 300
 
 #define NUM_ATTEMPTS 5
 #define COMP_MAX_COEFF 25
@@ -1140,6 +1143,28 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 	return 0;
 }
 
+static void wcd939x_config_2Vpk_mode(struct snd_soc_component *component,
+			struct wcd939x_priv *wcd939x)
+{
+	uint32_t zl = 0, zr = 0;
+	int rc = wcd_mbhc_get_impedance(&wcd939x->mbhc->wcd_mbhc, &zl, &zr);
+
+	if (rc) {
+		dev_err_ratelimited(component->dev, "%s: Unable to get impedance for 2Vpk mode", __func__);
+		return;
+	}
+
+	snd_soc_component_update_bits(component,
+		REG_FIELD_VALUE(PA_GAIN_CTL_L, RX_SUPPLY_LEVEL, 0x01));
+
+	if (zl < HPH_IMPEDANCE_2VPK_MODE_OHMS)
+		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(PA_GAIN_CTL_L, EN_HPHPA_2VPK, 0x00));
+	else
+		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(PA_GAIN_CTL_L, EN_HPHPA_2VPK, 0x01));
+}
+
 static int wcd939x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
 					struct snd_kcontrol *kcontrol,
 					int event)
@@ -1155,6 +1180,9 @@ static int wcd939x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
 		if (!wcd939x->hph_pcm_enabled)
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(RDAC_CLK_CTL1, OPAMP_CHOP_CLK_EN, 0x00));
+		if (wcd939x->in_2Vpk_mode)
+			wcd939x_config_2Vpk_mode(component, wcd939x);
+
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_HPH_GAIN_CTL, HPHL_RX_EN, 0x01));
 		break;
@@ -1209,6 +1237,9 @@ static int wcd939x_codec_hphr_dac_event(struct snd_soc_dapm_widget *w,
 		if (!wcd939x->hph_pcm_enabled)
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(RDAC_CLK_CTL1, OPAMP_CHOP_CLK_EN, 0x00));
+		if (wcd939x->in_2Vpk_mode)
+			wcd939x_config_2Vpk_mode(component, wcd939x);
+
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_HPH_GAIN_CTL, HPHR_RX_EN, 0x01));
 		break;
@@ -4363,6 +4394,10 @@ static int wcd939x_soc_codec_probe(struct snd_soc_component *component)
 
 	/*Harmonium contains only one variant i.e wcd9395*/
 	wcd939x->variant = WCD9395;
+
+	/* Check device tree to see if 2Vpk flag is enabled, this value should not be changed */
+	wcd939x->in_2Vpk_mode = of_find_property(wcd939x->dev->of_node,
+					"qcom,hph-2p15v-mode", NULL) != NULL;
 
 	wcd939x->fw_data = devm_kzalloc(component->dev,
 					sizeof(*(wcd939x->fw_data)),
