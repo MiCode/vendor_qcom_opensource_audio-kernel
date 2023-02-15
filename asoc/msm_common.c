@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/gpio.h>
@@ -19,6 +19,7 @@
 #include <sound/info.h>
 #include <dsp/audio_prm.h>
 #include <dsp/digital-cdc-rsc-mgr.h>
+#include <linux/sched/walt.h>
 
 #include "msm_common.h"
 
@@ -974,24 +975,78 @@ static void msm_audio_update_qos_request(u32 latency)
 	}
 }
 
+static int msm_get_and_print_cpu_map_taken(cpumask_t* expected_cpu_map) {
+	int ret = 0;
+	int cpu = 0;
+	cpumask_t current_cpu_map = walt_get_cpus_taken();
+
+	if (memcmp(&current_cpu_map, &CPU_MASK_NONE, sizeof(cpumask_t)) == 0) {
+		pr_debug("%s: current cpu map is none.\n", __func__);
+	} else {
+		for_each_cpu(cpu, &current_cpu_map) {
+			pr_debug("%s: current cpu core taken %d.\n", __func__, cpu);
+		}
+	}
+	if (memcmp(&current_cpu_map, expected_cpu_map, sizeof(cpumask_t)) == 0)
+		ret = 1;
+
+	return ret;
+}
+
 static int msm_qos_ctl_put(struct snd_kcontrol *kcontrol,
 		struct snd_ctl_elem_value *ucontrol)
 {
+	cpumask_t expected_cpu_map = CPU_MASK_NONE;
 	qos_vote_status = ucontrol->value.enumerated.item[0];
+
+	pr_debug("%s: qos_vote_status = %d, qos_client_active_cnt = %d.\n",
+				__func__, qos_vote_status, qos_client_active_cnt);
 	if (qos_vote_status) {
 		if (dev_pm_qos_request_active(&latency_pm_qos_req))
 			dev_pm_qos_remove_request(&latency_pm_qos_req);
 
 		qos_client_active_cnt++;
-		if (qos_client_active_cnt == 1)
+		if (qos_client_active_cnt == 1) {
 			msm_audio_update_qos_request(MSM_LL_QOS_VALUE);
+
+			expected_cpu_map = audio_cpu_map;
+			if (msm_get_and_print_cpu_map_taken(&expected_cpu_map)) {
+				pr_debug("%s: already expected, don't need to set it.\n",
+							__func__);
+				return 0;
+			}
+
+			walt_set_cpus_taken(&audio_cpu_map);
+			pr_debug("%s: set cpus taken to walt for audio RT tasks.\n",
+						__func__);
+
+			if (msm_get_and_print_cpu_map_taken(&expected_cpu_map)) {
+				pr_debug("%s: set cpus taken as expected successfully.\n",
+					__func__);
+			}
+		}
 	} else {
 		if (qos_client_active_cnt > 0)
 			qos_client_active_cnt--;
-		if (qos_client_active_cnt == 0)
+		if (qos_client_active_cnt == 0) {
 			msm_audio_update_qos_request(PM_QOS_CPU_LATENCY_DEFAULT_VALUE);
-	}
 
+			if (msm_get_and_print_cpu_map_taken(&expected_cpu_map)) {
+				pr_debug("%s: already expected, don't need to unset it.\n",
+							__func__);
+				return 0;
+			}
+
+			walt_unset_cpus_taken(&audio_cpu_map);
+			pr_debug("%s: unset cpus taken to walt for audio RT tasks.\n",
+						__func__);
+
+			if (msm_get_and_print_cpu_map_taken(&expected_cpu_map)) {
+				pr_debug("%s: unset cpus taken as expected successfully.\n",
+							__func__);
+			}
+		}
+	}
 	return 0;
 }
 
