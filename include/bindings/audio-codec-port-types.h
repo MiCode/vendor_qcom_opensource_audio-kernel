@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.*/
 
 #ifndef __AUDIO_CODEC_PORT_TYPES_H
 #define __AUDIO_CODEC_PORT_TYPES_H
@@ -93,5 +94,6 @@
 #define SWRM_TX3_CH3 56
 #define SWRM_TX3_CH4 57
 #define SWRM_TX_PCM_IN 58
-
+#define HIFI_PCM_L 59
+#define HIFI_PCM_R 60
 #endif /* __AUDIO_CODEC_PORT_TYPES_H */

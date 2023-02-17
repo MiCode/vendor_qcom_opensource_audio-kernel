@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _SWR_WCD_CTRL_H
@@ -185,7 +186,6 @@ struct swr_mstr_ctrl {
 	struct clk *lpass_core_hw_vote;
 	struct clk *lpass_core_audio;
 	u8 num_usecase;
-	u32 pcm_enable_count;
 	u32 swr_irq_wakeup_capable;
 	int hw_core_clk_en;
 	int aud_core_clk_en;

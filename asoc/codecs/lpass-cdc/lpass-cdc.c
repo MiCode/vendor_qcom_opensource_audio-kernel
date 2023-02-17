@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/of_platform.h>
@@ -663,6 +663,7 @@ int lpass_cdc_register_macro(struct device *dev, u16 macro_id,
 	if (macro_id == VA_MACRO)
 		priv->macro_params[macro_id].reg_wake_irq =
 						ops->reg_wake_irq;
+	mutex_lock(&priv->macro_lock);
 	priv->num_dais += ops->num_dais;
 	priv->num_macros_registered++;
 	priv->macros_supported[macro_id] = true;
@@ -673,6 +674,7 @@ int lpass_cdc_register_macro(struct device *dev, u16 macro_id,
 		ret = lpass_cdc_copy_dais_from_macro(priv);
 		if (ret < 0) {
 			dev_err(dev, "%s: copy_dais failed\n", __func__);
+			mutex_unlock(&priv->macro_lock);
 			return ret;
 		}
 		if (priv->macros_supported[TX_MACRO] == false) {
@@ -685,9 +687,11 @@ int lpass_cdc_register_macro(struct device *dev, u16 macro_id,
 				priv->lpass_cdc_dais, priv->num_dais);
 		if (ret < 0) {
 			dev_err(dev, "%s: register codec failed\n", __func__);
+			mutex_unlock(&priv->macro_lock);
 			return ret;
 		}
 	}
+	mutex_unlock(&priv->macro_lock);
 	return 0;
 }
 EXPORT_SYMBOL(lpass_cdc_register_macro);
@@ -739,6 +743,36 @@ void lpass_cdc_unregister_macro(struct device *dev, u16 macro_id)
 		snd_soc_unregister_component(dev->parent);
 }
 EXPORT_SYMBOL(lpass_cdc_unregister_macro);
+
+void lpass_cdc_notify_wcd_rx_clk(struct device *dev, bool is_native_on)
+{
+	struct lpass_cdc_priv *priv;
+	u32 val;
+
+	if (!dev) {
+		pr_err_ratelimited("%s: dev is null\n", __func__);
+		return;
+	}
+	if (!lpass_cdc_is_valid_child_dev(dev)) {
+		dev_err_ratelimited(dev, "%s: not a valid child dev\n",
+			__func__);
+		return;
+	}
+	priv = dev_get_drvdata(dev->parent);
+	if (!priv) {
+		dev_err_ratelimited(dev, "%s: priv is null\n", __func__);
+		return;
+	}
+	if (is_native_on)
+		val = 0x2;  /* 11.2896M */
+	else
+		val = 0x0; /* 9.6M */
+
+	lpass_cdc_notifier_call(priv,
+		((val << 16) | LPASS_CDC_WCD_EVT_CLK_NOTIFY));
+
+}
+EXPORT_SYMBOL(lpass_cdc_notify_wcd_rx_clk);
 
 void lpass_cdc_wsa_pa_on(struct device *dev, bool adie_lb)
 {
@@ -1323,6 +1357,7 @@ static int lpass_cdc_probe(struct platform_device *pdev)
 	priv->core_audio_vote_count = 0;
 
 	dev_set_drvdata(&pdev->dev, priv);
+	mutex_init(&priv->macro_lock);
 	mutex_init(&priv->io_lock);
 	mutex_init(&priv->clk_lock);
 	mutex_init(&priv->vote_lock);
@@ -1363,6 +1398,7 @@ static int lpass_cdc_remove(struct platform_device *pdev)
 		return -EINVAL;
 
 	of_platform_depopulate(&pdev->dev);
+	mutex_destroy(&priv->macro_lock);
 	mutex_destroy(&priv->io_lock);
 	mutex_destroy(&priv->clk_lock);
 	mutex_destroy(&priv->vote_lock);

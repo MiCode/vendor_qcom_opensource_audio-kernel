@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _WCD939X_INTERNAL_H
@@ -25,12 +26,29 @@
 #define SWR_NUM_PORTS	4
 
 enum {
+	RX_CLK_9P6MHZ,
+	RX_CLK_12P288MHZ,
+	RX_CLK_11P2896MHZ,
+};
+
+enum {
+	WCD939X_HPHL,
+	WCD939X_HPHR,
+	WCD939X_HPH_MAX,
+};
+
+enum {
 	TX_HDR12 = 0,
 	TX_HDR34,
 	TX_HDR_MAX,
 };
 
 extern struct regmap_config wcd939x_regmap_config;
+
+struct comp_coeff_val {
+	u8 lsb;
+	u8 msb;
+};
 
 struct codec_port_info {
 	u32 slave_port_type;
@@ -68,6 +86,11 @@ struct wcd939x_priv {
 	struct wcd_clsh_cdc_info clsh_info;
 	/* mbhc module */
 	struct wcd939x_mbhc *mbhc;
+
+	/*compander and xtalk*/
+	int compander_enabled[WCD939X_HPH_MAX];
+	int xtalk_enabled[WCD939X_HPH_MAX];
+	u8 hph_pcm_enabled;
 
 	u32 hph_mode;
 	u32 tx_mode[TX_ADC_MAX];
@@ -111,6 +134,7 @@ struct wcd939x_priv {
 	bool dev_up;
 	u8 tx_master_ch_map[WCD939X_MAX_SLAVE_CH_TYPES];
 	bool usbc_hs_status;
+	u8 rx_clk_config;
 	/* wcd to swr dmic notification */
 	bool notify_swr_dmic;
 	struct blocking_notifier_head notifier;

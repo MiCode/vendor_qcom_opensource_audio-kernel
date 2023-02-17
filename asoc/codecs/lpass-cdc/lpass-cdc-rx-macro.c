@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -485,6 +485,7 @@ enum {
 struct lpass_cdc_rx_macro_priv {
 	struct device *dev;
 	int comp_enabled[LPASS_CDC_RX_MACRO_COMP_MAX];
+	u8 is_pcm_enabled;
 	/* Main path clock users count */
 	int main_clk_users[INTERP_MAX];
 	int rx_port_value[LPASS_CDC_RX_MACRO_PORTS_MAX];
@@ -535,6 +536,7 @@ struct lpass_cdc_rx_macro_priv {
 	struct clk *hifi_fir_clk;
 	int8_t rx0_gain_val;
 	int8_t rx1_gain_val;
+	int pcm_select_users;
 };
 
 static struct snd_soc_dai_driver lpass_cdc_rx_macro_dai[];
@@ -1827,10 +1829,14 @@ static int lpass_cdc_rx_macro_enable_main_path(struct snd_soc_dapm_widget *w,
 }
 
 static void lpass_cdc_rx_macro_droop_setting(struct snd_soc_component *component,
-					    int interp_n, int event)
+					struct lpass_cdc_rx_macro_priv *rx_priv,
+					int interp_n, int event)
 {
 	u8 pcm_rate = 0, val = 0;
 	u16 rx0_path_ctl_reg = 0, rx_path_cfg3_reg = 0;
+
+	if (rx_priv->is_pcm_enabled)
+		return;
 
 	rx_path_cfg3_reg = LPASS_CDC_RX_RX0_RX_PATH_CFG3 +
 					(interp_n * LPASS_CDC_RX_MACRO_RX_PATH_OFFSET);
@@ -1869,7 +1875,7 @@ static int lpass_cdc_rx_macro_config_compander(struct snd_soc_component *compone
 		return 0;
 
 	comp = interp_n;
-	if (!rx_priv->comp_enabled[comp])
+	if (!rx_priv->comp_enabled[comp] && rx_priv->is_pcm_enabled)
 		return 0;
 
 	if (rx_priv->is_ear_mode_on && interp_n == INTERP_HPHL)
@@ -2083,10 +2089,14 @@ static int lpass_cdc_rx_macro_config_classh(struct snd_soc_component *component,
 }
 
 static void lpass_cdc_rx_macro_hd2_control(struct snd_soc_component *component,
-				 u16 interp_idx, int event)
+					struct lpass_cdc_rx_macro_priv *rx_priv,
+					u16 interp_idx, int event)
 {
 	u16 hd2_scale_reg = 0;
 	u16 hd2_enable_reg = 0;
+
+	if (rx_priv->is_pcm_enabled)
+		return;
 
 	switch (interp_idx) {
 	case INTERP_HPHL:
@@ -2145,6 +2155,36 @@ static int lpass_cdc_rx_macro_hph_idle_detect_put(struct snd_kcontrol *kcontrol,
 	rx_priv->idle_det_cfg.hph_idle_detect_en =
 		ucontrol->value.integer.value[0];
 
+	return 0;
+}
+
+static int lpass_cdc_rx_macro_get_pcm_path(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				snd_soc_kcontrol_component(kcontrol);
+	struct device *rx_dev = NULL;
+	struct lpass_cdc_rx_macro_priv *rx_priv = NULL;
+
+	if (!lpass_cdc_rx_macro_get_data(component, &rx_dev, &rx_priv, __func__))
+		return -EINVAL;
+
+	ucontrol->value.integer.value[0] = rx_priv->is_pcm_enabled;
+	return 0;
+}
+
+static int lpass_cdc_rx_macro_put_pcm_path(struct snd_kcontrol *kcontrol,
+			       struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+				snd_soc_kcontrol_component(kcontrol);
+	struct device *rx_dev = NULL;
+	struct lpass_cdc_rx_macro_priv *rx_priv = NULL;
+
+	if (!lpass_cdc_rx_macro_get_data(component, &rx_dev, &rx_priv, __func__))
+		return -EINVAL;
+
+	rx_priv->is_pcm_enabled = ucontrol->value.integer.value[0];
 	return 0;
 }
 
@@ -2618,6 +2658,9 @@ static void lpass_cdc_rx_macro_idle_detect_control(struct snd_soc_component *com
 	if (!rx_priv->idle_det_cfg.hph_idle_detect_en)
 		return;
 
+	if (!rx_priv->is_pcm_enabled)
+		return;
+
 	if (interp == INTERP_HPHL) {
 		reg = LPASS_CDC_RX_IDLE_DETECT_PATH_CTL;
 		mask = 0x01;
@@ -2646,6 +2689,9 @@ static void lpass_cdc_rx_macro_hphdelay_lutbypass(struct snd_soc_component *comp
 {
 	u16 hph_lut_bypass_reg = 0;
 	u16 hph_comp_ctrl7 = 0;
+
+	if (rx_priv->is_pcm_enabled)
+		return;
 
 	switch (interp_idx) {
 	case INTERP_HPHL:
@@ -2732,11 +2778,11 @@ static int lpass_cdc_rx_macro_enable_interp_clk(struct snd_soc_component *compon
 					interp_idx, event);
 			if (rx_priv->hph_hd2_mode)
 				lpass_cdc_rx_macro_hd2_control(
-					component, interp_idx, event);
+					component, rx_priv, interp_idx, event);
 			lpass_cdc_rx_macro_hphdelay_lutbypass(component, rx_priv,
 						    interp_idx, event);
 			lpass_cdc_rx_macro_droop_setting(component,
-						interp_idx, event);
+						rx_priv, interp_idx, event);
 			lpass_cdc_rx_macro_config_compander(component, rx_priv,
 						interp_idx, event);
 			if (interp_idx == INTERP_AUX) {
@@ -2747,6 +2793,14 @@ static int lpass_cdc_rx_macro_enable_interp_clk(struct snd_soc_component *compon
 			}
 			lpass_cdc_rx_macro_config_classh(component, rx_priv,
 						interp_idx, event);
+			/*select PCM path and swr clk is 9.6MHz*/
+			if (rx_priv->is_pcm_enabled && !rx_priv->is_native_on) {
+				if (rx_priv->pcm_select_users == 0)
+					snd_soc_component_update_bits(component,
+						LPASS_CDC_RX_TOP_SWR_CTRL, 0x02, 0x02);
+				++rx_priv->pcm_select_users;
+			}
+			lpass_cdc_notify_wcd_rx_clk(rx_dev, rx_priv->is_native_on);
 		}
 		rx_priv->main_clk_users[interp_idx]++;
 	}
@@ -2758,6 +2812,16 @@ static int lpass_cdc_rx_macro_enable_interp_clk(struct snd_soc_component *compon
 			/* Main path PGA mute enable */
 			snd_soc_component_update_bits(component, main_reg,
 					0x10, 0x10);
+			/*Unselect PCM path*/
+			if (rx_priv->is_pcm_enabled && !rx_priv->is_native_on) {
+				if (rx_priv->pcm_select_users == 1)
+					snd_soc_component_update_bits(component,
+						LPASS_CDC_RX_TOP_SWR_CTRL, 0x02, 0x00);
+				--rx_priv->pcm_select_users;
+				if (rx_priv->pcm_select_users < 0)
+					rx_priv->pcm_select_users = 0;
+			}
+
 			/* Clk Disable */
 			snd_soc_component_update_bits(component, dsm_reg,
 						0x01, 0x00);
@@ -2786,8 +2850,8 @@ static int lpass_cdc_rx_macro_enable_interp_clk(struct snd_soc_component *compon
 			lpass_cdc_rx_macro_hphdelay_lutbypass(component, rx_priv,
 						interp_idx, event);
 			if (rx_priv->hph_hd2_mode)
-				lpass_cdc_rx_macro_hd2_control(component, interp_idx,
-						event);
+				lpass_cdc_rx_macro_hd2_control(component,
+					rx_priv, interp_idx, event);
 			lpass_cdc_rx_macro_idle_detect_control(component, rx_priv,
 					interp_idx, event);
 		}
@@ -3669,6 +3733,9 @@ static const struct snd_kcontrol_new lpass_cdc_rx_macro_snd_controls[] = {
 		lpass_cdc_rx_macro_get_compander, lpass_cdc_rx_macro_set_compander),
 	SOC_SINGLE_EXT("RX_COMP2 Switch", SND_SOC_NOPM, LPASS_CDC_RX_MACRO_COMP2, 1, 0,
 		lpass_cdc_rx_macro_get_compander, lpass_cdc_rx_macro_set_compander),
+
+	SOC_SINGLE_EXT("RX_HPH PCM", SND_SOC_NOPM, 0, 1, 0,
+			lpass_cdc_rx_macro_get_pcm_path, lpass_cdc_rx_macro_put_pcm_path),
 
 	SOC_SINGLE_EXT("RX0 FIR Coeff Num", SND_SOC_NOPM, RX0_PATH,
 			(LPASS_CDC_RX_MACRO_FIR_COEFF_MAX * GRP_MAX), 0,
