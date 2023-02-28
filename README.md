@@ -44,4 +44,4 @@
 | violet-q-oss | Redmi Note 7 Pro | Android Q | LA.UM.8.9.r1-04400-SM6xx.0-1 | [violet-q-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/violet-q-oss) |
 | willow-p-oss | Redmi Note 8T | Android P | LA.UM.7.11.r1-02700-NICOBAR.0 | [willow-p-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/willow-p-oss) |
 | zeus-s-oss | Mi 12, Mi 12 Pro | Android S | LA.VENDOR.1.0.r1-09100-r1.0.r1 | [zeus-s-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/zeus-s-oss) |
-| ziyi-s-oss | Xiaomi Civi s | Android S | LA.VENDOR.1.0.r1-13100-r1.0.r1_00037.0 | [ziyi-s-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/ziyi-s-oss) |
+| ziyi-s-oss | Xiaomi civi2 | Android S | LA.VENDOR.1.0.r1-13100-r1.0.r1_00037.0 | [ziyi-s-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/ziyi-s-oss) |
