@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -10,7 +11,6 @@
 #include <linux/of.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
-#include "../../../drivers/clk/qcom/common.h"
 #include <linux/pinctrl/consumer.h>
 #include <linux/platform_device.h>
 #include <dsp/apr_audio-v2.h>
