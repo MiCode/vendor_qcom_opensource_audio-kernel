@@ -390,6 +390,7 @@ static const struct snd_soc_dapm_widget msm_int_dapm_widgets[] = {
 	SND_SOC_DAPM_MIC("Digital Mic7", NULL),
 };
 
+#ifndef CONFIG_AUDIO_BTFM_PROXY
 static int msm_wcn_init(struct snd_soc_pcm_runtime *rtd)
 {
 	unsigned int rx_ch[WCN_CDC_SLIM_RX_CH_MAX] = {157, 158};
@@ -405,6 +406,7 @@ static int msm_wcn_init(struct snd_soc_pcm_runtime *rtd)
 	msm_common_dai_link_init(rtd);
     return ret;
 }
+#endif
 
 static struct snd_info_entry *msm_snd_info_create_subdir(struct module *mod,
 				const char *name,
@@ -510,6 +512,7 @@ static struct snd_soc_dai_link msm_common_be_dai_links[] = {
 	},
 };
 
+#ifndef CONFIG_AUDIO_BTFM_PROXY
 static struct snd_soc_dai_link msm_wcn_be_dai_links[] = {
 	{
 		.name = LPASS_BE_SLIMBUS_7_RX,
@@ -535,7 +538,32 @@ static struct snd_soc_dai_link msm_wcn_be_dai_links[] = {
 		SND_SOC_DAILINK_REG(slimbus_7_tx),
 	},
 };
-
+#else
+static struct snd_soc_dai_link msm_wcn_be_dai_links[] = {
+        {
+                .name = LPASS_BE_BTFM_PROXY_RX_0,
+                .stream_name = LPASS_BE_BTFM_PROXY_RX_0,
+                .playback_only = 1,
+                .trigger = {SND_SOC_DPCM_TRIGGER_POST,
+                        SND_SOC_DPCM_TRIGGER_POST},
+                .ops = &msm_common_be_ops,
+                /* dai link has playback support */
+                .ignore_pmdown_time = 1,
+                .ignore_suspend = 1,
+                SND_SOC_DAILINK_REG(btfm_0_rx),
+        },
+        {
+                .name = LPASS_BE_BTFM_PROXY_TX_0,
+                .stream_name = LPASS_BE_BTFM_PROXY_TX_0,
+                .capture_only = 1,
+                .trigger = {SND_SOC_DPCM_TRIGGER_POST,
+                        SND_SOC_DPCM_TRIGGER_POST},
+                .ops = &msm_common_be_ops,
+                .ignore_suspend = 1,
+                SND_SOC_DAILINK_REG(btfm_0_tx),
+        },
+};
+#endif
 static struct snd_soc_dai_link ext_disp_be_dai_link[] = {
 	/* DISP PORT BACK END DAI Link */
 	{
@@ -2125,7 +2153,11 @@ static void __exit msm_asoc_machine_exit(void)
 }
 module_exit(msm_asoc_machine_exit);
 
+#ifndef CONFIG_AUDIO_BTFM_PROXY
 MODULE_SOFTDEP("pre: bt_fm_slim");
+#else
+MODULE_SOFTDEP("pre: btfmcodec");
+#endif
 MODULE_DESCRIPTION("ALSA SoC msm");
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:" DRV_NAME);
