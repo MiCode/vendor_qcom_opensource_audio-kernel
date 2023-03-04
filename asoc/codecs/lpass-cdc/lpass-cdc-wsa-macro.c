@@ -1664,6 +1664,8 @@ static int lpass_cdc_wsa_macro_enable_main_path(struct snd_soc_dapm_widget *w,
 			snd_soc_component_update_bits(component,
 						reg, 0x20, 0x20);
 			lpass_cdc_wsa_pa_on(wsa_dev, adie_lb);
+			snd_soc_component_update_bits(component,
+						reg, 0x10, 0x00);
 		}
 		break;
 	default:
