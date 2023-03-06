@@ -80,65 +80,6 @@ value << FIELD_SHIFT(register_name, field_name)
 #define WCD939X_XTALK_OFFSET \
 		(WCD939X_HPHR_RX_PATH_SEC0 - WCD939X_HPHL_RX_PATH_SEC0)
 
-static struct comp_coeff_val
-		comp_coeff_table [HPH_MODE_MAX][COMP_MAX_COEFF] = {
-	{
-		{0x40, 0x00},
-		{0x4C, 0x00},
-		{0x5A, 0x00},
-		{0x6B, 0x00},
-		{0x7F, 0x00},
-		{0x97, 0x00},
-		{0xB3, 0x00},
-		{0xD5, 0x00},
-		{0xFD, 0x00},
-		{0x2D, 0x01},
-		{0x66, 0x01},
-		{0xA7, 0x01},
-		{0xF8, 0x01},
-		{0x57, 0x02},
-		{0xC7, 0x02},
-		{0x4B, 0x03},
-		{0xE9, 0x03},
-		{0xA3, 0x04},
-		{0x7D, 0x05},
-		{0x90, 0x06},
-		{0xD1, 0x07},
-		{0x49, 0x09},
-		{0x00, 0x0B},
-		{0x01, 0x0D},
-		{0x59, 0x0F},
-	},
-	{
-	/*HPH_HIFI, HPH_LOHIFI, HPH_LP*/
-		{0x40, 0x00},
-		{0x4C, 0x00},
-		{0x5A, 0x00},
-		{0x6B, 0x00},
-		{0x80, 0x00},
-		{0x98, 0x00},
-		{0xB4, 0x00},
-		{0xD5, 0x00},
-		{0xFE, 0x00},
-		{0x2E, 0x01},
-		{0x66, 0x01},
-		{0xA9, 0x01},
-		{0xF8, 0x01},
-		{0x56, 0x02},
-		{0xC4, 0x02},
-		{0x4F, 0x03},
-		{0xF0, 0x03},
-		{0xAE, 0x04},
-		{0x8B, 0x05},
-		{0x8E, 0x06},
-		{0xBC, 0x07},
-		{0x56, 0x09},
-		{0x0F, 0x0B},
-		{0x13, 0x0D},
-		{0x6F, 0x0F},
-	},
-};
-
 enum {
 	CODEC_TX = 0,
 	CODEC_RX,
@@ -237,25 +178,6 @@ static int wcd939x_handle_post_irq(void *data)
 
 	return IRQ_HANDLED;
 }
-int wcd939x_load_compander_coeff(struct snd_soc_component *component,
-					u16 lsb_reg, u16 msb_reg,
-					struct comp_coeff_val *comp_coeff_table,
-					u16 arr_size)
-{
-	int i = 0;
-
-	/* Load Compander Coeff */
-	for (i = 0; i < arr_size; i++) {
-		snd_soc_component_write(component, lsb_reg,
-			comp_coeff_table[i].lsb);
-		snd_soc_component_write(component, msb_reg,
-			comp_coeff_table[i].msb);
-	}
-
-	return 0;
-}
-EXPORT_SYMBOL(wcd939x_load_compander_coeff);
-
 
 static int wcd939x_hph_compander_get(struct snd_kcontrol *kcontrol,
 				struct snd_ctl_elem_value *ucontrol)
@@ -973,11 +895,9 @@ static int wcd939x_enable_hph_pcm_index(struct snd_soc_component *component,
 static int wcd939x_config_compander(struct snd_soc_component *component,
 				int event, int compander_indx)
 {
-	u16 comp_coeff_lsb_reg = 0, comp_coeff_msb_reg = 0;
-	u16 comp_ctl7_reg = 0, comp_ctl0_reg  = 0;
+	u16 comp_ctl7_reg = 0, comp_ctl0_reg = 0;
 	u16 comp_en_mask_val = 0;
 	struct wcd939x_priv *wcd939x;
-	int hph_mode;
 
 
 	if (compander_indx >= WCD939X_HPH_MAX || compander_indx < 0) {
@@ -995,26 +915,20 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 	if (!wcd939x->compander_enabled[compander_indx])
 		return 0;
 
-	hph_mode = wcd939x->hph_mode;
-	dev_dbg(component->dev, "%s compander_index = %d hph mode = %d\n",
-				__func__, compander_indx, wcd939x->hph_mode);
+	dev_dbg(component->dev, "%s compander_index = %d\n", __func__, compander_indx);
 
-	if (compander_indx == WCD939X_HPHL) {
-		comp_coeff_lsb_reg = WCD939X_HPHL_COMP_WR_LSB;
-		comp_coeff_msb_reg = WCD939X_HPHL_COMP_WR_MSB;
+	if (compander_indx == WCD939X_HPHL)
 		comp_en_mask_val = 1 << 1;
-	} else if (compander_indx == WCD939X_HPHR) {
-		comp_coeff_lsb_reg = WCD939X_HPHR_COMP_WR_LSB;
-		comp_coeff_msb_reg = WCD939X_HPHR_COMP_WR_MSB;
+	else if (compander_indx == WCD939X_HPHR)
 		comp_en_mask_val = 1 << 0;
-	} else {
+	else
 		return 0;
-	}
+
 
 	comp_ctl0_reg  = WCD939X_CTL0 + (compander_indx * WCD939X_COMP_OFFSET);
 	comp_ctl7_reg = WCD939X_CTL7 + (compander_indx * WCD939X_COMP_OFFSET);
 
-	if (SND_SOC_DAPM_EVENT_ON(event)){
+	if (SND_SOC_DAPM_EVENT_ON(event)) {
 
 		snd_soc_component_update_bits(component,
 			comp_ctl7_reg, 0x1E, 0x00);
@@ -1029,26 +943,15 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component,
 			comp_ctl0_reg , 0x02, 0x00);
 
-		/* Compander coeff values are same for below modes */
-		if (wcd939x->hph_mode == CLS_H_HIFI || wcd939x->hph_mode == CLS_H_LOHIFI
-				|| wcd939x->hph_mode == CLS_H_LP)
-			hph_mode = 1;
-		else if (wcd939x->hph_mode == CLS_H_ULP)
-			hph_mode = 0;
-
-		wcd939x_load_compander_coeff(component, comp_coeff_lsb_reg,
-				comp_coeff_msb_reg, comp_coeff_table[hph_mode],
-				COMP_MAX_COEFF);
-
 		/* Enable compander*/
 		snd_soc_component_update_bits(component,
 				WCD939X_CDC_COMP_CTL_0, comp_en_mask_val, comp_en_mask_val);
 
-	} if (SND_SOC_DAPM_EVENT_OFF(event)) {
+	} else if (SND_SOC_DAPM_EVENT_OFF(event)) {
 			snd_soc_component_update_bits(component,
 				WCD939X_CDC_COMP_CTL_0, comp_en_mask_val, 0x00);
 			snd_soc_component_update_bits(component,
-			comp_ctl0_reg , 0x01, 0x00);
+				comp_ctl0_reg , 0x01, 0x00);
 	}
 
 	return 0;
