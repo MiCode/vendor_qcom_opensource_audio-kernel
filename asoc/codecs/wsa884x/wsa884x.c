@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -143,6 +143,12 @@ static const struct wsa_reg_mask_val reg_init_2S[] = {
 	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG5, DAC_VCM_SHIFT, 0x1B)},
 	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG6, DAC_VCM_SHIFT, 0x1C)},
 	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG7, DAC_VCM_SHIFT_FINAL_OVERRIDE, 0x01)},
+};
+
+static const struct wsa_reg_mask_val reg_init_uvlo[] = {
+    {WSA884X_UVLO_PROG, 0xFF, 0x77},
+    {WSA884X_UVLO_DEGLITCH_CTL, 0xFF, 0x1B},
+    {WSA884X_UVLO_PROG1, 0xFF, 0x40},
 };
 
 static int wsa884x_handle_post_irq(void *data);
@@ -1524,6 +1530,10 @@ static void wsa884x_codec_init(struct snd_soc_component *component)
 			snd_soc_component_update_bits(component, reg_init_2S[i].reg,
 						reg_init_2S[i].mask, reg_init_2S[i].val);
 	}
+
+	for (i = 0; i < ARRAY_SIZE(reg_init_uvlo); i++)
+		snd_soc_component_update_bits(component, reg_init_uvlo[i].reg,
+					reg_init_uvlo[i].mask, reg_init_uvlo[i].val);
 
 	wsa_noise_gate_write(component, wsa884x->noise_gate_mode);
 
