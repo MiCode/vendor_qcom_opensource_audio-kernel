@@ -2,19 +2,19 @@
 
 LOCAL_PATH := $(call my-dir)
 
-ifeq ($(call is-board-platform, taro),true)
+ifeq ($(call is-board-platform-in-list,taro),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_WAIPIO=m
 endif
 
-ifeq ($(call is-board-platform, kalama),true)
+ifeq ($(call is-board-platform-in-list,kalama),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_KALAMA=m
 endif
 
-ifeq ($(call is-board-platform, bengal),true)
+ifeq ($(call is-board-platform-in-list,bengal),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_BENGAL=m
 endif
 
-ifeq ($(call is-board-platform, pineapple),true)
+ifeq ($(call is-board-platform-in-list,pineapple),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_PINEAPPLE=m
 endif
 
@@ -34,6 +34,7 @@ ifneq ($(findstring opensource,$(LOCAL_PATH)),)
 	AUDIO_BLD_DIR := $(abspath .)/vendor/qcom/opensource/audio-kernel
 endif # opensource
 
+include $(AUDIO_BLD_DIR)/EnableBazel.mk
 DLKM_DIR := $(TOP)/device/qcom/common/dlkm
 
 
