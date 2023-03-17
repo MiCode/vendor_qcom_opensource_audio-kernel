@@ -497,6 +497,7 @@ static int swrm_get_ssp_period(struct swr_mstr_ctrl *swrm,
 static int swrm_core_vote_request(struct swr_mstr_ctrl *swrm, bool enable)
 {
 	int ret = 0;
+	static DEFINE_RATELIMIT_STATE(rtl, 1 * HZ, 1);
 
 	if (!swrm->handle)
 		return -EINVAL;
@@ -509,8 +510,9 @@ static int swrm_core_vote_request(struct swr_mstr_ctrl *swrm, bool enable)
 	if (swrm->core_vote) {
 		ret = swrm->core_vote(swrm->handle, enable);
 		if (ret)
-			dev_err_ratelimited(swrm->dev,
-				"%s: core vote request failed\n", __func__);
+			if (__ratelimit(&rtl))
+				dev_err_ratelimited(swrm->dev,
+					"%s: core vote request failed\n", __func__);
 	}
 exit:
 	mutex_unlock(&swrm->clklock);
