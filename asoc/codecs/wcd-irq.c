@@ -42,7 +42,7 @@ int wcd_request_irq(struct wcd_irq_info *irq_info, int irq, const char *name,
 	if (irq < 0)
 		return irq;
 
-	return request_threaded_irq(irq, NULL, handler,
+	return devm_request_threaded_irq(irq_info->dev, irq, NULL, handler,
 				    IRQF_ONESHOT | IRQF_TRIGGER_RISING,
 				    name, data);
 }
@@ -65,7 +65,7 @@ void wcd_free_irq(struct wcd_irq_info *irq_info, int irq, void *data)
 	if (irq < 0)
 		return;
 
-	free_irq(irq, data);
+	devm_free_irq(irq_info->dev, irq, data);
 }
 EXPORT_SYMBOL(wcd_free_irq);
 

@@ -208,16 +208,13 @@ static int wsa884x_handle_post_irq(void *data)
 	u32 sts1 = 0, sts2 = 0;
 	int retry = WSA884X_IRQ_RETRY;
 
-	struct snd_soc_component *component = NULL;
-
 	if (!wsa884x)
 		return IRQ_NONE;
 
-	component = wsa884x->component;
 	if (!wsa884x->pa_mute) {
 		do {
 			wsa884x->pa_mute = 0;
-			snd_soc_component_update_bits(component,
+			regmap_update_bits(wsa884x->regmap,
 				REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x01));
 			usleep_range(1000, 1100);
 
@@ -231,7 +228,7 @@ static int wsa884x_handle_post_irq(void *data)
 			if (wsa884x->swr_slave->slave_irq_pending) {
 				pr_debug("%s: IRQ retries left: %0d\n",
 					__func__, retry);
-				snd_soc_component_update_bits(component,
+				regmap_update_bits(wsa884x->regmap,
 					REG_FIELD_VALUE(PA_FSM_EN, GLOBAL_PA_EN, 0x00));
 				wsa884x->pa_mute = 1;
 				if (retry--)
@@ -1122,6 +1119,9 @@ static bool wsa884x_validate_dt_configuration_params(struct snd_soc_component *c
 	bool is_invalid_flag = true;
 
 	bat_cfg_reg = snd_soc_component_read(component, WSA884X_VPHX_SYS_EN_STATUS);
+
+	dev_info(component->dev, "VPHX EN Status: %d", bat_cfg_reg);
+
 	if ((ibat_cfg_dts == EXT_1S) || (ibat_cfg_dts == EXT_2S) || (ibat_cfg_dts == EXT_3S))
 		ibat_cfg_dts = EXT_ABOVE_3S;
 	if ((WSA_4_OHMS <= irload && irload < WSA_MAX_OHMS) &&
@@ -2331,26 +2331,19 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	return 0;
 
 err_mem:
+	snd_soc_unregister_component(&pdev->dev);
 	if (wsa884x->dai_driver) {
 		kfree(wsa884x->dai_driver->name);
 		kfree(wsa884x->dai_driver->playback.stream_name);
-		kfree(wsa884x->dai_driver);
+		devm_kfree(&pdev->dev, wsa884x->dai_driver);
+		wsa884x->dai_driver = NULL;
 	}
 	if (wsa884x->driver) {
 		kfree(wsa884x->driver->name);
-		kfree(wsa884x->driver);
+		devm_kfree(&pdev->dev, wsa884x->driver);
+		wsa884x->driver = NULL;
 	}
 err_irq:
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_SAF2WAR, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_WAR2SAF, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_DISABLE, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_OCP, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLIP, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PDM_WD, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLK_WD, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_INTR_PIN, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR, NULL);
 	wcd_irq_exit(&wsa884x->irq_info, wsa884x->virq);
 dev_err:
 	if (pin_state_current == false)
@@ -2374,17 +2367,6 @@ static int wsa884x_swr_remove(struct swr_device *pdev)
 		dev_err(&pdev->dev, "%s: wsa884x is NULL\n", __func__);
 		return -EINVAL;
 	}
-
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_SAF2WAR, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_WAR2SAF, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_DISABLE, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_OCP, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLIP, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PDM_WD, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_CLK_WD, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_INTR_PIN, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_UVLO, NULL);
-	wcd_free_irq(&wsa884x->irq_info, WSA884X_IRQ_INT_PA_ON_ERR, NULL);
 
 	if (wsa884x->register_notifier)
 		wsa884x->register_notifier(wsa884x->handle,

@@ -100,6 +100,7 @@ struct wcd939x_priv {
 	bool ldoh;
 	bool bcs_dis;
 	bool dapm_bias_off;
+	bool in_2Vpk_mode;
 	struct irq_domain *virq;
 	struct wcd_irq_info irq_info;
 	u32 rx_clk_cnt;
@@ -194,7 +195,6 @@ enum {
 	WCD939X_IRQ_EAR_PDM_WD_INT,
 
 	/* INTR_CTRL_INT_MASK_2 */
-	WCD939X_IRQ_LDORT_SCD_INT,
 	WCD939X_IRQ_MBHC_MOISTURE_INT,
 	WCD939X_IRQ_HPHL_SURGE_DET_INT,
 	WCD939X_IRQ_HPHR_SURGE_DET_INT,
