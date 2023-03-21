@@ -1032,9 +1032,14 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		wcd939x_config_xtalk(component, event, w->shift);
 		/*TBD: need to revisit , for both L & R we are updating, but in QCRG only once*/
-		if (wcd939x->hph_pcm_enabled)
-			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(TOP_CFG0, HPH_DAC_RATE_SEL, 0x1));
+		if (wcd939x->hph_pcm_enabled) {
+			if (hph_mode == CLS_H_HIFI || hph_mode == CLS_AB_HIFI)
+				snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(TOP_CFG0, HPH_DAC_RATE_SEL, 0x1));
+			else
+				snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(TOP_CFG0, HPH_DAC_RATE_SEL, 0x0));
+		}
 		wcd939x_enable_hph_pcm_index(component, event, w->shift);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
