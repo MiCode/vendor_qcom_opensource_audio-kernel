@@ -836,6 +836,18 @@ static int  wcd939x_config_power_mode(struct snd_soc_component *component,
 	return 0;
 }
 
+static int wcd939x_get_usbss_hph_power_mode(int hph_mode)
+{
+	switch (hph_mode) {
+	case CLS_H_HIFI:
+	case CLS_H_LOHIFI:
+		return 0x4;
+	default:
+		/* set default mode to ULP */
+		return 0x2;
+	}
+}
+
 static int wcd939x_enable_hph_pcm_index(struct snd_soc_component *component,
 				int event, int hph)
 {
@@ -1274,6 +1286,10 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(HPH, HPHR_REF_ENABLE, 0x01));
 		wcd_clsh_set_hph_mode(component, hph_mode);
+		/* update USBSS power mode for AATC */
+		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog)
+			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE,
+				wcd939x_get_usbss_hph_power_mode(hph_mode));
 		/* update Mode for LOHIFI */
 		if (hph_mode == CLS_H_LOHIFI)
 			snd_soc_component_update_bits(component,
@@ -1367,6 +1383,9 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 					REG_FIELD_VALUE(HPH, HPHR_REF_ENABLE, 0x00));
 		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(PDM_WD_CTL1, PDM_WD_EN, 0x00));
+		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog &&
+			!(snd_soc_component_read(component, WCD939X_HPH) & 0XC0))
+			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE, 1);
 		wcd_cls_h_fsm(component, &wcd939x->clsh_info,
 			     WCD_CLSH_EVENT_POST_PA,
 			     WCD_CLSH_STATE_HPHR,
@@ -1417,6 +1436,10 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(HPH, HPHL_REF_ENABLE, 0x01));
 		wcd_clsh_set_hph_mode(component, hph_mode);
+		/* update USBSS power mode for AATC */
+		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog)
+			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE,
+				wcd939x_get_usbss_hph_power_mode(hph_mode));
 		/* update Mode for LOHIFI */
 		if (hph_mode == CLS_H_LOHIFI)
 			snd_soc_component_update_bits(component,
@@ -1508,7 +1531,9 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 					REG_FIELD_VALUE(HPH, HPHL_REF_ENABLE, 0x00));
 		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(PDM_WD_CTL0, PDM_WD_EN, 0x00));
-
+		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog &&
+			!(snd_soc_component_read(component, WCD939X_HPH) & 0XC0))
+			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE, 1);
 		wcd_cls_h_fsm(component, &wcd939x->clsh_info,
 			     WCD_CLSH_EVENT_POST_PA,
 			     WCD_CLSH_STATE_HPHL,
@@ -3027,21 +3052,6 @@ static int wcd939x_rx_hph_mode_put(struct snd_kcontrol *kcontrol,
 		mode_val = CLS_H_ULP;
 	}
 	wcd939x->hph_mode = mode_val;
-
-	switch (mode_val) {
-	case CLS_H_HIFI:
-	case CLS_H_LOHIFI:
-		mode_val = 0x4;
-		break;
-	default:
-		/* set default mode to ULP */
-		mode_val = 0x2;
-		break;
-	}
-
-#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
-	wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE, mode_val);
-#endif
 
 	return 0;
 }
