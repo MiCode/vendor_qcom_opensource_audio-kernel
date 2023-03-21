@@ -27,6 +27,7 @@
 #endif
 #include <dsp/msm_audio_ion.h>
 #include <linux/msm_audio.h>
+#include <linux/qcom_scm.h>
 #include <soc/qcom/secure_buffer.h>
 
 MODULE_IMPORT_NS(DMA_BUF);
@@ -593,19 +594,19 @@ static int msm_audio_ion_free(struct dma_buf *dma_buf, struct msm_audio_ion_priv
 static int msm_audio_hyp_unassign(struct msm_audio_fd_data *msm_audio_fd_data)
 {
 	int ret = 0;
-	int dest_perms_unmap[1] = {PERM_READ | PERM_WRITE | PERM_EXEC};
-	int source_vm_unmap[3] = {VMID_LPASS, VMID_ADSP_HEAP, VMID_HLOS};
-	int dest_vm_unmap[1] = {VMID_HLOS};
+	u64 src_vmid_unmap_list = BIT(VMID_LPASS) | BIT(VMID_ADSP_HEAP);
+	struct qcom_scm_vmperm dst_vmids_unmap[] = {{QCOM_SCM_VMID_HLOS,
+		PERM_READ | PERM_WRITE | PERM_EXEC}};
 
 	if (msm_audio_fd_data->hyp_assign) {
-		ret = hyp_assign_phys(msm_audio_fd_data->paddr, msm_audio_fd_data->plen,
-			source_vm_unmap, 2, dest_vm_unmap, dest_perms_unmap, 1);
+		ret = qcom_scm_assign_mem(msm_audio_fd_data->paddr, msm_audio_fd_data->plen,
+			&src_vmid_unmap_list, dst_vmids_unmap, ARRAY_SIZE(dst_vmids_unmap));
 		if (ret < 0) {
-			pr_err("%s: hyp unassign failed result = %d addr = 0x%pK size = %d\n",
+			pr_err("%s: qcom assign unmap failed result = %d addr = 0x%pK size = %d\n",
 			__func__, ret, msm_audio_fd_data->paddr, msm_audio_fd_data->plen);
 		}
 		msm_audio_fd_data->hyp_assign = false;
-		pr_debug("%s: hyp unassign success\n", __func__);
+		pr_debug("%s: qcom scm unmap success\n", __func__);
 	}
 	return ret;
 }
@@ -689,12 +690,12 @@ static long msm_audio_ion_ioctl(struct file *file, unsigned int ioctl_num,
 	size_t pa_len = 0;
 	struct iosys_map *iosys_vmap = NULL;
 	int ret = 0;
-	int dest_perms_map[2] = {PERM_READ | PERM_WRITE, PERM_READ | PERM_WRITE};
-	int source_vm_map[1] = {VMID_HLOS};
-	int dest_vm_map[3] = {VMID_LPASS, VMID_ADSP_HEAP, VMID_HLOS};
-	int dest_perms_unmap[1] = {PERM_READ | PERM_WRITE | PERM_EXEC};
-	int source_vm_unmap[3] = {VMID_LPASS, VMID_ADSP_HEAP, VMID_HLOS};
-	int dest_vm_unmap[1] = {VMID_HLOS};
+	u64 src_vmid_map_list = BIT(QCOM_SCM_VMID_HLOS);
+	struct qcom_scm_vmperm dst_vmids_map[] = {{VMID_LPASS, PERM_READ | PERM_WRITE},
+		{VMID_ADSP_HEAP, PERM_READ | PERM_WRITE}};
+	u64 src_vmid_unmap_list = BIT(VMID_LPASS) | BIT(VMID_ADSP_HEAP);
+	struct qcom_scm_vmperm dst_vmids_unmap[] = {{QCOM_SCM_VMID_HLOS,
+		PERM_READ | PERM_WRITE | PERM_EXEC}};
 	struct msm_audio_fd_data *msm_audio_fd_data = NULL;
 	struct msm_audio_ion_private *ion_data =
 			container_of(file->f_inode->i_cdev, struct msm_audio_ion_private, cdev);
@@ -741,14 +742,14 @@ static long msm_audio_ion_ioctl(struct file *file, unsigned int ioctl_num,
 			pr_err("%s get phys addr failed %d\n", __func__, ret);
 			return ret;
 		}
-		ret = hyp_assign_phys(paddr, pa_len, source_vm_map, 1,
-		                      dest_vm_map, dest_perms_map, 2);
+		ret = qcom_scm_assign_mem(paddr, pa_len, &src_vmid_map_list,
+		                      dst_vmids_map, ARRAY_SIZE(dst_vmids_map));
 		if (ret < 0) {
-			pr_err("%s: hyp assign failed result = %d addr = 0x%pK size = %d\n",
+			pr_err("%s: qcom_assign failed result = %d addr = 0x%pK size = %d\n",
 					__func__, ret, paddr, pa_len);
 			return ret;
 		}
-		pr_debug("%s: hyp assign success\n", __func__);
+		pr_debug("%s: qcom scm assign success\n", __func__);
 		msm_audio_set_hyp_assign((int)ioctl_param, true);
 		break;
 	case IOCTL_UNMAP_HYP_ASSIGN:
@@ -757,14 +758,14 @@ static long msm_audio_ion_ioctl(struct file *file, unsigned int ioctl_num,
 			pr_err("%s get phys addr failed %d\n", __func__, ret);
 			return ret;
 		}
-		ret = hyp_assign_phys(paddr, pa_len, source_vm_unmap, 2,
-		                      dest_vm_unmap, dest_perms_unmap, 1);
+		ret = qcom_scm_assign_mem(paddr, pa_len, &src_vmid_unmap_list,
+		                      dst_vmids_unmap, ARRAY_SIZE(dst_vmids_unmap));
 		if (ret < 0) {
-			pr_err("%s: hyp unassign failed result = %d addr = 0x%pK size = %d\n",
+			pr_err("%s: qcom scm unassign failed result = %d addr = 0x%pK size = %d\n",
 					__func__, ret, paddr, pa_len);
 			return ret;
 		}
-		pr_debug("%s: hyp unassign success\n", __func__);
+		pr_debug("%s: qcom scm unassign success\n", __func__);
 		msm_audio_set_hyp_assign((int)ioctl_param, false);
 	    break;
 	default:
