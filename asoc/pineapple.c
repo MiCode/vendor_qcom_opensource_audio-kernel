@@ -138,6 +138,8 @@ static bool msm_usbc_swap_gnd_mic(struct snd_soc_component *component, bool acti
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 	ret = wcd_usbss_switch_update(WCD_USBSS_GND_MIC_SWAP_AATC,
 								WCD_USBSS_CABLE_CONNECT);
+	if (ret == 0)
+		return true;
 #endif
 	return ret;
 }
