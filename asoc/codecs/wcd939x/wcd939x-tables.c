@@ -183,6 +183,9 @@ const u8 wcd939x_reg_access[WCD939X_NUM_REGISTERS] = {
 	[WCD939X_REG(WCD939X_EAR_TEST_CTL)]                   = RD_WR_REG,
 	[WCD939X_REG(WCD939X_STATUS_REG_1)]                   = RD_REG,
 	[WCD939X_REG(WCD939X_STATUS_REG_2)]                   = RD_REG,
+	[WCD939X_REG(WCD939X_FLYBACK_NEW_CTRL_2)]             = RD_WR_REG,
+	[WCD939X_REG(WCD939X_FLYBACK_NEW_CTRL_3)]             = RD_WR_REG,
+	[WCD939X_REG(WCD939X_FLYBACK_NEW_CTRL_4)]             = RD_WR_REG,
 	[WCD939X_REG(WCD939X_ANA_NEW_PAGE)]                   = RD_WR_REG,
 	[WCD939X_REG(WCD939X_ANA_HPH2)]                       = RD_WR_REG,
 	[WCD939X_REG(WCD939X_ANA_HPH3)]                       = RD_WR_REG,
@@ -566,3 +569,4 @@ const u8 wcd939x_reg_access[WCD939X_NUM_REGISTERS] = {
 	[WCD939X_REG(WCD939X_DSD_HPHR_CFG4)]                  = RD_WR_REG,
 	[WCD939X_REG(WCD939X_DSD_HPHR_CFG5)]                  = RD_WR_REG,
 };
+

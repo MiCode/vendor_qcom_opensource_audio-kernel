@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/component.h>
+#include <linux/stringify.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <soc/soundwire.h>
@@ -37,7 +38,6 @@
 #define NUM_SWRS_DT_PARAMS 5
 #define WCD939X_VARIANT_ENTRY_SIZE 32
 
-#define WCD939X_VERSION_1_0 1
 #define WCD939X_VERSION_ENTRY_SIZE 32
 
 #define ADC_MODE_VAL_HIFI     0x01
@@ -130,6 +130,7 @@ static u8 tx_mode_bit[] = {
 	[ADC_MODE_ULP2] = 0x20,
 };
 
+extern const u8 wcd939x_reg_access[WCD939X_NUM_REGISTERS];
 static const DECLARE_TLV_DB_SCALE(line_gain, 0, 7, 1);
 static const DECLARE_TLV_DB_SCALE(analog_gain, 0, 25, 1);
 
@@ -172,6 +173,20 @@ static struct regmap_irq_chip wcd939x_regmap_irq_chip = {
 	.handle_post_irq = wcd939x_handle_post_irq,
 	.irq_drv_data = NULL,
 };
+
+static bool wcd939x_readable_register(struct device *dev, unsigned int reg)
+{
+	struct wcd939x_priv *wcd939x = dev_get_drvdata(dev);
+
+	if (reg <= WCD939X_BASE + 1)
+		return 0;
+
+	if (reg >= WCD939X_FLYBACK_NEW_CTRL_2 && reg <= WCD939X_FLYBACK_NEW_CTRL_4) {
+		if (wcd939x && wcd939x->version == WCD939X_VERSION_1_0)
+			return 0;
+	}
+	return wcd939x_reg_access[WCD939X_REG(reg)] & RD_REG;
+}
 
 static int wcd939x_handle_post_irq(void *data)
 {
@@ -366,11 +381,6 @@ static int wcd939x_set_swr_clk_rate(struct snd_soc_component *component,
 static int wcd939x_init_reg(struct snd_soc_component *component)
 {
 
-	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
-
-	if (!wcd939x->hph_pcm_enabled)
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(VBG_FINE_ADJ, VBG_FINE_ADJ, 0x04));
 	snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(BIAS, ANALOG_BIAS_EN, 0x01));
 	snd_soc_component_update_bits(component,
@@ -385,8 +395,6 @@ static int wcd939x_init_reg(struct snd_soc_component *component)
 					REG_FIELD_VALUE(RDAC_HD2_CTL_L, HD2_RES_DIV_CTL_L, 0x15));
 	snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(RDAC_HD2_CTL_R, HD2_RES_DIV_CTL_R, 0x15));
-	snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(REFBUFF_UHQA_CTL, SPARE_BITS, 0x02));
 	snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(CDC_DMIC_CTL, CLK_SCALE_EN, 0x01));
 
@@ -699,6 +707,8 @@ static int wcd939x_rx_clk_enable(struct snd_soc_component *component, int rx_num
 
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
 
+	dev_dbg(component->dev, "%s rx_clk_cnt: %d\n", __func__, wcd939x->rx_clk_cnt);
+
 	if (wcd939x->rx_clk_cnt == 0) {
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(RX_SUPPLIES, RX_BIAS_ENABLE, 0x01));
@@ -722,18 +732,17 @@ static int wcd939x_rx_clk_enable(struct snd_soc_component *component, int rx_num
 	}
 	wcd939x->rx_clk_cnt++;
 
-	if (wcd939x->hph_pcm_enabled && (rx_num != WCD_RX3)) {
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(PA_GAIN_CTL_L, RX_SUPPLY_LEVEL, 0x01));
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0x02));
-	}
 	return 0;
 }
 
 static int wcd939x_rx_clk_disable(struct snd_soc_component *component)
 {
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
+
+	dev_dbg(component->dev, "%s rx_clk_cnt: %d\n", __func__, wcd939x->rx_clk_cnt);
+
+	if (wcd939x->rx_clk_cnt == 0)
+		return 0;
 
 	wcd939x->rx_clk_cnt--;
 	if (wcd939x->rx_clk_cnt == 0) {
@@ -791,8 +800,12 @@ static int  wcd939x_config_power_mode(struct snd_soc_component *component,
 {
 
 	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_PRE_PMU:
 		if (mode == CLS_H_ULP) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFP_IOUT_CTL, 0x2));
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFN_IOUT_CTL, 0x2));
 			if (index == WCD939X_HPHL) {
 				snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(CTL12, ZONE3_RMS, 0x21));
@@ -841,6 +854,15 @@ static int  wcd939x_config_power_mode(struct snd_soc_component *component,
 					REG_FIELD_VALUE(R_CTL17, PATH_GAIN, 0x00));
 			}
 		}
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		if (mode == CLS_H_ULP) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFN_IOUT_CTL, 0x0));
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFP_IOUT_CTL, 0x0));
+		}
+		break;
 	}
 	return 0;
 }
@@ -1256,6 +1278,8 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMD:
 		wcd939x_config_xtalk(component, event, w->shift);
 		wcd939x_config_compander(component, event, w->shift);
+		if (wcd939x->hph_pcm_enabled)
+			wcd939x_config_power_mode(component, event, w->shift, hph_mode);
 		wcd939x_rx_clk_disable(component);
 		break;
 
@@ -1420,6 +1444,8 @@ static int wcd939x_codec_ear_dac_event(struct snd_soc_dapm_widget *w,
 			     WCD_CLSH_EVENT_PRE_DAC,
 			     WCD_CLSH_STATE_EAR,
 			     CLS_AB_HIFI);
+		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_component_update_bits(component,
@@ -1466,6 +1492,8 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 					REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x01));
 		}
 		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
+		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(HPH, HPHR_REF_ENABLE, 0x01));
 		wcd_clsh_set_hph_mode(component, hph_mode);
 		/* update USBSS power mode for AATC */
@@ -1473,9 +1501,12 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE,
 				wcd939x_get_usbss_hph_power_mode(hph_mode));
 		/* update Mode for LOHIFI */
-		if (hph_mode == CLS_H_LOHIFI)
+		if (hph_mode == CLS_H_LOHIFI) {
+			snd_soc_component_write(component,
+					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x52);
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
+		}
 		/* 100 usec delay as per HW requirement */
 		usleep_range(100, 110);
 		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
@@ -1616,6 +1647,8 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 					REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x01));
 		}
 		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
+		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(HPH, HPHL_REF_ENABLE, 0x01));
 		wcd_clsh_set_hph_mode(component, hph_mode);
 		/* update USBSS power mode for AATC */
@@ -1623,9 +1656,12 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE,
 				wcd939x_get_usbss_hph_power_mode(hph_mode));
 		/* update Mode for LOHIFI */
-		if (hph_mode == CLS_H_LOHIFI)
+		if (hph_mode == CLS_H_LOHIFI) {
+			snd_soc_component_write(component,
+					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x52);
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
+		}
 		/* 100 usec delay as per HW requirement */
 		usleep_range(100, 110);
 		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
@@ -4316,7 +4352,11 @@ static ssize_t wcd939x_version_read(struct snd_info_entry *entry,
 
 	switch (priv->version) {
 	case WCD939X_VERSION_1_0:
+	case WCD939X_VERSION_1_1:
 		len = snprintf(buffer, sizeof(buffer), "WCD939X_1_0\n");
+		break;
+	case WCD939X_VERSION_2_0:
+		len = snprintf(buffer, sizeof(buffer), "WCD939X_2_0\n");
 		break;
 	default:
 		len = snprintf(buffer, sizeof(buffer), "VER_UNDEFINED\n");
@@ -4607,7 +4647,6 @@ static int wcd939x_soc_codec_probe(struct snd_soc_component *component)
 			goto err_hwdep;
 		}
 	}
-	wcd939x->version = WCD939X_VERSION_1_0;
        /* Register event notifier */
 	wcd939x->nblock.notifier_call = wcd939x_event_notify;
 	if (wcd939x->register_notifier) {
@@ -5016,11 +5055,54 @@ static struct snd_soc_dai_driver wcd939x_dai[] = {
 	},
 };
 
+
+static const struct reg_default reg_def_1_1[] = {
+	{WCD939X_VBG_FINE_ADJ, 0xA5},
+	{WCD939X_FLYBACK_NEW_CTRL_2, 0x0},
+	{WCD939X_FLYBACK_NEW_CTRL_3, 0x0},
+	{WCD939X_FLYBACK_NEW_CTRL_4, 0x44},
+	{WCD939X_PA_GAIN_CTL_R, 0x80},
+};
+
+static const struct reg_default reg_def_2_0[] = {
+	{WCD939X_INTR_MASK_2, 0x3E},
+};
+
+static const char *version_to_str(u32 version)
+{
+	switch (version) {
+	case WCD939X_VERSION_1_0:
+		return __stringify(WCD939X_1_0);
+	case WCD939X_VERSION_1_1:
+		return __stringify(WCD939X_1_1);
+	case WCD939X_VERSION_2_0:
+		return __stringify(WCD939X_2_0);
+	}
+	return NULL;
+}
+
+static void wcd939x_update_regmap_cache(struct wcd939x_priv *wcd939x)
+{
+	if (wcd939x->version == WCD939X_VERSION_1_0)
+		return;
+
+	if (wcd939x->version >= WCD939X_VERSION_1_1) {
+		for (int i = 0; i < ARRAY_SIZE(reg_def_1_1); ++i)
+			regmap_write(wcd939x->regmap, reg_def_1_1[i].reg, reg_def_1_1[i].def);
+	}
+
+	if (wcd939x->version == WCD939X_VERSION_2_0) {
+		for (int i = 0; i < ARRAY_SIZE(reg_def_2_0); ++i)
+			regmap_write(wcd939x->regmap, reg_def_2_0[i].reg, reg_def_2_0[i].def);
+	}
+}
+
 static int wcd939x_bind(struct device *dev)
 {
 	int ret = 0, i = 0;
 	struct wcd939x_pdata *pdata = dev_get_platdata(dev);
 	struct wcd939x_priv *wcd939x = dev_get_drvdata(dev);
+	u8 id1 = 0, status1 = 0;
 
 	/*
 	 * Add 5msec delay to provide sufficient time for
@@ -5054,6 +5136,18 @@ static int wcd939x_bind(struct device *dev)
 	swr_init_port_params(wcd939x->tx_swr_dev, SWR_NUM_PORTS,
 			     wcd939x->swr_tx_port_params);
 
+	/* Check WCD9395 version */
+	swr_read(wcd939x->tx_swr_dev, wcd939x->tx_swr_dev->dev_num,
+			WCD939X_CHIP_ID1, &id1, 1);
+	swr_read(wcd939x->tx_swr_dev, wcd939x->tx_swr_dev->dev_num,
+			WCD939X_STATUS_REG_1, &status1, 1);
+	if (id1 == 0)
+		wcd939x->version = ((status1 & 0x3) ? WCD939X_VERSION_1_1 : WCD939X_VERSION_1_0);
+	else if (id1 == 1)
+		wcd939x->version = WCD939X_VERSION_2_0;
+	dev_info(dev, "%s: wcd9395 version: %s\n", __func__,
+			version_to_str(wcd939x->version));
+	wcd939x_regmap_config.readable_reg = wcd939x_readable_register;
 	wcd939x->regmap = devm_regmap_init_swr(wcd939x->tx_swr_dev,
 					       &wcd939x_regmap_config);
 	if (!wcd939x->regmap) {
@@ -5061,6 +5155,7 @@ static int wcd939x_bind(struct device *dev)
 				__func__);
 		goto err;
 	}
+	wcd939x_update_regmap_cache(wcd939x);
 
 	/* Set all interupts as edge triggered */
 	for (i = 0; i < wcd939x_regmap_irq_chip.num_regs; i++)
