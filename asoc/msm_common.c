@@ -84,6 +84,7 @@ static const struct snd_pcm_hardware dummy_dma_hardware = {
 };
 
 #define MAX_USR_INPUT 10
+#define MAX_AUDIO_CPU_CORE_NUM 2
 
 static int qos_vote_status;
 static bool lpi_pcm_logging_enable;
@@ -92,8 +93,8 @@ static unsigned int vote_against_sleep_cnt;
 
 static struct dev_pm_qos_request latency_pm_qos_req; /* pm_qos request */
 static unsigned int qos_client_active_cnt;
-/* set audio task affinity to core 1 & 2 */
-static const unsigned int audio_core_list[] = {1, 2};
+static uint32_t *audio_core_list = NULL;
+static uint32_t audio_core_num = MAX_AUDIO_CPU_CORE_NUM;
 static cpumask_t audio_cpu_map = CPU_MASK_NONE;
 static struct dev_pm_qos_request *msm_audio_req = NULL;
 static bool kregister_pm_qos_latency_controls = false;
@@ -645,7 +646,7 @@ static void msm_audio_add_qos_request(void)
 	if (!msm_audio_req)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(audio_core_list); i++) {
+	for (i = 0; i < audio_core_num; i++) {
 		if (audio_core_list[i] >= num_possible_cpus())
 			pr_err("%s incorrect cpu id: %d specified.\n",
                                     __func__, audio_core_list[i]);
@@ -689,7 +690,7 @@ int msm_common_snd_init(struct platform_device *pdev, struct snd_soc_card *card)
 	int count, ret = 0;
 	uint32_t val_array[MI2S_TDM_AUXPCM_MAX] = {0};
 	struct clk *lpass_audio_hw_vote = NULL;
-
+	uint32_t *core_val_array = NULL;
 	common_pdata = kcalloc(1, sizeof(struct msm_common_pdata), GFP_KERNEL);
 	if (!common_pdata)
 		return -ENOMEM;
@@ -793,7 +794,47 @@ int msm_common_snd_init(struct platform_device *pdev, struct snd_soc_card *card)
 	msm_common_set_pdata(card, common_pdata);
 
 	/* Add QoS request for audio tasks */
+	core_val_array = devm_kcalloc(&pdev->dev, num_possible_cpus(), sizeof(uint32_t), GFP_KERNEL);
+	if (!core_val_array) {
+		dev_info(&pdev->dev, "%s: core val array is nullptr\n", __func__);
+		goto exit;
+	}
+	ret = of_property_read_variable_u32_array(pdev->dev.of_node, "qcom,audio-core-list",
+                      core_val_array, 0, num_possible_cpus());
+	dev_info(&pdev->dev, "%s: getting the core list size:%d, num_possible_cpus:%d \n",
+				__func__,  ret, num_possible_cpus());
+	if (ret > 0 && (ret <= num_possible_cpus())) {
+		audio_core_num = ret;
+		audio_core_list = devm_kcalloc(&pdev->dev, audio_core_num, sizeof(uint32_t), GFP_KERNEL);
+		if (!audio_core_list) {
+			dev_info(&pdev->dev, "%s: calloc failed for audio core list\n", __func__);
+			goto exit;
+		}
+		for (count = 0; count < audio_core_num; count++) {
+			audio_core_list[count] = core_val_array[count];
+			dev_info(&pdev->dev, "%s: update core %d\n", __func__, core_val_array[count]);
+		}
+	} else {
+		dev_info(&pdev->dev, "%s: keep default core\n", __func__);
+		audio_core_list = devm_kcalloc(&pdev->dev, audio_core_num, sizeof(uint32_t), GFP_KERNEL);
+		/* set audio task affinity to core 1 & 2 as default*/
+		if (!audio_core_list) {
+			dev_info(&pdev->dev, "%s: calloc failed for audio core list\n", __func__);
+			goto exit;
+		}
+		audio_core_list[0] = 1;
+		audio_core_list[1] = 2;
+	}
 	msm_audio_add_qos_request();
+
+exit:
+	if (audio_core_list) {
+		devm_kfree(&pdev->dev, audio_core_list);
+		audio_core_list = NULL;
+	}
+	if (core_val_array) {
+		devm_kfree(&pdev->dev, core_val_array);
+	}
 
 	return 0;
 };
