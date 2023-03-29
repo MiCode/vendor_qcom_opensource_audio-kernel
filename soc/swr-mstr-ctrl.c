@@ -1906,7 +1906,6 @@ static int swrm_connect_port(struct swr_master *master,
 	master->num_port += portinfo->num_port;
 	set_bit(ENABLE_PENDING, &swrm->port_req_pending);
 	swr_port_response(master, portinfo->tid);
-
 	mutex_unlock(&swrm->mlock);
 	return 0;
 
@@ -1970,7 +1969,11 @@ static int swrm_disconnect_port(struct swr_master *master,
 			swrm_update_bus_clk(swrm);
 		}
 	}
-	master->num_port -= portinfo->num_port;
+
+	if (master->num_port <= portinfo->num_port)
+		master->num_port = 0;
+	else
+		master->num_port -= portinfo->num_port;
 	set_bit(DISABLE_PENDING, &swrm->port_req_pending);
 	swr_port_response(master, portinfo->tid);
 	mutex_unlock(&swrm->mlock);
