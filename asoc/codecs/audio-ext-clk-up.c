@@ -189,8 +189,9 @@ static int lpass_hw_vote_prepare(struct clk_hw *hw)
 			&clk_priv->lpass_core_hwvote_client_handle);
 #endif
 		if (ret < 0) {
-			pr_err("%s lpass core hw vote failed %d\n",
-				__func__, ret);
+			if (__ratelimit(&rtl))
+				pr_err("%s lpass core hw vote failed %d\n",
+					__func__, ret);
 			return ret;
 		}
 	}
