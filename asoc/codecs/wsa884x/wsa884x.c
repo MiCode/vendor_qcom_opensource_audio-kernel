@@ -167,6 +167,12 @@ enum {
 };
 
 enum {
+	COMP_PORT_EN_STATUS_BIT = 0,
+	VI_PORT_EN_STATUS_BIT,
+	PBR_PORT_EN_STATUS_BIT,
+	CPS_PORT_EN_STATUS_BIT,
+};
+enum {
 	WSA884X_IRQ_INT_SAF2WAR = 0,
 	WSA884X_IRQ_INT_WAR2SAF,
 	WSA884X_IRQ_INT_DISABLE,
@@ -1307,6 +1313,7 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);
 			++num_port;
+			set_bit(COMP_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask);
 		}
 		if (wsa884x->pbr_enable) {
 			wsa884x_set_port(component, SWR_PBR_PORT,
@@ -1314,6 +1321,7 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);
 			++num_port;
+			set_bit(PBR_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask);
 		}
 		if (wsa884x->visense_enable) {
 			wsa884x_set_port(component, SWR_VISENSE_PORT,
@@ -1321,6 +1329,7 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);
 			++num_port;
+			set_bit(VI_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask);
 		}
 		if (wsa884x->cps_enable) {
 			wsa884x_set_port(component, SWR_CPS_PORT,
@@ -1328,6 +1337,7 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);
 			++num_port;
+			set_bit(CPS_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask);
 		}
 		swr_connect_port(wsa884x->swr_slave, &port_id[0], num_port,
 				&ch_mask[0], &ch_rate[0], &num_ch[0],
@@ -1343,33 +1353,41 @@ static int wsa884x_enable_swr_dac_port(struct snd_soc_dapm_widget *w,
 				&port_type[num_port]);
 		++num_port;
 
-		if (wsa884x->comp_enable) {
+		if (wsa884x->comp_enable &&
+			test_bit(COMP_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask)) {
 			wsa884x_set_port(component, SWR_COMP_PORT,
 					&port_id[num_port], &num_ch[num_port],
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);
 			++num_port;
+			clear_bit(COMP_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask);
 		}
-		if (wsa884x->pbr_enable) {
+		if (wsa884x->pbr_enable &&
+			test_bit(PBR_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask)) {
 			wsa884x_set_port(component, SWR_PBR_PORT,
 					&port_id[num_port], &num_ch[num_port],
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);
 			++num_port;
+			clear_bit(PBR_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask);
 		}
-		if (wsa884x->visense_enable) {
+		if (wsa884x->visense_enable &&
+			test_bit(VI_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask)) {
 			wsa884x_set_port(component, SWR_VISENSE_PORT,
 					&port_id[num_port], &num_ch[num_port],
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);
 			++num_port;
+			clear_bit(VI_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask);
 		}
-		if (wsa884x->cps_enable) {
+		if (wsa884x->cps_enable &&
+			test_bit(CPS_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask)) {
 			wsa884x_set_port(component, SWR_CPS_PORT,
 					&port_id[num_port], &num_ch[num_port],
 					&ch_mask[num_port], &ch_rate[num_port],
 					&port_type[num_port]);
 			++num_port;
+			clear_bit(CPS_PORT_EN_STATUS_BIT, &wsa884x->port_status_mask);
 		}
 		swr_disconnect_port(wsa884x->swr_slave, &port_id[0], num_port,
 				&ch_mask[0], &port_type[0]);
