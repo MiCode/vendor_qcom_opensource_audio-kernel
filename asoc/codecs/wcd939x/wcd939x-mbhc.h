@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef __WCD939X_MBHC_H__
 #define __WCD939X_MBHC_H__
@@ -12,6 +12,17 @@ struct wcd939x_mbhc {
 	struct blocking_notifier_head notifier;
 	struct fw_info *fw_data;
 };
+
+static inline u32 get_r_gnd_res_tot_mohms(u32 r_gnd_int_fet_mohms, u32 r_gnd_ext_fet_mohms,
+					  u32 r_gnd_par_tot_mohms)
+{
+	return r_gnd_int_fet_mohms + r_gnd_ext_fet_mohms + r_gnd_par_tot_mohms;
+}
+
+static inline u32 get_r_aud_res_tot_mohms(u32 r_aud_int_fet_mohms, u32 r_aud_ext_fet_mohms)
+{
+	return r_aud_int_fet_mohms + r_aud_ext_fet_mohms;
+}
 
 #if IS_ENABLED(CONFIG_SND_SOC_WCD939X)
 extern int wcd939x_mbhc_init(struct wcd939x_mbhc **mbhc,
