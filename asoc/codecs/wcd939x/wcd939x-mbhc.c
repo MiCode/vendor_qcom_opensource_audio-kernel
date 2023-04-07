@@ -49,6 +49,11 @@
 #define MAX_RL_EFF_MOHMS 900000
 #define HD2_CODE_BASE_VALUE 0x1D
 #define HD2_CODE_INV_RESOLUTION 4201025
+#define FLOAT_TO_FIXED_LINEARIZER (1UL << 12)
+#define MIN_TAP_OFFSET -1023
+#define MAX_TAP_OFFSET 1023
+#define MIN_TAP 0
+#define MAX_TAP 1023
 
 static struct wcd_mbhc_register
 	wcd_mbhc_registers[WCD_MBHC_REG_FUNC_MAX] = {
@@ -727,6 +732,209 @@ static void update_ext_fet_res(struct wcd939x_pdata *pdata, u32 r_gnd_ext_fet_mo
 							pdata->usbcss_hs.r_aud_ext_fet_r_mohms);
 }
 
+static void get_linearizer_taps(struct wcd939x_pdata *pdata, u32 *aud_tap, u32 *gnd_tap)
+{
+	u32 r_gnd_res_tot_mohms = 0, r_gnd_int_fet_mohms = 0, v_aud1 = 0, v_aud2 = 0;
+	u32 v_gnd_denom = 0, v_gnd1 = 0, v_gnd2 = 0, aud_denom = 0, gnd_denom = 0;
+
+	if (!pdata)
+		goto err_data;
+
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	/* Orientation-dependent ground impedance parameters */
+	if (wcd_usbss_get_sbu_switch_orientation() == GND_SBU2_ORIENTATION_A) {
+		r_gnd_res_tot_mohms = pdata->usbcss_hs.r_gnd_sbu2_res_tot_mohms;
+		r_gnd_int_fet_mohms = pdata->usbcss_hs.r_gnd_sbu2_int_fet_mohms;
+	} else if (wcd_usbss_get_sbu_switch_orientation() == GND_SBU1_ORIENTATION_B) {
+		r_gnd_res_tot_mohms = pdata->usbcss_hs.r_gnd_sbu1_res_tot_mohms;
+		r_gnd_int_fet_mohms = pdata->usbcss_hs.r_gnd_sbu1_int_fet_mohms;
+	} else {
+		goto err_data;
+	}
+#endif
+
+	/* Proof 6: Neither aud_denom nor gnd_denom is 0 and neither overflows.
+	 * MIN_K_TIMES_100 = -50 <= MAX_K_TIMES_100 <= 10,000 = k_aud_times_100
+	 * -->
+	 * 0 < 410 = 0.1 * 4,096 = 0.1 * FLOAT_TO_FIXED_LINEARIZER < {aud,gnd}_denom <
+	 * 101 * FLOAT_TO_FIXED_LINEARIZER =
+	 * 101 * (1 << 12) < 413,696 <= 4,294,967,295 = U32_MAX
+	 */
+	aud_denom = (u32) (FLOAT_TO_FIXED_LINEARIZER +
+			   (FLOAT_TO_FIXED_LINEARIZER * pdata->usbcss_hs.k_aud_times_100 / 100));
+	gnd_denom = (u32) (FLOAT_TO_FIXED_LINEARIZER +
+			   (FLOAT_TO_FIXED_LINEARIZER * pdata->usbcss_hs.k_gnd_times_100 / 100));
+
+	/* Proof 7: v_aud2 does not overflow.
+	 * MIN_RL_EFF_MOHMS = 1 = <= pdata->usbcss_hs.r_load_eff_l_mohms <= MAX_RL_EFF_MOHMS =
+	 * 900,000
+	 *
+	 * pdata->usbcss_hs.r_gnd_par_tot_mohms = r_gnd_par_route1_mohms + r_gnd_par_route2_mohms
+	 * <= 2 * MAX_USBCSS_HS_IMPEDANCE_MOHMS = 4,0000
+	 *
+	 * r_gnd_int_fet_mohms, pdata->usbcss_hs.r_gnd_ext_fet_mohms, r_gnd_par_route1_mohms,
+	 * r_gnd_par_route2_mohms <= MAX_USBCSS_HS_IMPEDANCE_MOHMS = 20,000
+	 * -->
+	 * 1 <= v_aud2 <= MAX_RL_EFF_MOHMS + 4 * MAX_USBCSS_HS_IMPEDANCE_MOHMS =
+	 * 900,000 + 4 * 20,000 = 980,000 <= 4,294,967,295 = U32_MAX
+	 */
+	v_aud2 = pdata->usbcss_hs.r_load_eff_l_mohms - pdata->usbcss_hs.r3 + r_gnd_int_fet_mohms +
+		 pdata->usbcss_hs.r_gnd_ext_fet_mohms + pdata->usbcss_hs.r_gnd_par_tot_mohms;
+
+	/* Proof 8: v_aud1 does not overflow.
+	 * pdata->usbcss_hs.r_aud_ext_fet_l_mohms <= MAX_USBCSS_HS_IMPEDANCE_MOHMS = 20,000
+	 * From Proof 7,
+	 * 1 <= v_aud2 <= MAX_RL_EFF_MOHMS + 4 * MAX_USBCSS_HS_IMPEDANCE_MOHMS <= S32_MAX
+	 * -->
+	 * 1 <= v_aud1 <= MAX_RL_EFF_MOHMS + 5 * MAX_USBCSS_HS_IMPEDANCE_MOHMS =
+	 * 900,000 + 5 * 20,000 = 1,000,000 <= 2,147,483,647 = S32_MAX
+	 */
+	v_aud1 = v_aud2 + pdata->usbcss_hs.r_aud_ext_fet_l_mohms;
+
+	/* Proof 9: The numerator of v_aud1 does not overflow.
+	 * From Proof 8, v_aud1 was less than or equal to 1,000,000
+	 * Thus, the new v_aud1 numerator is less than or equal to
+	 * FLOAT_TO_FIXED_LINEARIZER * 1,000,000 =
+	 * 4,096 * 1,000,000 = 4,096,000,000 <= 4,294,967,295 = U32_MAX
+	 *
+	 * Proof 10: The denominator of v_aud1 is not 0.
+	 * From Proof 8, v_aud1 was greater than or equal to 1 > 0
+	 *
+	 * Proof 11: The denominator does not overflow.
+	 * From Proof 8, v_aud1 was less than or equal to 1,000,000
+	 * Thus, the new v_aud1 denominator is less than or equal to
+	 * 1,000,000 + pdata->usbcss_hs.r_aud_int_fet_l_mohms = 1,000,000 + 20,000 = 1,020,000 <=
+	 * 4,294,967,295 = U32_MAX
+	 */
+	v_aud1 = FLOAT_TO_FIXED_LINEARIZER * v_aud1 /
+		 (v_aud1 + pdata->usbcss_hs.r_aud_int_fet_l_mohms);
+
+	/* Proof 12: The numerator of v_aud2 does not overflow.
+	 * From Proof 7, v_aud2 was less than or equal to 980,000
+	 * Thus, the new v_aud2 numerator is less than or equal to
+	 * FLOAT_TO_FIXED_LINEARIZER * 980,000 =
+	 * 4,096 * 980,000 = 4,014,080,000 <= 4,294,967,295 = U32_MAX
+	 *
+	 * Proof 13: The denominator of v_aud2 is not 0.
+	 * From Proof 7, v_aud2 was greater than or equal to 1 > 0
+	 *
+	 * Proof 14: The denominator does not overflow.
+	 * From Proof 7, v_aud2 was less than or equal to 980,000
+	 * Thus, the new v_aud2 denominator is less than or equal to
+	 * 980,000 + pdata->usbcss_hs.r_aud_int_fet_l_mohms pdata->usbcss_hs.r_aud_int_fet_l_mohms =
+	 * 980,000 + 20,000 + + 20,000 = 1,020,000 <= 4,294,967,295 = U32_MAX
+	 */
+	v_aud2 = FLOAT_TO_FIXED_LINEARIZER * v_aud2 /
+		 (v_aud2 + pdata->usbcss_hs.r_aud_ext_fet_l_mohms +
+		  pdata->usbcss_hs.r_aud_int_fet_l_mohms);
+
+	/* Proof 15: The numerator of aud_tap does not overflow.
+	 * Looking at the formula for v_aud1 from Proofs 9 to 11, the greatest value of v_aud1 is
+	 * FLOAT_TO_FIXED_LINEARIZER = 4,096
+	 * Looking at the formula for v_aud2 from Proofs 12 to 14, the greatest value of v_aud2 is
+	 * FLOAT_TO_FIXED_LINEARIZER = 4,096
+	 * From Proof 6, aud_denom <= 413,696
+	 * Thus, the numerator <= 1,000 * 4,096 + 10 * 10,000 * 4,096 + 413,696 / 2 =
+	 * 4,096,000 + 409,600,000 + 206,848 = 413,902,848 <= 4,294,967,295 = U32_MAX
+	 *
+	 * Proof 16: The denominator of aud_tap is not 0.
+	 * From Proof 6, aud_denom > 410 > 0
+	 *
+	 * Proof 17: The denominator of aud_tap does not overflow
+	 * From Proof 6, aud_denom <= 413,696 <= 4,294,967,295 = U32_MAX
+	 *
+	 * Proof 18: The result of aud_tap does not overflow.
+	 * From Proof 15, the numerator <= 413,902,848 and from Proof 16, the denominator > 410
+	 * Thus, the divsion will be at most 1,009,519.
+	 * pdata->usbcss_hs.aud_tap_offset <= MAX_TAP_OFFSET = 1,023
+	 * The sum will thus be bounded by 1,009,519 + 1,023 = 1,010,542 <= 2,147,483,647 = S32_MAX
+	 * Note: aud_tap won't underflow either since pdata->usbcss_hs.aud_tap_offset >= -1,023
+	 */
+	*aud_tap = (u32) ((s32) ((1000 * v_aud1 + 10 * pdata->usbcss_hs.k_aud_times_100 * v_aud2
+				  + aud_denom / 2) / aud_denom) + pdata->usbcss_hs.aud_tap_offset);
+	if (*aud_tap > MAX_TAP)
+		*aud_tap = MAX_TAP;
+	else if (*aud_tap < MIN_TAP)
+		*aud_tap = MIN_TAP;
+
+	/* Proof 19: v_gnd_denom does not overflow.
+	 * r_gnd_res_tot_mohms = r_gnd_int_fet_mohms + r_gnd_ext_fet_mohms + r_gnd_par_tot_mohms
+	 *
+	 * r_gnd_int_fet_mohms, r_gnd_ext_fet_mohms, r_gnd_par_tot_mohms,
+	 * pdata->usbcss_hs.r_aud_ext_fet_l_mohms, pdata->usbcss_hs.r_aud_int_fet_l_mohms are all
+	 * <= MAX_USBCSS_HS_IMPEDANCE_MOHMS = 20,000
+	 *
+	 * pdata->usbcss_hs.r_load_eff_l_mohms <= MAX_RL_EFF_MOHMS = 900,000
+	 *
+	 * --> v_gnd_denom <= 3 * 20,000 + 900,000 + 2 * 20,000 = 60,000 + 900,000 + 40,000 =
+	 * 1,000,000 <= 4,294,967,295 = U32_MAX
+	 *
+	 * Proof 20: v_gnd_denom is not 0.
+	 * pdata->usbcss_hs.r_load_eff_l_mohms >= MIN_RL_EFF_MOHMS = 1
+	 * -->  v_gnd_denom >= 1 > 0
+	 */
+
+	v_gnd_denom = (r_gnd_res_tot_mohms + pdata->usbcss_hs.r_load_eff_l_mohms -
+		       pdata->usbcss_hs.r3 + pdata->usbcss_hs.r_aud_ext_fet_l_mohms +
+		       pdata->usbcss_hs.r_aud_int_fet_l_mohms);
+
+	/* Proof 21: v_gnd1 numerator does not overflow.
+	 * r_gnd_int_fet_mohms <= MAX_USBCSS_HS_IMPEDANCE_MOHMS = 20,000
+	 * --> v_gnd1 numerator <= 4,096 * 20,000 = 81,920,000 <= 4,294,967,295 = U32_MAX
+	 *
+	 * v_gnd1 denominator is not 0: See Proof 20
+	 * v_gnd1 denominator does not overflow: See Proof 19
+	 */
+	v_gnd1 = FLOAT_TO_FIXED_LINEARIZER * r_gnd_int_fet_mohms / v_gnd_denom;
+
+	/* Proof 22: v_gnd2 numerator does not overflow.
+	 * r_gnd_int_fet_mohms <= MAX_USBCSS_HS_IMPEDANCE_MOHMS = 20,000
+	 * pdata->usbcss_hs.r_load_eff_l_mohms <= MAX_RL_EFF_MOHMS = 900,000
+	 * --> v_gnd2 numerator <= 4,096 * (20,000 + 900,000) = 4,096 * 920,000 = 3,768,320,000
+	 * <= 4,294,967,295 = U32_MAX
+	 *
+	 * v_gnd2 denominator is not 0: See Proof 20
+	 * v_gnd2 denominator does not overflow: See Proof 19
+	 */
+	v_gnd2 = FLOAT_TO_FIXED_LINEARIZER * (r_gnd_int_fet_mohms +
+					      pdata->usbcss_hs.r_gnd_ext_fet_mohms) / v_gnd_denom;
+
+	/* Proof 23: The numerator of gnd_tap does not overflow.
+	 * Looking at the formula for v_gnd1 from Proof 21, and considering that
+	 * r_gnd_res_tot_mohms = r_gnd_int_fet_mohms + r_gnd_ext_fet_mohms + r_gnd_par_tot_mohms,
+	 * the greatest value of v_gnd1 is FLOAT_TO_FIXED_LINEARIZER = 4,096.
+	 * Looking at the formula for v_aud2 from Proof 22 and again at the definintion of
+	 * r_gnd_res_tot_mohms, the greatest value of v_gnd2 is FLOAT_TO_FIXED_LINEARIZER = 4,096
+	 * From Proof 6, gnd_denom <= 413,696
+	 * Thus, the numerator <= 1,000 * 4,096 + 10 * 10,000 * 4,096 + 413,696 / 2 =
+	 * 4,096,000 + 409,600,000 + 206,848 = 413,902,848 <= 4,294,967,295 = U32_MAX
+	 *
+	 * Proof 24: The denominator of gnd_tap is not 0.
+	 * From Proof 6, gnd_denom > 410 > 0
+	 *
+	 * Proof 25: The denominator of gnd_tap does not overflow
+	 * From Proof 6, gnd_denom <= 413,696 <= 4,294,967,295 = U32_MAX
+	 *
+	 * Proof 26: The result of aud_tap does not overflow.
+	 * From Proof 15, the numerator <= 413,902,848 and from Proof 16, the denominator > 410
+	 * Thus, the divsion will be at most 1,009,519.
+	 * pdata->usbcss_hs.aud_tap_offset <= MAX_TAP_OFFSET = 1,023
+	 * The sum will thus be bounded by 1,009,519 + 1,023 = 1,010,542 <= 2,147,483,647 = S32_MAX
+	 * Note: gnd_tap won't underflow either since pdata->usbcss_hs.aud_tap_offset >= -1,023
+	 */
+	*gnd_tap = (u32) ((s32) ((1000 * v_gnd1 + 10 * pdata->usbcss_hs.k_gnd_times_100 * v_gnd2
+				  + gnd_denom / 2) / gnd_denom) + pdata->usbcss_hs.gnd_tap_offset);
+	if (*gnd_tap > MAX_TAP)
+		*gnd_tap = MAX_TAP;
+	else if (*gnd_tap < MIN_TAP)
+		*gnd_tap = MIN_TAP;
+	return;
+
+err_data:
+	*aud_tap = 0;
+	*gnd_tap = 0;
+}
+
 static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl, uint32_t *zr)
 {
 	struct snd_soc_component *component = mbhc->component;
@@ -734,6 +942,7 @@ static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 	struct wcd939x_pdata *pdata = dev_get_platdata(wcd939x->dev);
 	s16 reg0, reg1, reg2, reg3, reg4;
 	uint32_t zdiff_val = 0, r_gnd_int_fet_mohms = 0, rl_eff_mohms = 0, r_gnd_ext_fet_mohms = 0;
+	uint32_t aud_tap = 0, gnd_tap = 0;
 	uint32_t *zdiff = &zdiff_val;
 	int32_t z1L, z1R, z1Ls, z1Diff;
 	int zMono, z_diff1, z_diff2;
@@ -890,6 +1099,12 @@ diff_impedance:
 	update_xtalk_scale_and_alpha(pdata, wcd939x->regmap);
 	dev_dbg(component->dev, "%s: Xtalk scale is 0x%x and alpha is 0x%x\n",
 		__func__, pdata->usbcss_hs.scale_l, pdata->usbcss_hs.alpha_l);
+	get_linearizer_taps(pdata, &aud_tap, &gnd_tap);
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	wcd_usbss_set_linearizer_sw_tap(aud_tap, gnd_tap);
+#endif
+	dev_dbg(component->dev, "%s: Linearizer aud_tap is 0x%x and gnd_tap is 0x%x\n",
+		__func__, aud_tap, gnd_tap);
 
 mono_stereo_detection:
 	/* Mono/stereo detection */

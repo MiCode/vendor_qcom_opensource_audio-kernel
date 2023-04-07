@@ -4690,6 +4690,19 @@ static int wcd939x_read_of_property_u32(struct device *dev, const char *name,
 	return rc;
 }
 
+static int wcd939x_read_of_property_s32(struct device *dev, const char *name,
+					s32 *val)
+{
+	int rc = 0;
+
+	rc = of_property_read_s32(dev->of_node, name, val);
+	if (rc)
+		dev_err(dev, "%s: Looking up %s property in node %s failed\n",
+			__func__, name, dev->of_node->full_name);
+
+	return rc;
+}
+
 static void wcd939x_dt_parse_micbias_info(struct device *dev,
 					  struct wcd939x_micbias_setting *mb)
 {
@@ -4775,6 +4788,10 @@ static void init_usbcss_hs_params(struct wcd939x_usbcss_hs_params *usbcss_hs)
 	usbcss_hs->r5 = 5;
 	usbcss_hs->r6 = 1;
 	usbcss_hs->r7 = 5;
+	usbcss_hs->k_aud_times_100 = 13;
+	usbcss_hs->k_gnd_times_100 = 13;
+	usbcss_hs->aud_tap_offset = 0;
+	usbcss_hs->gnd_tap_offset = 0;
 	usbcss_hs->scale_l = MAX_XTALK_SCALE;
 	usbcss_hs->alpha_l = MIN_XTALK_ALPHA;
 	usbcss_hs->scale_r = MAX_XTALK_SCALE;
@@ -4805,6 +4822,7 @@ static void wcd939x_dt_parse_usbcss_hs_info(struct device *dev,
 					    struct wcd939x_usbcss_hs_params *usbcss_hs)
 {
 	u32 prop_val = 0;
+	s32 prop_val_signed = 0;
 	int rc = 0;
 
 	/* Default values for parameters */
@@ -4822,6 +4840,35 @@ static void wcd939x_dt_parse_usbcss_hs_info(struct device *dev,
 	} else
 		dev_dbg(dev, "%s: %s property not found. Default value of %s used.\n",
 			__func__, "qcom,usbcss-hs-xtalk-config", "XTALK_NONE");
+
+	/* k values for linearizer */
+	if (of_find_property(dev->of_node, "qcom,usbcss-hs-lin-k-aud", NULL)) {
+		rc = wcd939x_read_of_property_s32(dev, "qcom,usbcss-hs-lin-k-aud",
+						  &prop_val);
+		if ((!rc) && (prop_val <= MAX_K_TIMES_100) && (prop_val >= MIN_K_TIMES_100))
+			usbcss_hs->k_aud_times_100 = prop_val;
+		dev_dbg(dev, "%s: %s OOB. Default value of %d will be used.\n",
+			__func__, "qcom,usbcss-hs-lin-k-aud",
+			usbcss_hs->k_aud_times_100);
+	} else {
+		dev_dbg(dev, "%s: %s property not found. Default value of %d will be used.\n",
+			__func__, "qcom,usbcss-hs-lin-k-aud",
+			usbcss_hs->k_aud_times_100);
+	}
+	if (of_find_property(dev->of_node, "qcom,usbcss-hs-lin-k-gnd", NULL)) {
+		rc = wcd939x_read_of_property_s32(dev, "qcom,usbcss-hs-lin-k-gnd",
+						  &prop_val_signed);
+		if ((!rc) && (prop_val_signed <= MAX_K_TIMES_100) &&
+		    (prop_val_signed >= MIN_K_TIMES_100))
+			usbcss_hs->k_gnd_times_100 = prop_val_signed;
+		dev_dbg(dev, "%s: %s OOB. Default value of %d will be used.\n",
+			__func__, "qcom,usbcss-hs-lin-k-gnd",
+			usbcss_hs->k_gnd_times_100);
+	} else {
+		dev_dbg(dev, "%s: %s property not found. Default value of %d will be used.\n",
+			__func__, "qcom,usbcss-hs-lin-k-gnd",
+			usbcss_hs->k_gnd_times_100);
+	}
 
 	/* r_gnd_ext_fet_customer_mohms */
 	parse_xtalk_param(dev, usbcss_hs->r_gnd_ext_fet_customer_mohms, &prop_val,
@@ -4874,6 +4921,9 @@ static void wcd939x_dt_parse_usbcss_hs_info(struct device *dev,
 	usbcss_hs->r_aud_res_tot_r_mohms = get_r_aud_res_tot_mohms(
 								usbcss_hs->r_aud_int_fet_r_mohms,
 								usbcss_hs->r_aud_ext_fet_r_mohms);
+
+	/* Set linearizer calibration codes to be sourced from SW */
+	wcd_usbss_linearizer_rdac_cal_code_select(LINEARIZER_SOURCE_SW);
 }
 
 static int wcd939x_reset_low(struct device *dev)

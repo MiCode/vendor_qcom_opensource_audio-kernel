@@ -19,6 +19,8 @@
 #define WCD939X_MAX_MICBIAS 4
 #define MAX_XTALK_SCALE 31
 #define MIN_XTALK_ALPHA 0
+#define MIN_K_TIMES_100 -90
+#define MAX_K_TIMES_100 10000
 #define MAX_USBCSS_HS_IMPEDANCE_MOHMS 20000
 
 /* Convert from vout ctl to micbias voltage in mV */
@@ -222,6 +224,18 @@ struct wcd939x_usbcss_hs_params {
 	 * in milliohms
 	 */
 	u32 r7;
+	/* Tap out linearizer constant for the audio path, multiplied by 100 from the original
+	 * constants to support decimal values up to the hundredth place
+	 */
+	s32 k_aud_times_100;
+	/* Tap out linearizer constant for the ground path, multiplied by 100 from the original
+	 * constants to support decimal values up to the hundredth place
+	 */
+	s32 k_gnd_times_100;
+	/* Fixed offset to be applied to audio taps */
+	s32 aud_tap_offset;
+	/* Fixed offset to be applied to ground taps */
+	s32 gnd_tap_offset;
 	/* Computed optimal d-xtalk left-side scale value */
 	u8 scale_l;
 	/* Computed optimal d-xtalk left-side alpha value */
