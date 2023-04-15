@@ -277,8 +277,12 @@ static void msm_set_upd_config(struct snd_soc_pcm_runtime *rtd)
 	pdata->upd_config.ear_pa_pkd_cfg.ear_pa_disable_pkd_reg_addr |= val2;
 
 	ret = audio_prm_set_cdc_earpa_duty_cycling_req(&pdata->upd_config, 1);
-	if (ret < 0)
+	if (ret < 0) {
 		pr_err_ratelimited("%s: upd cdc duty cycling registration failed\n", __func__);
+		return;
+	}
+
+	pr_debug("%s: upd cdc duty cycling registration done successfully!\n", __func__);
 }
 
 static struct snd_soc_ops msm_common_be_ops = {
