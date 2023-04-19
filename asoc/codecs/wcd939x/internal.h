@@ -43,6 +43,12 @@ enum {
 	TX_HDR_MAX,
 };
 
+enum xtalk_mode {
+	XTALK_NONE = 0,
+	XTALK_DIGITAL = 1,
+	XTALK_ANALOG = 2
+};
+
 extern struct regmap_config wcd939x_regmap_config;
 
 struct comp_coeff_val {
@@ -151,11 +157,36 @@ struct wcd939x_micbias_setting {
 	u8 bias1_cfilt_sel;
 };
 
+struct wcd939x_xtalk_params {
+	u32 r_gnd_int_fet_mohms;
+	u32 r_gnd_par_route1_mohms;
+	u32 r_gnd_par_route2_mohms;
+	u32 r_gnd_ext_fet_mohms;
+	u32 r_conn_par_load_neg_mohms;
+	u32 r_aud_int_fet_l_mohms;
+	u32 r_aud_int_fet_r_mohms;
+	u32 r_aud_ext_fet_l_mohms;
+	u32 r_aud_ext_fet_r_mohms;
+	u32 r_conn_par_load_pos_l_mohms;
+	u32 r_conn_par_load_pos_r_mohms;
+	u32 r_gnd_res_tot_mohms;
+	u32 r_aud_res_tot_l_mohms;
+	u32 r_aud_res_tot_r_mohms;
+	u32 zl;
+	u32 zr;
+	u8 scale_l;
+	u8 alpha_l;
+	u8 scale_r;
+	u8 alpha_r;
+	enum xtalk_mode xtalk_config;
+};
+
 struct wcd939x_pdata {
 	struct device_node *rst_np;
 	struct device_node *rx_slave;
 	struct device_node *tx_slave;
 	struct wcd939x_micbias_setting micbias;
+	struct wcd939x_xtalk_params xtalk;
 
 	struct cdc_regulator *regulator;
 	int num_supplies;

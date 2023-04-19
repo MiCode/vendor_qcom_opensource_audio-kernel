@@ -17,6 +17,11 @@ enum {
        RD_WR_REG
 };
 
+enum {
+    WCD939X_VERSION_1_0,
+    WCD939X_VERSION_1_1,
+    WCD939X_VERSION_2_0,
+};
 
 #define WCD939X_ANA_BASE                       (WCD939X_BASE+0x01)
 #define WCD939X_ANA_PAGE                       (WCD939X_ANA_BASE+0x00)
@@ -227,6 +232,11 @@ enum {
 #define WCD939X_EAR_TEST_CTL                   (WCD939X_EAR_BASE+0x05)
 #define WCD939X_STATUS_REG_1                   (WCD939X_EAR_BASE+0x06)
 #define WCD939X_STATUS_REG_2                   (WCD939X_EAR_BASE+0x07)
+
+#define WCD939X_FLYBACK_NEW_BASE               (WCD939X_BASE+0xf7)
+#define WCD939X_FLYBACK_NEW_CTRL_2             (WCD939X_FLYBACK_NEW_BASE+0x00)
+#define WCD939X_FLYBACK_NEW_CTRL_3             (WCD939X_FLYBACK_NEW_BASE+0x01)
+#define WCD939X_FLYBACK_NEW_CTRL_4             (WCD939X_FLYBACK_NEW_BASE+0x02)
 
 #define WCD939X_ANA_NEW_BASE                   (WCD939X_BASE+0x101)
 #define WCD939X_ANA_NEW_PAGE                   (WCD939X_ANA_NEW_BASE+0x00)

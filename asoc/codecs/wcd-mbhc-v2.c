@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -1142,6 +1143,10 @@ static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 
 	pr_debug("%s: enter\n", __func__);
 
+	if (mbhc == NULL) {
+		pr_err("%s: NULL irq data\n", __func__);
+		return IRQ_NONE;
+	}
 	/* WCD USB AATC did not required mech plug detection, will receive
 	 * insertion/removal events from UCSI layer
 	 */
@@ -1152,10 +1157,6 @@ static irqreturn_t wcd_mbhc_mech_plug_detect_irq(int irq, void *data)
 	}
 #endif
 
-	if (mbhc == NULL) {
-		pr_err("%s: NULL irq data\n", __func__);
-		return IRQ_NONE;
-	}
 	if (unlikely((mbhc->mbhc_cb->lock_sleep(mbhc, true)) == false)) {
 		pr_warn("%s: failed to hold suspend\n", __func__);
 		r = IRQ_NONE;
@@ -1695,7 +1696,7 @@ static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 #endif
 		if (mbhc->mbhc_cb->clk_setup)
 			mbhc->mbhc_cb->clk_setup(mbhc->component, true);
-
+		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_L_DET_EN, 1);
 
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 		if (unlikely((mbhc->mbhc_cb->lock_sleep(mbhc, true)) == false))
@@ -1712,8 +1713,6 @@ static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 		WCD_MBHC_REG_READ(WCD_MBHC_MECH_DETECTION_TYPE, detection_type);
 		if ((mode == TYPEC_ACCESSORY_NONE) && !detection_type) {
 			wcd_usbss_switch_update(WCD_USBSS_AATC, WCD_USBSS_CABLE_DISCONNECT);
-			/* removal detected, disable L_DET_EN */
-			WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_L_DET_EN, 0);
 			if (unlikely((mbhc->mbhc_cb->lock_sleep(mbhc, true)) == false))
 				pr_warn("%s: failed to hold suspend\n", __func__);
 			else {

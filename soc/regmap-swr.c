@@ -12,6 +12,9 @@
 #include <linux/init.h>
 #include <soc/soundwire.h>
 
+#define ADDR_BYTES 2
+#define VAL_BYTES 1
+#define PAD_BYTES 0
 
 static int regmap_swr_gather_write(void *context,
 				const void *reg, size_t reg_size,
@@ -20,8 +23,6 @@ static int regmap_swr_gather_write(void *context,
 	struct device *dev = context;
 	struct swr_device *swr = to_swr_device(dev);
 	struct regmap *map = dev_get_regmap(dev, NULL);
-	size_t addr_bytes;
-	size_t val_bytes;
 	int i, ret = 0;
 	u16 reg_addr = 0;
 	u8 *value;
@@ -30,21 +31,20 @@ static int regmap_swr_gather_write(void *context,
 		dev_err_ratelimited(dev, "%s: regmap is NULL\n", __func__);
 		return -EINVAL;
 	}
-	addr_bytes = map->format.reg_bytes;
+
 	if (swr == NULL) {
 		dev_err_ratelimited(dev, "%s: swr device is NULL\n", __func__);
 		return -EINVAL;
 	}
-	if (reg_size != addr_bytes) {
+	if (reg_size != ADDR_BYTES) {
 		dev_err_ratelimited(dev, "%s: reg size %zd bytes not supported\n",
 			__func__, reg_size);
 		return -EINVAL;
 	}
 	reg_addr = *(u16 *)reg;
-	val_bytes = map->format.val_bytes;
-	/* val_len = val_bytes * val_count */
-	for (i = 0; i < (val_len / val_bytes); i++) {
-		value = (u8 *)val + (val_bytes * i);
+	/* val_len = VAL_BYTES * val_count */
+	for (i = 0; i < (val_len / VAL_BYTES); i++) {
+		value = (u8 *)val + (VAL_BYTES * i);
 		ret = swr_write(swr, swr->dev_num, (reg_addr + i), value);
 		if (ret < 0) {
 			dev_err_ratelimited(dev, "%s: write reg 0x%x failed, err %d\n",
@@ -61,9 +61,6 @@ static int regmap_swr_raw_multi_reg_write(void *context, const void *data,
 	struct device *dev = context;
 	struct swr_device *swr = to_swr_device(dev);
 	struct regmap *map = dev_get_regmap(dev, NULL);
-	size_t addr_bytes;
-	size_t val_bytes;
-	size_t pad_bytes;
 	size_t num_regs;
 	int i = 0;
 	int ret = 0;
@@ -81,15 +78,11 @@ static int regmap_swr_raw_multi_reg_write(void *context, const void *data,
 		return -EINVAL;
 	}
 
-	addr_bytes = map->format.reg_bytes;
-	val_bytes = map->format.val_bytes;
-	pad_bytes = map->format.pad_bytes;
-
-	if (addr_bytes + val_bytes + pad_bytes == 0) {
+	if (ADDR_BYTES + VAL_BYTES + PAD_BYTES == 0) {
 		dev_err_ratelimited(dev, "%s: sum of addr, value and pad is 0\n", __func__);
 		return -EINVAL;
 	}
-	num_regs = count / (addr_bytes + val_bytes + pad_bytes);
+	num_regs = count / (ADDR_BYTES + VAL_BYTES + PAD_BYTES);
 
 	reg = kcalloc(num_regs, sizeof(u16), GFP_KERNEL);
 	if (!reg)
@@ -104,9 +97,9 @@ static int regmap_swr_raw_multi_reg_write(void *context, const void *data,
 	buf = (u8 *)data;
 	for (i = 0; i < num_regs; i++) {
 		reg[i] = *(u16 *)buf;
-		buf += (map->format.reg_bytes + map->format.pad_bytes);
+		buf += (ADDR_BYTES + PAD_BYTES);
 		val[i] = *buf;
-		buf += map->format.val_bytes;
+		buf += VAL_BYTES;
 	}
 	ret = swr_bulk_write(swr, swr->dev_num, reg, val, num_regs);
 	if (ret)
@@ -122,26 +115,20 @@ static int regmap_swr_write(void *context, const void *data, size_t count)
 {
 	struct device *dev = context;
 	struct regmap *map = dev_get_regmap(dev, NULL);
-	size_t addr_bytes;
-	size_t val_bytes;
-	size_t pad_bytes;
 
 	if (map == NULL) {
 		dev_err_ratelimited(dev, "%s: regmap is NULL\n", __func__);
 		return -EINVAL;
 	}
-	addr_bytes = map->format.reg_bytes;
-	val_bytes = map->format.val_bytes;
-	pad_bytes = map->format.pad_bytes;
 
-	WARN_ON(count < addr_bytes);
+	WARN_ON(count < ADDR_BYTES);
 
-	if (count > (addr_bytes + val_bytes + pad_bytes))
+	if (count > (ADDR_BYTES + VAL_BYTES + PAD_BYTES))
 		return regmap_swr_raw_multi_reg_write(context, data, count);
 	else
-		return regmap_swr_gather_write(context, data, addr_bytes,
-					       (data + addr_bytes),
-					       (count - addr_bytes));
+		return regmap_swr_gather_write(context, data, ADDR_BYTES,
+					       (data + ADDR_BYTES),
+					       (count - ADDR_BYTES));
 }
 
 static int regmap_swr_read(void *context,
@@ -151,7 +138,6 @@ static int regmap_swr_read(void *context,
 	struct device *dev = context;
 	struct swr_device *swr = to_swr_device(dev);
 	struct regmap *map = dev_get_regmap(dev, NULL);
-	size_t addr_bytes;
 	int ret = 0;
 	u16 reg_addr = 0;
 
@@ -159,12 +145,11 @@ static int regmap_swr_read(void *context,
 		dev_err_ratelimited(dev, "%s: regmap is NULL\n", __func__);
 		return -EINVAL;
 	}
-	addr_bytes = map->format.reg_bytes;
 	if (swr == NULL) {
 		dev_err_ratelimited(dev, "%s: swr is NULL\n", __func__);
 		return -EINVAL;
 	}
-	if (reg_size != addr_bytes) {
+	if (reg_size != ADDR_BYTES) {
 		dev_err_ratelimited(dev, "%s: register size %zd bytes not supported\n",
 			__func__, reg_size);
 		return -EINVAL;

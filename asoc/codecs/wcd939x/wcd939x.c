@@ -11,6 +11,7 @@
 #include <linux/delay.h>
 #include <linux/kernel.h>
 #include <linux/component.h>
+#include <linux/stringify.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <soc/soundwire.h>
@@ -37,7 +38,6 @@
 #define NUM_SWRS_DT_PARAMS 5
 #define WCD939X_VARIANT_ENTRY_SIZE 32
 
-#define WCD939X_VERSION_1_0 1
 #define WCD939X_VERSION_ENTRY_SIZE 32
 
 #define ADC_MODE_VAL_HIFI     0x01
@@ -52,6 +52,15 @@
 #define NUM_ATTEMPTS 5
 #define COMP_MAX_COEFF 25
 #define HPH_MODE_MAX 4
+
+#define FLOAT_TO_FIXED (1 << 12)
+#define MAX_XTALK_SCALE 31
+#define MAX_XTALK_ALPHA 255
+#define MAX_RLOAD_OHMS 1000
+#define MAX_IMPEDANCE_MOHMS 20000
+#define OHMS_TO_MILLIOHMS 1000
+#define XTALK_L_CH_NUM 0
+#define XTALK_R_CH_NUM 1
 
 #define DAPM_MICBIAS1_STANDALONE "MIC BIAS1 Standalone"
 #define DAPM_MICBIAS2_STANDALONE "MIC BIAS2 Standalone"
@@ -121,6 +130,7 @@ static u8 tx_mode_bit[] = {
 	[ADC_MODE_ULP2] = 0x20,
 };
 
+extern const u8 wcd939x_reg_access[WCD939X_NUM_REGISTERS];
 static const DECLARE_TLV_DB_SCALE(line_gain, 0, 7, 1);
 static const DECLARE_TLV_DB_SCALE(analog_gain, 0, 25, 1);
 
@@ -163,6 +173,20 @@ static struct regmap_irq_chip wcd939x_regmap_irq_chip = {
 	.handle_post_irq = wcd939x_handle_post_irq,
 	.irq_drv_data = NULL,
 };
+
+static bool wcd939x_readable_register(struct device *dev, unsigned int reg)
+{
+	struct wcd939x_priv *wcd939x = dev_get_drvdata(dev);
+
+	if (reg <= WCD939X_BASE + 1)
+		return 0;
+
+	if (reg >= WCD939X_FLYBACK_NEW_CTRL_2 && reg <= WCD939X_FLYBACK_NEW_CTRL_4) {
+		if (wcd939x && wcd939x->version == WCD939X_VERSION_1_0)
+			return 0;
+	}
+	return wcd939x_reg_access[WCD939X_REG(reg)] & RD_REG;
+}
 
 static int wcd939x_handle_post_irq(void *data)
 {
@@ -357,11 +381,6 @@ static int wcd939x_set_swr_clk_rate(struct snd_soc_component *component,
 static int wcd939x_init_reg(struct snd_soc_component *component)
 {
 
-	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
-
-	if (!wcd939x->hph_pcm_enabled)
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(VBG_FINE_ADJ, VBG_FINE_ADJ, 0x04));
 	snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(BIAS, ANALOG_BIAS_EN, 0x01));
 	snd_soc_component_update_bits(component,
@@ -376,8 +395,6 @@ static int wcd939x_init_reg(struct snd_soc_component *component)
 					REG_FIELD_VALUE(RDAC_HD2_CTL_L, HD2_RES_DIV_CTL_L, 0x15));
 	snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(RDAC_HD2_CTL_R, HD2_RES_DIV_CTL_R, 0x15));
-	snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(REFBUFF_UHQA_CTL, SPARE_BITS, 0x02));
 	snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(CDC_DMIC_CTL, CLK_SCALE_EN, 0x01));
 
@@ -685,10 +702,12 @@ static int wcd939x_rx_connect_port(struct snd_soc_component *component,
 	return ret;
 }
 
-static int wcd939x_rx_clk_enable(struct snd_soc_component *component)
+static int wcd939x_rx_clk_enable(struct snd_soc_component *component, int rx_num)
 {
 
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
+
+	dev_dbg(component->dev, "%s rx_clk_cnt: %d\n", __func__, wcd939x->rx_clk_cnt);
 
 	if (wcd939x->rx_clk_cnt == 0) {
 		snd_soc_component_update_bits(component,
@@ -710,12 +729,6 @@ static int wcd939x_rx_clk_enable(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD2_CLK_EN, 0x01));
 
-		if (wcd939x->hph_pcm_enabled) {
-			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(PA_GAIN_CTL_L, RX_SUPPLY_LEVEL, 0x01));
-			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0x02));
-		}
 	}
 	wcd939x->rx_clk_cnt++;
 
@@ -725,6 +738,11 @@ static int wcd939x_rx_clk_enable(struct snd_soc_component *component)
 static int wcd939x_rx_clk_disable(struct snd_soc_component *component)
 {
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
+
+	dev_dbg(component->dev, "%s rx_clk_cnt: %d\n", __func__, wcd939x->rx_clk_cnt);
+
+	if (wcd939x->rx_clk_cnt == 0)
+		return 0;
 
 	wcd939x->rx_clk_cnt--;
 	if (wcd939x->rx_clk_cnt == 0) {
@@ -782,8 +800,12 @@ static int  wcd939x_config_power_mode(struct snd_soc_component *component,
 {
 
 	switch (event) {
-	case SND_SOC_DAPM_POST_PMU:
+	case SND_SOC_DAPM_PRE_PMU:
 		if (mode == CLS_H_ULP) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFP_IOUT_CTL, 0x2));
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFN_IOUT_CTL, 0x2));
 			if (index == WCD939X_HPHL) {
 				snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(CTL12, ZONE3_RMS, 0x21));
@@ -832,8 +854,29 @@ static int  wcd939x_config_power_mode(struct snd_soc_component *component,
 					REG_FIELD_VALUE(R_CTL17, PATH_GAIN, 0x00));
 			}
 		}
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		if (mode == CLS_H_ULP) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFN_IOUT_CTL, 0x0));
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFP_IOUT_CTL, 0x0));
+		}
+		break;
 	}
 	return 0;
+}
+
+static int wcd939x_get_usbss_hph_power_mode(int hph_mode)
+{
+	switch (hph_mode) {
+	case CLS_H_HIFI:
+	case CLS_H_LOHIFI:
+		return 0x4;
+	default:
+		/* set default mode to ULP */
+		return 0x2;
+	}
 }
 
 static int wcd939x_enable_hph_pcm_index(struct snd_soc_component *component,
@@ -957,9 +1000,177 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 	return 0;
 }
 
+static u8 get_xtalk_scale(u32 gain)
+{
+	u8 i;
+	int target = FLOAT_TO_FIXED / ((int) gain);
+	int residue = target;
+
+	for (i = 0; i <= MAX_XTALK_SCALE; i++) {
+		residue = target - (1 << ((int)((u32) i)));
+		if (residue <= 0)
+			return i;
+	}
+	return MAX_XTALK_SCALE;
+}
+
+static u8 get_xtalk_alpha(u32 gain, u8 scale)
+{
+	u32 two_exp_scale = 1 << ((u32) scale);
+	u32 round_offset = FLOAT_TO_FIXED / 2;
+	u32 alpha = (((gain * two_exp_scale - FLOAT_TO_FIXED) * 255) + round_offset)
+		    / FLOAT_TO_FIXED;
+	return (alpha <= MAX_XTALK_ALPHA) ? ((u8) alpha) : MAX_XTALK_ALPHA;
+}
+
+static u32 get_r_gnd_res_tot_mohms(u32 r_gnd_int_fet_mohms, u32 r_gnd_par_route1_mohms,
+				   u32 r_gnd_par_route2_mohms, u32 r_gnd_ext_fet_mohms,
+				   u32 r_conn_par_load_neg_mohms)
+{
+	return r_gnd_int_fet_mohms + r_gnd_par_route1_mohms + r_gnd_par_route2_mohms +
+	       r_gnd_ext_fet_mohms + r_conn_par_load_neg_mohms;
+}
+
+static u32 get_r_aud_res_tot_mohms(u32 r_aud_int_fet_mohms, u32 r_aud_ext_fet_mohms,
+				   u32 r_conn_par_load_pos_mohms)
+{
+	return r_aud_int_fet_mohms + r_aud_ext_fet_mohms + r_conn_par_load_pos_mohms;
+}
+
+static u32 get_v_common_gnd_factor(u32 r_gnd_res_tot_mohms, u32 r_load_mohms,
+				   u32 r_aud_res_tot_mohms)
+{
+	return FLOAT_TO_FIXED * r_gnd_res_tot_mohms /
+	       (r_load_mohms + r_aud_res_tot_mohms + r_gnd_res_tot_mohms);
+}
+
+static u32 get_v_feedback_tap_factor(u32 r_gnd_int_fet_mohms, u32 r_gnd_par_route1_mohms,
+				     u32 r_load_mohms, u32 r_gnd_res_tot_mohms,
+				     u32 r_aud_res_tot_mohms)
+{
+	return FLOAT_TO_FIXED * (r_gnd_int_fet_mohms + r_gnd_par_route1_mohms) /
+	       (r_load_mohms + r_gnd_res_tot_mohms + r_aud_res_tot_mohms);
+}
+
+static u32 get_v_feedback_tap_factor_analog(u32 r_conn_par_load_neg_mohms, u32 r_load_mohms,
+					    u32 r_gnd_res_tot_mohms, u32 r_aud_res_tot_mohms)
+{
+	return FLOAT_TO_FIXED * (r_gnd_res_tot_mohms - r_conn_par_load_neg_mohms) /
+	       (r_load_mohms + r_gnd_res_tot_mohms + r_aud_res_tot_mohms);
+}
+
+static u32 get_xtalk_gain(u32 v_common_gnd_factor, u32 v_feedback_tap_factor)
+{
+	return v_common_gnd_factor - v_feedback_tap_factor;
+}
+
+static void get_xtalk_scale_and_alpha(struct snd_soc_component *component, int xtalk_indx,
+				      u8 *scale, u8 *alpha)
+{
+	u32 r_aud_int_fet_mohms = 0, r_aud_ext_fet_mohms = 0, r_conn_par_load_pos_mohms = 0,
+	    r_load_mohms = 32360, r_aud_res_tot_mohms = 0, v_common_gnd_factor = 0,
+	    v_feedback_tap_factor = 0, xtalk_gain = 0, zl = 0, zr = 0;
+	struct wcd939x_priv *wcd939x = NULL;
+	struct wcd939x_pdata *pdata = NULL;
+
+	if ((xtalk_indx != XTALK_L_CH_NUM) && (xtalk_indx != XTALK_R_CH_NUM))
+		goto err_data;
+	wcd939x = snd_soc_component_get_drvdata(component);
+	if (!wcd939x->dev)
+		goto err_data;
+	pdata = dev_get_platdata(wcd939x->dev);
+	if (pdata->xtalk.xtalk_config == XTALK_NONE)
+		goto err_data;
+
+	/* Get headphone impedance for r_load */
+	wcd939x_mbhc_get_impedance(wcd939x->mbhc, &zl, &zr);
+	if (xtalk_indx == XTALK_L_CH_NUM) {
+		if (zl > MAX_RLOAD_OHMS || zl == 0) {
+			pdata->xtalk.scale_l = MAX_XTALK_SCALE;
+			pdata->xtalk.alpha_l = MAX_XTALK_ALPHA;
+			pdata->xtalk.zl = 0;
+			goto err_data;
+		}
+		/* Use cached alpha and scale for the same headphone load */
+		if (zl == pdata->xtalk.zl) {
+			*alpha = pdata->xtalk.alpha_l;
+			*scale = pdata->xtalk.scale_l;
+			return;
+		}
+		pdata->xtalk.zl = zl;
+	} else {
+		if (zr > MAX_RLOAD_OHMS || zr == 0) {
+			pdata->xtalk.scale_r = MAX_XTALK_SCALE;
+			pdata->xtalk.alpha_r = MAX_XTALK_ALPHA;
+			pdata->xtalk.zr = 0;
+			goto err_data;
+		}
+		/* Use cached alpha and scale for the same headphone load */
+		if (zr == pdata->xtalk.zr) {
+			*alpha = pdata->xtalk.alpha_r;
+			*scale = pdata->xtalk.scale_r;
+			return;
+		}
+		pdata->xtalk.zr = zr;
+	}
+
+	/* Channel-dependent impedance parameters */
+	if (xtalk_indx == XTALK_L_CH_NUM) {
+		r_aud_int_fet_mohms = pdata->xtalk.r_aud_int_fet_l_mohms;
+		r_aud_ext_fet_mohms = pdata->xtalk.r_aud_ext_fet_l_mohms;
+		r_conn_par_load_pos_mohms = pdata->xtalk.r_conn_par_load_pos_l_mohms;
+		r_aud_res_tot_mohms = pdata->xtalk.r_aud_res_tot_l_mohms;
+		r_load_mohms = pdata->xtalk.zl * OHMS_TO_MILLIOHMS;
+	} else {
+		r_aud_int_fet_mohms = pdata->xtalk.r_aud_int_fet_r_mohms;
+		r_aud_ext_fet_mohms = pdata->xtalk.r_aud_ext_fet_r_mohms;
+		r_conn_par_load_pos_mohms = pdata->xtalk.r_conn_par_load_pos_r_mohms;
+		r_aud_res_tot_mohms = pdata->xtalk.r_aud_res_tot_r_mohms;
+		r_load_mohms = pdata->xtalk.zr * OHMS_TO_MILLIOHMS;
+	}
+
+	/* Xtalk gain calculation */
+	v_common_gnd_factor = get_v_common_gnd_factor(pdata->xtalk.r_gnd_res_tot_mohms,
+						      r_load_mohms,
+						      r_aud_res_tot_mohms);
+	if (pdata->xtalk.xtalk_config == XTALK_ANALOG) {
+		v_feedback_tap_factor = get_v_feedback_tap_factor_analog(
+						pdata->xtalk.r_conn_par_load_neg_mohms,
+						r_load_mohms,
+						pdata->xtalk.r_gnd_res_tot_mohms,
+						r_aud_res_tot_mohms);
+	} else {
+		v_feedback_tap_factor = get_v_feedback_tap_factor(
+						pdata->xtalk.r_gnd_int_fet_mohms,
+						pdata->xtalk.r_gnd_par_route1_mohms,
+						r_load_mohms,
+						pdata->xtalk.r_gnd_res_tot_mohms,
+						r_aud_res_tot_mohms);
+	}
+	xtalk_gain = get_xtalk_gain(v_common_gnd_factor, v_feedback_tap_factor);
+
+	/* Store scale and alpha values */
+	*scale = get_xtalk_scale(xtalk_gain);
+	*alpha = get_xtalk_alpha(xtalk_gain, *scale);
+	if (xtalk_indx == XTALK_L_CH_NUM) {
+		pdata->xtalk.scale_l = *scale;
+		pdata->xtalk.alpha_l = *alpha;
+	} else {
+		pdata->xtalk.scale_r = *scale;
+		pdata->xtalk.alpha_r = *alpha;
+	}
+
+	return;
+
+err_data:
+	*scale = MAX_XTALK_SCALE;
+	*alpha = MAX_XTALK_ALPHA;
+}
+
 static int wcd939x_config_xtalk(struct snd_soc_component *component,
 					int event, int xtalk_indx)
 {
+	u8 scale = MAX_XTALK_SCALE, alpha = MAX_XTALK_ALPHA;
 	u16 xtalk_sec0 = 0, xtalk_sec1 = 0, xtalk_sec2 = 0, xtalk_sec3 = 0;
 	struct wcd939x_priv *wcd939x = NULL;
 
@@ -968,7 +1179,7 @@ static int wcd939x_config_xtalk(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	 wcd939x = snd_soc_component_get_drvdata(component);
+	wcd939x = snd_soc_component_get_drvdata(component);
 
 	if (!wcd939x->xtalk_enabled[xtalk_indx])
 		return 0;
@@ -979,14 +1190,16 @@ static int wcd939x_config_xtalk(struct snd_soc_component *component,
 	switch(event) {
 
 	case SND_SOC_DAPM_PRE_PMU:
-
 		xtalk_sec0 = WCD939X_HPHL_RX_PATH_SEC0 + (xtalk_indx * WCD939X_XTALK_OFFSET);
 		xtalk_sec1 = WCD939X_HPHL_RX_PATH_SEC1 + (xtalk_indx * WCD939X_XTALK_OFFSET);
 		xtalk_sec2 = WCD939X_HPHL_RX_PATH_SEC2 + (xtalk_indx * WCD939X_XTALK_OFFSET);
 		xtalk_sec3 = WCD939X_HPHL_RX_PATH_SEC3 + (xtalk_indx * WCD939X_XTALK_OFFSET);
 
-		snd_soc_component_update_bits(component, xtalk_sec1, 0xFF, 0xFE);
-		snd_soc_component_update_bits(component, xtalk_sec0, 0x1F, 0x06);
+		/* Determine scale and alpha */
+		get_xtalk_scale_and_alpha(component, xtalk_indx, &scale, &alpha);
+		snd_soc_component_update_bits(component, xtalk_sec1, 0xFF, alpha);
+		snd_soc_component_update_bits(component, xtalk_sec0, 0x1F, scale);
+
 		snd_soc_component_update_bits(component, xtalk_sec3, 0xFF, 0x4F);
 		snd_soc_component_update_bits(component, xtalk_sec2, 0x1F, 0x11);
 
@@ -1000,6 +1213,26 @@ static int wcd939x_config_xtalk(struct snd_soc_component *component,
 		/* Disable Xtalk for L and R channels*/
 		snd_soc_component_update_bits(component, WCD939X_RX_PATH_CFG2,
 				0x00, 0x00);
+		break;
+	}
+
+	return 0;
+}
+
+static int wcd939x_rx3_mux(struct snd_soc_dapm_widget *w,
+			struct snd_kcontrol *kcontrol, int event)
+{
+	struct snd_soc_component *component = snd_soc_dapm_to_component(w->dapm);
+
+	dev_dbg(component->dev, "%s event: %d wshift: %d wname: %s\n",
+					__func__, event, w->shift, w->name);
+
+	switch (event) {
+	case SND_SOC_DAPM_PRE_PMU:
+		wcd939x_rx_clk_enable(component, w->shift);
+		break;
+	case SND_SOC_DAPM_POST_PMD:
+		wcd939x_rx_clk_disable(component);
 		break;
 	}
 
@@ -1023,7 +1256,7 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
-		wcd939x_rx_clk_enable(component);
+		wcd939x_rx_clk_enable(component, w->shift);
 		if (wcd939x->hph_pcm_enabled)
 			wcd939x_config_power_mode(component, event, w->shift, hph_mode);
 		wcd939x_config_compander(component, event, w->shift);
@@ -1032,14 +1265,21 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMU:
 		wcd939x_config_xtalk(component, event, w->shift);
 		/*TBD: need to revisit , for both L & R we are updating, but in QCRG only once*/
-		if (wcd939x->hph_pcm_enabled)
-			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(TOP_CFG0, HPH_DAC_RATE_SEL, 0x1));
+		if (wcd939x->hph_pcm_enabled) {
+			if (hph_mode == CLS_H_HIFI || hph_mode == CLS_AB_HIFI)
+				snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(TOP_CFG0, HPH_DAC_RATE_SEL, 0x1));
+			else
+				snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(TOP_CFG0, HPH_DAC_RATE_SEL, 0x0));
+		}
 		wcd939x_enable_hph_pcm_index(component, event, w->shift);
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 		wcd939x_config_xtalk(component, event, w->shift);
 		wcd939x_config_compander(component, event, w->shift);
+		if (wcd939x->hph_pcm_enabled)
+			wcd939x_config_power_mode(component, event, w->shift, hph_mode);
 		wcd939x_rx_clk_disable(component);
 		break;
 
@@ -1195,34 +1435,19 @@ static int wcd939x_codec_ear_dac_event(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_PRE_PMU:
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_EAR_GAIN_CTL, EAR_EN, 0x01));
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD0_CLK_EN, 0x01));
-		if (wcd939x->comp1_enable)
-			snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CDC_COMP_CTL_0, HPHL_COMP_EN, 0x01));
 
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(EAR_DAC_CON, DAC_SAMPLE_EDGE_SEL, 0x00));
 		/* 5 msec delay as per HW requirement */
 		usleep_range(5000, 5010);
-		if (wcd939x->flyback_cur_det_disable == 0)
-			snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(EN, EN_CUR_DET, 0x00));
-
-		wcd939x->flyback_cur_det_disable++;
 		wcd_cls_h_fsm(component, &wcd939x->clsh_info,
 			     WCD_CLSH_EVENT_PRE_DAC,
 			     WCD_CLSH_STATE_EAR,
-			     wcd939x->hph_mode);
+			     CLS_AB_HIFI);
+		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(CDC_COMP_CTL_0, HPHL_COMP_EN, 0x01));
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(CDC_DIG_CLK_CTL, RXD0_CLK_EN, 0x00));
-		if (wcd939x->comp1_enable)
-			snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CDC_COMP_CTL_0, HPHL_COMP_EN, 0x00));
-		snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(EAR_COMPANDER_CTL, GAIN_OVRD_REG, 0x00));
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(EAR_DAC_CON, DAC_SAMPLE_EDGE_SEL, 0x01));
 		break;
@@ -1267,12 +1492,21 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 					REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x01));
 		}
 		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
+		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(HPH, HPHR_REF_ENABLE, 0x01));
 		wcd_clsh_set_hph_mode(component, hph_mode);
+		/* update USBSS power mode for AATC */
+		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog)
+			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE,
+				wcd939x_get_usbss_hph_power_mode(hph_mode));
 		/* update Mode for LOHIFI */
-		if (hph_mode == CLS_H_LOHIFI)
+		if (hph_mode == CLS_H_LOHIFI) {
+			snd_soc_component_write(component,
+					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x52);
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
+		}
 		/* 100 usec delay as per HW requirement */
 		usleep_range(100, 110);
 		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
@@ -1362,6 +1596,9 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 					REG_FIELD_VALUE(HPH, HPHR_REF_ENABLE, 0x00));
 		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(PDM_WD_CTL1, PDM_WD_EN, 0x00));
+		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog &&
+			!(snd_soc_component_read(component, WCD939X_HPH) & 0XC0))
+			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE, 1);
 		wcd_cls_h_fsm(component, &wcd939x->clsh_info,
 			     WCD_CLSH_EVENT_POST_PA,
 			     WCD_CLSH_STATE_HPHR,
@@ -1410,12 +1647,21 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 					REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x01));
 		}
 		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
+		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(HPH, HPHL_REF_ENABLE, 0x01));
 		wcd_clsh_set_hph_mode(component, hph_mode);
+		/* update USBSS power mode for AATC */
+		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog)
+			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE,
+				wcd939x_get_usbss_hph_power_mode(hph_mode));
 		/* update Mode for LOHIFI */
-		if (hph_mode == CLS_H_LOHIFI)
+		if (hph_mode == CLS_H_LOHIFI) {
+			snd_soc_component_write(component,
+					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x52);
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
+		}
 		/* 100 usec delay as per HW requirement */
 		usleep_range(100, 110);
 		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
@@ -1503,7 +1749,9 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 					REG_FIELD_VALUE(HPH, HPHL_REF_ENABLE, 0x00));
 		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(PDM_WD_CTL0, PDM_WD_EN, 0x00));
-
+		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog &&
+			!(snd_soc_component_read(component, WCD939X_HPH) & 0XC0))
+			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE, 1);
 		wcd_cls_h_fsm(component, &wcd939x->clsh_info,
 			     WCD_CLSH_EVENT_POST_PA,
 			     WCD_CLSH_STATE_HPHL,
@@ -1524,7 +1772,6 @@ static int wcd939x_codec_enable_ear_pa(struct snd_soc_dapm_widget *w,
 	struct snd_soc_component *component =
 					snd_soc_dapm_to_component(w->dapm);
 	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
-	int hph_mode = wcd939x->hph_mode;
 	int ret = 0;
 
 	dev_dbg(component->dev, "%s wname: %s event: %d\n", __func__,
@@ -1540,23 +1787,20 @@ static int wcd939x_codec_enable_ear_pa(struct snd_soc_dapm_widget *w,
 		 */
 		snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(PDM_WD_CTL0, PDM_WD_EN, 0x03));
-		if (!wcd939x->comp1_enable)
-			snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(EAR_COMPANDER_CTL, GAIN_OVRD_REG, 0x01));
+		/* For EAR, use CLASS_AB regulator mode */
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(RX_SUPPLIES, REGULATOR_MODE, 0x01));
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(EAR_COMPANDER_CTL, GAIN_OVRD_REG, 0x01));
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		/* 6 msec delay as per HW requirement */
 		usleep_range(6000, 6010);
-		if (hph_mode == CLS_AB || hph_mode == CLS_AB_HIFI ||
-			hph_mode == CLS_AB_LP || hph_mode == CLS_AB_LOHIFI)
-			snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(RX_SUPPLIES, REGULATOR_MODE, 0x01));
 		if (wcd939x->update_wcd_event)
 			wcd939x->update_wcd_event(wcd939x->handle,
 					SLV_BOLERO_EVT_RX_MUTE,
-					(WCD_RX1 << 0x10));
-		wcd_enable_irq(&wcd939x->irq_info,
-				WCD939X_IRQ_EAR_PDM_WD_INT);
+					(WCD_RX3 << 0x10));
+		wcd_enable_irq(&wcd939x->irq_info, WCD939X_IRQ_EAR_PDM_WD_INT);
 		break;
 	case SND_SOC_DAPM_PRE_PMD:
 		wcd_disable_irq(&wcd939x->irq_info,
@@ -1564,12 +1808,11 @@ static int wcd939x_codec_enable_ear_pa(struct snd_soc_dapm_widget *w,
 		if (wcd939x->update_wcd_event)
 			wcd939x->update_wcd_event(wcd939x->handle,
 					SLV_BOLERO_EVT_RX_MUTE,
-					(WCD_RX1 << 0x10 | 0x1));
+					(WCD_RX3 << 0x10 | 0x1));
 		break;
 	case SND_SOC_DAPM_POST_PMD:
-		if (!wcd939x->comp1_enable)
-			snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(EAR_COMPANDER_CTL, GAIN_OVRD_REG, 0x00));
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(EAR_COMPANDER_CTL, GAIN_OVRD_REG, 0x00));
 		/* 7 msec delay as per HW requirement */
 		usleep_range(7000, 7010);
 		snd_soc_component_update_bits(component,
@@ -1577,14 +1820,29 @@ static int wcd939x_codec_enable_ear_pa(struct snd_soc_dapm_widget *w,
 		wcd_cls_h_fsm(component, &wcd939x->clsh_info,
 			     WCD_CLSH_EVENT_POST_PA,
 			     WCD_CLSH_STATE_EAR,
-			     hph_mode);
-
-		wcd939x->flyback_cur_det_disable--;
-		if (wcd939x->flyback_cur_det_disable == 0)
-			snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(EN, EN_CUR_DET, 0x01));
+			     CLS_AB_HIFI);
 		break;
 	};
+	return ret;
+}
+
+static int wcd939x_clsh_dummy(struct snd_soc_dapm_widget *w,
+			       struct snd_kcontrol *kcontrol,
+			       int event)
+{
+	struct snd_soc_component *component =
+			snd_soc_dapm_to_component(w->dapm);
+	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
+	int ret = 0;
+
+	dev_dbg(component->dev, "%s wname: %s event: %d\n", __func__,
+		w->name, event);
+
+	if (SND_SOC_DAPM_EVENT_OFF(event))
+		ret = swr_slvdev_datapath_control(
+				wcd939x->rx_swr_dev,
+				wcd939x->rx_swr_dev->dev_num,
+				false);
 	return ret;
 }
 
@@ -3023,21 +3281,6 @@ static int wcd939x_rx_hph_mode_put(struct snd_kcontrol *kcontrol,
 	}
 	wcd939x->hph_mode = mode_val;
 
-	switch (mode_val) {
-	case CLS_H_HIFI:
-	case CLS_H_LOHIFI:
-		mode_val = 0x4;
-		break;
-	default:
-		/* set default mode to ULP */
-		mode_val = 0x2;
-		break;
-	}
-
-#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
-	wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE, mode_val);
-#endif
-
 	return 0;
 }
 
@@ -3067,18 +3310,15 @@ static int wcd939x_ear_pa_gain_put(struct snd_kcontrol *kcontrol,
 	u8 ear_pa_gain = 0;
 	struct snd_soc_component *component =
 				snd_soc_kcontrol_component(kcontrol);
-	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
 
 	dev_dbg(component->dev, "%s: ucontrol->value.integer.value[0]  = %ld\n",
 			__func__, ucontrol->value.integer.value[0]);
 
 	ear_pa_gain =  ucontrol->value.integer.value[0] << 2;
 
-	if (!wcd939x->comp1_enable) {
-		snd_soc_component_update_bits(component,
-				WCD939X_EAR_COMPANDER_CTL,
-				0x7C, ear_pa_gain);
-	}
+	snd_soc_component_update_bits(component,
+			WCD939X_EAR_COMPANDER_CTL,
+			0x7C, ear_pa_gain);
 
 	return 0;
 }
@@ -3646,7 +3886,7 @@ static const struct snd_kcontrol_new tx_adc4_mux =
 	SOC_DAPM_ENUM("ADC4 MUX Mux", adc4_enum);
 
 static const char * const rdac3_mux_text[] = {
-	"RX1", "RX3"
+	"RX3", "RX1"
 };
 
 
@@ -3674,6 +3914,14 @@ static const struct soc_enum rx2_enum =
 		SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 0, rx2_mux_text);
 static const struct snd_kcontrol_new rx2_mux =
 	SOC_DAPM_ENUM("RX2 MUX Mux", rx2_enum);
+
+static const char * const rx3_mux_text[] = {
+	"ZERO", "RX3 MUX"
+};
+static const struct soc_enum rx3_enum =
+		SOC_ENUM_SINGLE(SND_SOC_NOPM, 0, 0, rx3_mux_text);
+static const struct snd_kcontrol_new rx3_mux =
+	SOC_DAPM_ENUM("RX3 MUX Mux", rx3_enum);
 
 static const struct snd_soc_dapm_widget wcd939x_dapm_widgets[] = {
 
@@ -3874,6 +4122,8 @@ static const struct snd_soc_dapm_widget wcd939x_dapm_widgets[] = {
 	SND_SOC_DAPM_SUPPLY_S("CLS_H_PORT", 1, SND_SOC_NOPM, 0, 0,
 			     wcd939x_enable_clsh,
 			     SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_SUPPLY_S("CLS_H_DUMMY", 1, SND_SOC_NOPM, 0, 0,
+			     wcd939x_clsh_dummy, SND_SOC_DAPM_POST_PMD),
 
 	/*rx widgets*/
 	SND_SOC_DAPM_PGA_E("EAR PGA", WCD939X_EAR, 7, 0, NULL, 0,
@@ -3910,6 +4160,8 @@ static const struct snd_soc_dapm_widget wcd939x_dapm_widgets[] = {
 	SND_SOC_DAPM_MUX_E("RX2 MUX", SND_SOC_NOPM, WCD_RX2, 0, &rx2_mux,
 			wcd939x_rx_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMU
 				| SND_SOC_DAPM_POST_PMD),
+	SND_SOC_DAPM_MUX_E("RX3 MUX", SND_SOC_NOPM, WCD_RX3, 0, &rx3_mux,
+			wcd939x_rx3_mux, SND_SOC_DAPM_PRE_PMU | SND_SOC_DAPM_POST_PMD),
 
 	SND_SOC_DAPM_MIXER_E("RX1", SND_SOC_NOPM, 0, 0, NULL, 0,
 				wcd939x_enable_rx1, SND_SOC_DAPM_PRE_PMU |
@@ -4071,8 +4323,9 @@ static const struct snd_soc_dapm_route wcd939x_audio_map[] = {
 
 	{"IN3_EAR", NULL, "WCD_RX_DUMMY"},
 	{"IN3_EAR", NULL, "VDD_BUCK"},
-	{"IN3_EAR", NULL, "CLS_H_PORT"},
-	{"RX3", NULL, "IN3_EAR"},
+	{"IN3_EAR", NULL, "CLS_H_DUMMY"},
+	{"RX3 MUX", NULL, "IN3_EAR"},
+	{"RX3", NULL, "RX3 MUX"},
 	{"RDAC3_MUX", "RX3", "RX3"},
 	{"RDAC3_MUX", "RX1", "RX1"},
 	{"RDAC3", NULL, "RDAC3_MUX"},
@@ -4099,7 +4352,11 @@ static ssize_t wcd939x_version_read(struct snd_info_entry *entry,
 
 	switch (priv->version) {
 	case WCD939X_VERSION_1_0:
+	case WCD939X_VERSION_1_1:
 		len = snprintf(buffer, sizeof(buffer), "WCD939X_1_0\n");
+		break;
+	case WCD939X_VERSION_2_0:
+		len = snprintf(buffer, sizeof(buffer), "WCD939X_2_0\n");
 		break;
 	default:
 		len = snprintf(buffer, sizeof(buffer), "VER_UNDEFINED\n");
@@ -4390,7 +4647,6 @@ static int wcd939x_soc_codec_probe(struct snd_soc_component *component)
 			goto err_hwdep;
 		}
 	}
-	wcd939x->version = WCD939X_VERSION_1_0;
        /* Register event notifier */
 	wcd939x->nblock.notifier_call = wcd939x_event_notify;
 	if (wcd939x->register_notifier) {
@@ -4578,6 +4834,129 @@ static void wcd939x_dt_parse_micbias_info(struct device *dev,
 	}
 }
 
+static void init_xtalk_params(struct wcd939x_xtalk_params *xtalk)
+{
+	xtalk->r_gnd_int_fet_mohms = 200;
+	xtalk->r_gnd_par_route1_mohms = 50;
+	xtalk->r_gnd_par_route2_mohms = 50;
+	xtalk->r_gnd_ext_fet_mohms = 650;
+	xtalk->r_conn_par_load_neg_mohms = 125;
+	xtalk->r_aud_int_fet_l_mohms = 200;
+	xtalk->r_aud_int_fet_r_mohms = 200;
+	xtalk->r_aud_ext_fet_l_mohms = 650;
+	xtalk->r_aud_ext_fet_r_mohms = 650;
+	xtalk->r_conn_par_load_pos_l_mohms = 7550;
+	xtalk->r_conn_par_load_pos_r_mohms = 7550;
+	xtalk->zl = 0;
+	xtalk->zr = 0;
+	xtalk->scale_l = MAX_XTALK_SCALE;
+	xtalk->alpha_l = MAX_XTALK_ALPHA;
+	xtalk->scale_r = MAX_XTALK_SCALE;
+	xtalk->alpha_r = MAX_XTALK_ALPHA;
+	xtalk->xtalk_config = XTALK_ANALOG;
+}
+
+static void parse_xtalk_param(struct device *dev, u32 default_val, u32 *prop_val_p,
+			      char *prop)
+{
+	int rc = 0;
+
+	if (of_find_property(dev->of_node, prop, NULL)) {
+		rc = wcd939x_read_of_property_u32(dev, prop, prop_val_p);
+		if ((!rc) && (*prop_val_p <= MAX_IMPEDANCE_MOHMS) && (*prop_val_p > 0))
+			return;
+		*prop_val_p = default_val;
+		dev_dbg(dev, "%s: %s OOB. Default value of %d will be used.\n", __func__, prop,
+			default_val);
+	} else {
+		*prop_val_p = default_val;
+		dev_dbg(dev, "%s: %s property not found. Default value of %d will be used.\n",
+			__func__, prop, default_val);
+	}
+}
+
+static void wcd939x_dt_parse_xtalk_info(struct device *dev, struct wcd939x_xtalk_params *xtalk)
+{
+	u32 prop_val = 0;
+	int rc = 0;
+
+	init_xtalk_params(xtalk);
+
+	/* xtalk_config: Determine type of crosstalk: none (0), digital (1), or analog (2) */
+	if (of_find_property(dev->of_node, "qcom,xtalk-config", NULL)) {
+		rc = wcd939x_read_of_property_u32(dev, "qcom,xtalk-config", &prop_val);
+		if ((!rc) && (prop_val == XTALK_NONE || prop_val == XTALK_DIGITAL
+			      || prop_val == XTALK_ANALOG)) {
+			xtalk->xtalk_config = (enum xtalk_mode) prop_val;
+		} else
+			dev_dbg(dev, "%s: qcom,xtalk-config OOB. Default value of %s used.\n",
+				__func__, "XTALK_NONE");
+	} else
+		dev_dbg(dev,
+			"%s: qcom,xtalk-config property not found. Default value of %s used.\n",
+			__func__, "XTALK_NONE");
+	if (xtalk->xtalk_config == XTALK_NONE)
+		goto post_get_params;
+
+	/* r_gnd_int_fet_mohms */
+	parse_xtalk_param(dev, xtalk->r_gnd_int_fet_mohms, &prop_val,
+			  "qcom,xtalk-r-gnd-int-fet-mohms");
+	xtalk->r_gnd_int_fet_mohms = prop_val;
+	/* r_gnd_par_route1_mohms */
+	parse_xtalk_param(dev, xtalk->r_gnd_par_route1_mohms, &prop_val,
+			  "qcom,xtalk-r-gnd-par-route1-mohms");
+	xtalk->r_gnd_par_route1_mohms = prop_val;
+	/* r_gnd_par_route2_mohms */
+	parse_xtalk_param(dev, xtalk->r_gnd_par_route2_mohms, &prop_val,
+			  "qcom,xtalk-r-gnd-par-route2-mohms");
+	xtalk->r_gnd_par_route2_mohms = prop_val;
+	/* r_gnd_ext_fet_mohms */
+	parse_xtalk_param(dev, xtalk->r_gnd_ext_fet_mohms, &prop_val,
+			  "qcom,xtalk-r-gnd-ext-fet-mohms");
+	xtalk->r_gnd_ext_fet_mohms = prop_val;
+	/* r_conn_par_load_neg_mohms */
+	parse_xtalk_param(dev, xtalk->r_conn_par_load_neg_mohms, &prop_val,
+			  "qcom,xtalk-r-conn-par-load-neg-mohms");
+	xtalk->r_conn_par_load_neg_mohms = prop_val;
+	/* r_aud_int_fet_l_mohms */
+	parse_xtalk_param(dev, xtalk->r_aud_int_fet_l_mohms, &prop_val,
+			  "qcom,xtalk-r-aud-int-fet-l-mohms");
+	xtalk->r_aud_int_fet_l_mohms = prop_val;
+	/* r_aud_int_fet_r_mohms */
+	parse_xtalk_param(dev, xtalk->r_aud_int_fet_r_mohms, &prop_val,
+			  "qcom,xtalk-r-aud-int-fet-r-mohms");
+	xtalk->r_aud_int_fet_r_mohms = prop_val;
+	/* r_aud_ext_fet_l_mohms */
+	parse_xtalk_param(dev, xtalk->r_aud_ext_fet_l_mohms, &prop_val,
+			  "qcom,xtalk-r-aud-ext-fet-l-mohms");
+	xtalk->r_aud_ext_fet_l_mohms = prop_val;
+	/* r_aud_ext_fet_r_mohms */
+	parse_xtalk_param(dev, xtalk->r_aud_ext_fet_r_mohms, &prop_val,
+			  "qcom,xtalk-r-aud-ext-fet-r-mohms");
+	xtalk->r_aud_ext_fet_r_mohms = prop_val;
+	/* r_conn_par_load_pos_l_mohms */
+	parse_xtalk_param(dev, xtalk->r_conn_par_load_pos_l_mohms, &prop_val,
+			  "qcom,xtalk-r-conn-par-load-pos-l-mohms");
+	xtalk->r_conn_par_load_pos_l_mohms = prop_val;
+	/* r_conn_par_load_pos_r_mohms */
+	parse_xtalk_param(dev, xtalk->r_conn_par_load_pos_r_mohms, &prop_val,
+			  "qcom,xtalk-r-conn-par-load-pos-r-mohms");
+	xtalk->r_conn_par_load_pos_r_mohms = prop_val;
+
+post_get_params:
+	xtalk->r_gnd_res_tot_mohms = get_r_gnd_res_tot_mohms(xtalk->r_gnd_int_fet_mohms,
+							     xtalk->r_gnd_par_route1_mohms,
+							     xtalk->r_gnd_par_route2_mohms,
+							     xtalk->r_gnd_ext_fet_mohms,
+							     xtalk->r_conn_par_load_neg_mohms);
+	xtalk->r_aud_res_tot_l_mohms = get_r_aud_res_tot_mohms(xtalk->r_aud_int_fet_l_mohms,
+							       xtalk->r_aud_ext_fet_l_mohms,
+							       xtalk->r_conn_par_load_pos_l_mohms);
+	xtalk->r_aud_res_tot_r_mohms = get_r_aud_res_tot_mohms(xtalk->r_aud_int_fet_r_mohms,
+							       xtalk->r_aud_ext_fet_r_mohms,
+							       xtalk->r_conn_par_load_pos_r_mohms);
+}
+
 static int wcd939x_reset_low(struct device *dev)
 {
 	struct wcd939x_priv *wcd939x = NULL;
@@ -4640,6 +5019,7 @@ struct wcd939x_pdata *wcd939x_populate_dt_data(struct device *dev)
 	pdata->tx_slave = of_parse_phandle(dev->of_node, "qcom,tx-slave", 0);
 
 	wcd939x_dt_parse_micbias_info(dev, &pdata->micbias);
+	wcd939x_dt_parse_xtalk_info(dev, &pdata->xtalk);
 
 	return pdata;
 }
@@ -4675,11 +5055,54 @@ static struct snd_soc_dai_driver wcd939x_dai[] = {
 	},
 };
 
+
+static const struct reg_default reg_def_1_1[] = {
+	{WCD939X_VBG_FINE_ADJ, 0xA5},
+	{WCD939X_FLYBACK_NEW_CTRL_2, 0x0},
+	{WCD939X_FLYBACK_NEW_CTRL_3, 0x0},
+	{WCD939X_FLYBACK_NEW_CTRL_4, 0x44},
+	{WCD939X_PA_GAIN_CTL_R, 0x80},
+};
+
+static const struct reg_default reg_def_2_0[] = {
+	{WCD939X_INTR_MASK_2, 0x3E},
+};
+
+static const char *version_to_str(u32 version)
+{
+	switch (version) {
+	case WCD939X_VERSION_1_0:
+		return __stringify(WCD939X_1_0);
+	case WCD939X_VERSION_1_1:
+		return __stringify(WCD939X_1_1);
+	case WCD939X_VERSION_2_0:
+		return __stringify(WCD939X_2_0);
+	}
+	return NULL;
+}
+
+static void wcd939x_update_regmap_cache(struct wcd939x_priv *wcd939x)
+{
+	if (wcd939x->version == WCD939X_VERSION_1_0)
+		return;
+
+	if (wcd939x->version >= WCD939X_VERSION_1_1) {
+		for (int i = 0; i < ARRAY_SIZE(reg_def_1_1); ++i)
+			regmap_write(wcd939x->regmap, reg_def_1_1[i].reg, reg_def_1_1[i].def);
+	}
+
+	if (wcd939x->version == WCD939X_VERSION_2_0) {
+		for (int i = 0; i < ARRAY_SIZE(reg_def_2_0); ++i)
+			regmap_write(wcd939x->regmap, reg_def_2_0[i].reg, reg_def_2_0[i].def);
+	}
+}
+
 static int wcd939x_bind(struct device *dev)
 {
 	int ret = 0, i = 0;
 	struct wcd939x_pdata *pdata = dev_get_platdata(dev);
 	struct wcd939x_priv *wcd939x = dev_get_drvdata(dev);
+	u8 id1 = 0, status1 = 0;
 
 	/*
 	 * Add 5msec delay to provide sufficient time for
@@ -4713,6 +5136,18 @@ static int wcd939x_bind(struct device *dev)
 	swr_init_port_params(wcd939x->tx_swr_dev, SWR_NUM_PORTS,
 			     wcd939x->swr_tx_port_params);
 
+	/* Check WCD9395 version */
+	swr_read(wcd939x->tx_swr_dev, wcd939x->tx_swr_dev->dev_num,
+			WCD939X_CHIP_ID1, &id1, 1);
+	swr_read(wcd939x->tx_swr_dev, wcd939x->tx_swr_dev->dev_num,
+			WCD939X_STATUS_REG_1, &status1, 1);
+	if (id1 == 0)
+		wcd939x->version = ((status1 & 0x3) ? WCD939X_VERSION_1_1 : WCD939X_VERSION_1_0);
+	else if (id1 == 1)
+		wcd939x->version = WCD939X_VERSION_2_0;
+	dev_info(dev, "%s: wcd9395 version: %s\n", __func__,
+			version_to_str(wcd939x->version));
+	wcd939x_regmap_config.readable_reg = wcd939x_readable_register;
 	wcd939x->regmap = devm_regmap_init_swr(wcd939x->tx_swr_dev,
 					       &wcd939x_regmap_config);
 	if (!wcd939x->regmap) {
@@ -4720,6 +5155,7 @@ static int wcd939x_bind(struct device *dev)
 				__func__);
 		goto err;
 	}
+	wcd939x_update_regmap_cache(wcd939x);
 
 	/* Set all interupts as edge triggered */
 	for (i = 0; i < wcd939x_regmap_irq_chip.num_regs; i++)

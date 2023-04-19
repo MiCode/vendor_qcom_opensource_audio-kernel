@@ -2020,6 +2020,9 @@ static int lpass_cdc_rx_macro_config_classh(struct snd_soc_component *component,
 				struct lpass_cdc_rx_macro_priv *rx_priv,
 				int interp_n, int event)
 {
+	if (interp_n == INTERP_AUX)
+		return 0; /* AUX does not have Class-H */
+
 	if (SND_SOC_DAPM_EVENT_OFF(event)) {
 		lpass_cdc_rx_macro_enable_clsh_block(rx_priv, false);
 		return 0;
@@ -2794,7 +2797,8 @@ static int lpass_cdc_rx_macro_enable_interp_clk(struct snd_soc_component *compon
 			lpass_cdc_rx_macro_config_classh(component, rx_priv,
 						interp_idx, event);
 			/*select PCM path and swr clk is 9.6MHz*/
-			if (rx_priv->is_pcm_enabled && !rx_priv->is_native_on) {
+			if (rx_priv->is_pcm_enabled && !rx_priv->is_native_on &&
+					interp_idx != INTERP_AUX) {
 				if (rx_priv->pcm_select_users == 0)
 					snd_soc_component_update_bits(component,
 						LPASS_CDC_RX_TOP_SWR_CTRL, 0x02, 0x02);
@@ -2813,7 +2817,8 @@ static int lpass_cdc_rx_macro_enable_interp_clk(struct snd_soc_component *compon
 			snd_soc_component_update_bits(component, main_reg,
 					0x10, 0x10);
 			/*Unselect PCM path*/
-			if (rx_priv->is_pcm_enabled && !rx_priv->is_native_on) {
+			if (rx_priv->is_pcm_enabled && !rx_priv->is_native_on &&
+					interp_idx != INTERP_AUX) {
 				if (rx_priv->pcm_select_users == 1)
 					snd_soc_component_update_bits(component,
 						LPASS_CDC_RX_TOP_SWR_CTRL, 0x02, 0x00);
