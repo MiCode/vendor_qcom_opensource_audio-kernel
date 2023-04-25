@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef WCD939X_REGISTERS_H
@@ -659,7 +659,7 @@ enum {
 #define WCD939X_DSD_HPHR_CFG4                  (WCD939X_DSD_HPHR_BASE+0x05)
 #define WCD939X_DSD_HPHR_CFG5                  (WCD939X_DSD_HPHR_BASE+0x06)
 
-#define WCD939X_NUM_REGISTERS                  (WCD939X_DSD_HPHR_CFG5+1)
-#define WCD939X_MAX_REGISTER                   (WCD939X_NUM_REGISTERS-1)
+#define WCD939X_MAX_REGISTER                   (WCD939X_DSD_HPHR_CFG5)
+#define WCD939X_NUM_REGISTERS                  (WCD939X_REG(WCD939X_MAX_REGISTER+1))
 
 #endif /* WCD939X_REGISTERS_H */

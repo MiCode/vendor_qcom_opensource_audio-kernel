@@ -134,6 +134,9 @@ extern const u8 wcd939x_reg_access[WCD939X_NUM_REGISTERS];
 static const DECLARE_TLV_DB_SCALE(line_gain, 0, 7, 1);
 static const DECLARE_TLV_DB_SCALE(analog_gain, 0, 25, 1);
 
+/* Will be set by reading the registers during bind()*/
+static int wcd939x_version = WCD939X_VERSION_2_0;
+
 static int wcd939x_handle_post_irq(void *data);
 static int wcd939x_reset(struct device *dev);
 static int wcd939x_reset_low(struct device *dev);
@@ -176,13 +179,11 @@ static struct regmap_irq_chip wcd939x_regmap_irq_chip = {
 
 static bool wcd939x_readable_register(struct device *dev, unsigned int reg)
 {
-	struct wcd939x_priv *wcd939x = dev_get_drvdata(dev);
-
 	if (reg <= WCD939X_BASE + 1)
 		return 0;
 
 	if (reg >= WCD939X_FLYBACK_NEW_CTRL_2 && reg <= WCD939X_FLYBACK_NEW_CTRL_4) {
-		if (wcd939x && wcd939x->version == WCD939X_VERSION_1_0)
+		if (wcd939x_version == WCD939X_VERSION_1_0)
 			return 0;
 	}
 	return wcd939x_reg_access[WCD939X_REG(reg)] & RD_REG;
@@ -5145,6 +5146,7 @@ static int wcd939x_bind(struct device *dev)
 		wcd939x->version = ((status1 & 0x3) ? WCD939X_VERSION_1_1 : WCD939X_VERSION_1_0);
 	else if (id1 == 1)
 		wcd939x->version = WCD939X_VERSION_2_0;
+	wcd939x_version = wcd939x->version;
 	dev_info(dev, "%s: wcd9395 version: %s\n", __func__,
 			version_to_str(wcd939x->version));
 	wcd939x_regmap_config.readable_reg = wcd939x_readable_register;
