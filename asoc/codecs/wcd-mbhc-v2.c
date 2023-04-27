@@ -1683,6 +1683,7 @@ static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 	struct wcd_mbhc *mbhc = container_of(nb, struct wcd_mbhc, aatc_dev_nb);
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 	int l_det_en = 0, detection_type = 0;
+	bool *cable_status = (bool*) ptr;
 #endif
 
 	if (!mbhc)
@@ -1692,7 +1693,15 @@ static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 	if (mode == TYPEC_ACCESSORY_AUDIO) {
 		dev_dbg(mbhc->component->dev, "enter, %s: mode = %lu\n", __func__, mode);
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
-		wcd_usbss_switch_update(WCD_USBSS_AATC, WCD_USBSS_CABLE_CONNECT);
+		if (cable_status == NULL)
+			wcd_usbss_switch_update(WCD_USBSS_AATC, WCD_USBSS_CABLE_CONNECT);
+		else {
+			if (*cable_status == false)
+				wcd_usbss_switch_update(WCD_USBSS_AATC, WCD_USBSS_CABLE_CONNECT);
+			else
+				dev_dbg(mbhc->component->dev, "skip AATC switch settings, cable_status= %d",
+						*cable_status);
+		}
 #endif
 		if (mbhc->mbhc_cb->clk_setup)
 			mbhc->mbhc_cb->clk_setup(mbhc->component, true);
