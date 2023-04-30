@@ -381,6 +381,7 @@ static int wcd939x_set_swr_clk_rate(struct snd_soc_component *component,
 
 static int wcd939x_init_reg(struct snd_soc_component *component)
 {
+	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
 
 	snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(BIAS, ANALOG_BIAS_EN, 0x01));
@@ -437,7 +438,8 @@ static int wcd939x_init_reg(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component,
 		REG_FIELD_VALUE(HPH_OCP_CTL, SCD_OP_EN, 0x01));
 
-	snd_soc_component_write(component, WCD939X_CFG0, 0x05);
+	if (wcd939x->version != WCD939X_VERSION_2_0)
+		snd_soc_component_write(component, WCD939X_CFG0, 0x05);
 
 	return 0;
 }

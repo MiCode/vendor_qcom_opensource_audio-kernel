@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2019, 2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/regmap.h>
@@ -63,12 +63,12 @@ static struct reg_default wcd939x_defaults[] = {
 	{WCD939X_MICB2_TEST_CTL_1,               0x1a},
 	{WCD939X_MICB2_TEST_CTL_2,               0x00},
 	{WCD939X_MICB2_TEST_CTL_3,               0x24},
-	{WCD939X_MICB3_TEST_CTL_1,               0x1a},
-	{WCD939X_MICB3_TEST_CTL_2,               0x00},
-	{WCD939X_MICB3_TEST_CTL_3,               0xa4},
+	{WCD939X_MICB3_TEST_CTL_1,               0x9a},
+	{WCD939X_MICB3_TEST_CTL_2,               0x80},
+	{WCD939X_MICB3_TEST_CTL_3,               0x24},
 	{WCD939X_MICB4_TEST_CTL_1,               0x1a},
-	{WCD939X_MICB4_TEST_CTL_2,               0x00},
-	{WCD939X_MICB4_TEST_CTL_3,               0xa4},
+	{WCD939X_MICB4_TEST_CTL_2,               0x80},
+	{WCD939X_MICB4_TEST_CTL_3,               0x24},
 	{WCD939X_ADC_VCM,                        0x39},
 	{WCD939X_BIAS_ATEST,                     0xe0},
 	{WCD939X_SPARE1,                         0x00},
