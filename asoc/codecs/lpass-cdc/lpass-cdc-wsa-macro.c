@@ -2914,9 +2914,6 @@ static const struct snd_soc_dapm_widget lpass_cdc_wsa_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_AIF_OUT("WSA AIF_CPS", "WSA_AIF_CPS Capture", 0,
 		SND_SOC_NOPM, 0, 0),
 
-	SND_SOC_DAPM_AIF_OUT("WSA AIF_CPS", "WSA_AIF_CPS Capture", 0,
-		SND_SOC_NOPM, 0, 0),
-
 	SND_SOC_DAPM_MIXER("WSA_AIF_VI Mixer", SND_SOC_NOPM, LPASS_CDC_WSA_MACRO_AIF_VI,
 		0, aif_vi_mixer, ARRAY_SIZE(aif_vi_mixer)),
 	SND_SOC_DAPM_MIXER("WSA_AIF_CPS Mixer", SND_SOC_NOPM, LPASS_CDC_WSA_MACRO_AIF_CPS,
