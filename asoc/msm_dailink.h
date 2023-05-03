@@ -36,13 +36,13 @@ SND_SOC_DAILINK_DEFS(slimbus_7_tx,
 SND_SOC_DAILINK_DEFS(btfm_0_rx,
 	DAILINK_COMP_ARRAY(COMP_CPU("snd-soc-dummy-dai")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("btfmcodec_dev",
-			"btfm_bt_sco_a2dp_slim_rx")),
+			"btaudio_rx")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("snd-soc-dummy")));
 
 SND_SOC_DAILINK_DEFS(btfm_0_tx,
 	DAILINK_COMP_ARRAY(COMP_CPU("snd-soc-dummy-dai")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("btfmcodec_dev",
-			"btfm_bt_sco_slim_tx")),
+			"btaudio_tx")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("snd-soc-dummy")));
 
 SND_SOC_DAILINK_DEFS(display_port,
