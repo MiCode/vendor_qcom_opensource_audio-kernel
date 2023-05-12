@@ -5141,7 +5141,7 @@ static void wcd939x_update_regmap_cache(struct wcd939x_priv *wcd939x)
 
 static int wcd939x_bind(struct device *dev)
 {
-	int ret = 0, i = 0;
+	int ret = 0, i = 0, val = 0;
 	struct wcd939x_pdata *pdata = dev_get_platdata(dev);
 	struct wcd939x_priv *wcd939x = dev_get_drvdata(dev);
 	u8 id1 = 0, status1 = 0;
@@ -5198,6 +5198,11 @@ static int wcd939x_bind(struct device *dev)
 				__func__);
 		goto err;
 	}
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	regmap_read(wcd939x->regmap, WCD939X_EFUSE_REG_17, &val);
+	if (wcd939x_version == WCD939X_VERSION_2_0 && val < 3)
+		wcd_usbss_update_default_trim();
+#endif
 	wcd939x_update_regmap_cache(wcd939x);
 
 	/* Set all interupts as edge triggered */
