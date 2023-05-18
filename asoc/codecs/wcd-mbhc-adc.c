@@ -469,9 +469,6 @@ static bool wcd_mbhc_adc_check_for_spl_headset(struct wcd_mbhc *mbhc,
 		usleep_range(10000, 10100);
 	}
 
-	if (spl_hs)
-		pr_debug("%s: Detected special HS (%d)\n", __func__, spl_hs);
-
 exit:
 	pr_debug("%s: leave\n", __func__);
 	return spl_hs;
@@ -762,6 +759,9 @@ correct_plug_type:
 		    (spl_hs_count < WCD_MBHC_SPL_HS_CNT)) {
 			spl_hs = wcd_mbhc_adc_check_for_spl_headset(mbhc,
 								&spl_hs_count);
+			if (spl_hs)
+				pr_debug("%s: Detected special HS (%d)\n",
+							__func__, spl_hs);
 			output_mv = wcd_measure_adc_once(mbhc, MUX_CTL_IN2P);
 
 			if (spl_hs_count == WCD_MBHC_SPL_HS_CNT) {
