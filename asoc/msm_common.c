@@ -447,7 +447,8 @@ int msm_common_snd_hw_params(struct snd_pcm_substream *substream,
 				intf_clk_cfg.clk_root = 0;
 
 				if (pdata->is_audio_hw_vote_required[index]  &&
-					is_fractional_sample_rate(rate)) {
+					(is_fractional_sample_rate(rate) ||
+					(index == QUIN_MI2S_TDM_AUXPCM))) {
 					ret = mi2s_tdm_hw_vote_req(pdata, 1);
 					if (ret < 0) {
 						pr_err("%s lpass audio hw vote enable failed %d\n",
@@ -490,7 +491,8 @@ int msm_common_snd_hw_params(struct snd_pcm_substream *substream,
 				intf_clk_cfg.clk_root = CLOCK_ROOT_DEFAULT;
 
 				if (pdata->is_audio_hw_vote_required[index]  &&
-					is_fractional_sample_rate(rate)) {
+					(is_fractional_sample_rate(rate) ||
+					(index == QUIN_MI2S_TDM_AUXPCM))) {
 					ret = mi2s_tdm_hw_vote_req(pdata, 1);
 					if (ret < 0) {
 						pr_err("%s lpass audio hw vote enable failed %d\n",
@@ -611,7 +613,8 @@ void msm_common_snd_shutdown(struct snd_pcm_substream *substream)
 			}
 
 			if (pdata->is_audio_hw_vote_required[index]  &&
-				is_fractional_sample_rate(rate)) {
+				(is_fractional_sample_rate(rate) ||
+				(index == QUIN_MI2S_TDM_AUXPCM))) {
 				ret = mi2s_tdm_hw_vote_req(pdata, 0);
 			}
 		} else if (atomic_read(&pdata->lpass_intf_clk_ref_cnt[index]) < 0) {
