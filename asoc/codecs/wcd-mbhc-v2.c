@@ -1733,7 +1733,7 @@ static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 			mbhc->mbhc_cb->lock_sleep(mbhc, false);
 		}
 #endif
-	} else {
+	} else if (mode < TYPEC_MAX_ACCESSORY) {
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 		WCD_MBHC_REG_READ(WCD_MBHC_L_DET_EN, l_det_en);
 		WCD_MBHC_REG_READ(WCD_MBHC_MECH_DETECTION_TYPE, detection_type);
@@ -1748,6 +1748,9 @@ static int wcd_mbhc_usbc_ana_event_handler(struct notifier_block *nb,
 			dev_dbg(mbhc->component->dev, "leave, %s: mode = %lu\n", __func__, mode);
 		}
 #endif
+	} else if (mode == TYPEC_MAX_ACCESSORY) {
+		if (mbhc->mbhc_cb->surge_reset_routine)
+			mbhc->mbhc_cb->surge_reset_routine(mbhc);
 	}
 	return 0;
 }

@@ -530,6 +530,7 @@ struct wcd_mbhc_cb {
 	bool (*mbhc_get_moisture_status)(struct wcd_mbhc *mbhc);
 	void (*mbhc_moisture_polling_ctrl)(struct wcd_mbhc *mbhc, bool enable);
 	void (*mbhc_moisture_detect_en)(struct wcd_mbhc *mbhc, bool enable);
+	void (*surge_reset_routine)(struct wcd_mbhc *mbhc);
 };
 
 struct wcd_mbhc_fn {

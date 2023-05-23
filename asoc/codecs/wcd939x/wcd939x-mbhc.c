@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -808,6 +808,14 @@ static void wcd939x_mbhc_bcs_enable(struct wcd_mbhc *mbhc,
 		wcd939x_disable_bcs_before_slow_insert(mbhc->component, true);
 }
 
+static void wcd939x_surge_reset_routine(struct wcd_mbhc *mbhc)
+{
+	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(mbhc->component);
+
+	regcache_mark_dirty(wcd939x->regmap);
+	regcache_sync(wcd939x->regmap);
+}
+
 static const struct wcd_mbhc_cb mbhc_cb = {
 	.request_irq = wcd939x_mbhc_request_irq,
 	.irq_control = wcd939x_mbhc_irq_control,
@@ -833,6 +841,7 @@ static const struct wcd_mbhc_cb mbhc_cb = {
 	.mbhc_moisture_polling_ctrl = wcd939x_mbhc_moisture_polling_ctrl,
 	.mbhc_moisture_detect_en = wcd939x_mbhc_moisture_detect_en,
 	.bcs_enable = wcd939x_mbhc_bcs_enable,
+	.surge_reset_routine = wcd939x_surge_reset_routine,
 };
 
 static int wcd939x_get_hph_type(struct snd_kcontrol *kcontrol,
