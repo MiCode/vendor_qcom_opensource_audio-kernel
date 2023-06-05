@@ -48,3 +48,4 @@
 | ziyi-s-oss | Xiaomi civi2 | Android S | LA.VENDOR.1.0.r1-13100-r1.0.r1_00037.0 | [ziyi-s-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/ziyi-s-oss) |
 | spes-r-oss | Redmi note 11 | Android R | Snapdragon_Mid_2020.SPF.1.0.1R_r00024.0 |[spes-r-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/spes-r-oss) |
 | socrates-t-oss | Redmi K60 Pro | Android T | LA.VENDOR.13.2.0.r1-07300-r1.0.r1_00020.0 |[socrates-t-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/socrates-t-oss) |
+| marble-s-oss | Redmi Note 12 Turbo | Android S | LA.VENDOR.1.0.r1-19000-r2.0.r1_00029.0 |[marble-s-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/marble-s-oss) |
