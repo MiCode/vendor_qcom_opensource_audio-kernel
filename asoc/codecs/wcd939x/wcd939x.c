@@ -47,7 +47,7 @@
 #define ADC_MODE_VAL_ULP1     0x09
 #define ADC_MODE_VAL_ULP2     0x0B
 
-#define HPH_IMPEDANCE_2VPK_MODE_OHMS 300
+#define HPH_IMPEDANCE_2VPK_MODE_OHMS 260
 
 #define NUM_ATTEMPTS 5
 #define COMP_MAX_COEFF 25
@@ -120,6 +120,12 @@ enum {
 	ADC_MODE_ULP2,
 };
 
+enum {
+	SUPPLY_LEVEL_2VPK,
+	REGULATOR_MODE_2VPK,
+	SET_HPH_GAIN_2VPK,
+};
+
 static u8 tx_mode_bit[] = {
 	[ADC_MODE_INVALID] = 0x00,
 	[ADC_MODE_HIFI] = 0x01,
@@ -131,7 +137,7 @@ static u8 tx_mode_bit[] = {
 };
 
 extern const u8 wcd939x_reg_access[WCD939X_NUM_REGISTERS];
-static const DECLARE_TLV_DB_SCALE(line_gain, 0, 7, 1);
+static const SNDRV_CTL_TLVD_DECLARE_DB_MINMAX(hph_analog_gain, 600, -3000);
 static const DECLARE_TLV_DB_SCALE(analog_gain, 0, 25, 1);
 
 /* Will be set by reading the registers during bind()*/
@@ -141,6 +147,8 @@ static int wcd939x_handle_post_irq(void *data);
 static int wcd939x_reset(struct device *dev);
 static int wcd939x_reset_low(struct device *dev);
 static int wcd939x_get_adc_mode(int val);
+static void wcd939x_config_2Vpk_mode(struct snd_soc_component *component,
+			struct wcd939x_priv *wcd939x, int mode_2vpk);
 
 static const struct regmap_irq wcd939x_irqs[WCD939X_NUM_IRQS] = {
 	REGMAP_IRQ_REG(WCD939X_IRQ_MBHC_BUTTON_PRESS_DET, 0, 0x01),
@@ -972,17 +980,15 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 			gain_source_sel = 0x01;
 		else
 			gain_source_sel = 0x00;
+
 		if (compander_indx == WCD939X_HPHL) {
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(L_EN, GAIN_SOURCE_SEL, gain_source_sel));
-			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(PA_GAIN_CTL_L, PA_GAIN_L, 0x04));
 		} else if (compander_indx == WCD939X_HPHR) {
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(R_EN, GAIN_SOURCE_SEL, gain_source_sel));
-			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(PA_GAIN_CTL_R, PA_GAIN_R, 0x04));
 		}
+		wcd939x_config_2Vpk_mode(component, wcd939x, SET_HPH_GAIN_2VPK);
 		return 0;
 	}
 
@@ -1320,25 +1326,51 @@ static int wcd939x_rx_mux(struct snd_soc_dapm_widget *w,
 }
 
 static void wcd939x_config_2Vpk_mode(struct snd_soc_component *component,
-			struct wcd939x_priv *wcd939x)
+			struct wcd939x_priv *wcd939x, int mode_2vpk)
 {
 	uint32_t zl = 0, zr = 0;
-	int rc = wcd_mbhc_get_impedance(&wcd939x->mbhc->wcd_mbhc, &zl, &zr);
+	int rc;
 
+	if (!wcd939x->in_2Vpk_mode)
+		return;
+
+	rc = wcd_mbhc_get_impedance(&wcd939x->mbhc->wcd_mbhc, &zl, &zr);
 	if (rc) {
 		dev_err_ratelimited(component->dev, "%s: Unable to get impedance for 2Vpk mode", __func__);
 		return;
 	}
 
-	snd_soc_component_update_bits(component,
-		REG_FIELD_VALUE(PA_GAIN_CTL_L, RX_SUPPLY_LEVEL, 0x01));
+	switch (mode_2vpk) {
+	case SUPPLY_LEVEL_2VPK:
+		snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(PA_GAIN_CTL_L, RX_SUPPLY_LEVEL, 0x01));
 
-	if (zl < HPH_IMPEDANCE_2VPK_MODE_OHMS)
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(PA_GAIN_CTL_L, EN_HPHPA_2VPK, 0x00));
-	else
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(PA_GAIN_CTL_L, EN_HPHPA_2VPK, 0x01));
+		if (zl < HPH_IMPEDANCE_2VPK_MODE_OHMS)
+			snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(PA_GAIN_CTL_L, EN_HPHPA_2VPK, 0x00));
+		else
+			snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(PA_GAIN_CTL_L, EN_HPHPA_2VPK, 0x01));
+		break;
+	case REGULATOR_MODE_2VPK:
+		if (zl >= HPH_IMPEDANCE_2VPK_MODE_OHMS) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(RX_SUPPLIES, REGULATOR_MODE, 0x01));
+			snd_soc_component_update_bits(component, WCD939X_FLYBACK_TEST_CTL,
+					0x0F, 0x02);
+		} else {
+			snd_soc_component_update_bits(component, WCD939X_FLYBACK_TEST_CTL,
+					0x0F, 0x0D);
+		}
+		break;
+	case SET_HPH_GAIN_2VPK:
+		if (zl >= HPH_IMPEDANCE_2VPK_MODE_OHMS) {
+			snd_soc_component_update_bits(component, WCD939X_PA_GAIN_CTL_L, 0x1F, 0x02);
+			snd_soc_component_update_bits(component, WCD939X_PA_GAIN_CTL_R, 0x1F, 0x02);
+		}
+
+		break;
+	}
 }
 
 static int wcd939x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
@@ -1356,8 +1388,7 @@ static int wcd939x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
 		if (!wcd939x->hph_pcm_enabled)
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(RDAC_CLK_CTL1, OPAMP_CHOP_CLK_EN, 0x00));
-		if (wcd939x->in_2Vpk_mode)
-			wcd939x_config_2Vpk_mode(component, wcd939x);
+		wcd939x_config_2Vpk_mode(component, wcd939x, SUPPLY_LEVEL_2VPK);
 
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_HPH_GAIN_CTL, HPHL_RX_EN, 0x01));
@@ -1421,8 +1452,7 @@ static int wcd939x_codec_hphr_dac_event(struct snd_soc_dapm_widget *w,
 		if (!wcd939x->hph_pcm_enabled)
 			snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(RDAC_CLK_CTL1, OPAMP_CHOP_CLK_EN, 0x00));
-		if (wcd939x->in_2Vpk_mode)
-			wcd939x_config_2Vpk_mode(component, wcd939x);
+		wcd939x_config_2Vpk_mode(component, wcd939x, SUPPLY_LEVEL_2VPK);
 
 		snd_soc_component_update_bits(component,
 				REG_FIELD_VALUE(CDC_HPH_GAIN_CTL, HPHR_RX_EN, 0x01));
@@ -1532,6 +1562,7 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 			     WCD_CLSH_EVENT_PRE_DAC,
 			     WCD_CLSH_STATE_HPHR,
 			     hph_mode);
+		wcd939x_config_2Vpk_mode(component, wcd939x, REGULATOR_MODE_2VPK);
 		if (hph_mode == CLS_H_LP || hph_mode == CLS_H_LOHIFI ||
 		    hph_mode == CLS_H_ULP) {
 			if (!wcd939x->hph_pcm_enabled)
@@ -1684,6 +1715,7 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 			     WCD_CLSH_EVENT_PRE_DAC,
 			     WCD_CLSH_STATE_HPHL,
 			     hph_mode);
+		wcd939x_config_2Vpk_mode(component, wcd939x, REGULATOR_MODE_2VPK);
 		if (hph_mode == CLS_H_LP || hph_mode == CLS_H_LOHIFI ||
 		    hph_mode == CLS_H_ULP) {
 			if (!wcd939x->hph_pcm_enabled)
@@ -3731,8 +3763,8 @@ static const struct snd_kcontrol_new wcd939x_snd_controls[] = {
 	SOC_SINGLE_EXT("ADC2_BCS Disable", SND_SOC_NOPM, 0, 1, 0,
 		wcd939x_bcs_get, wcd939x_bcs_put),
 
-	SOC_SINGLE_TLV("HPHL Volume", WCD939X_L_EN, 0, 20, 1, line_gain),
-	SOC_SINGLE_TLV("HPHR Volume", WCD939X_R_EN, 0, 20, 1, line_gain),
+	SOC_SINGLE_TLV("HPHL Volume", WCD939X_PA_GAIN_CTL_L, 0, 0x18, 0, hph_analog_gain),
+	SOC_SINGLE_TLV("HPHR Volume", WCD939X_PA_GAIN_CTL_R, 0, 0x18, 0, hph_analog_gain),
 	SOC_SINGLE_TLV("ADC1 Volume", WCD939X_TX_CH1, 0, 20, 0,
 			analog_gain),
 	SOC_SINGLE_TLV("ADC2 Volume", WCD939X_TX_CH2, 0, 20, 0,
