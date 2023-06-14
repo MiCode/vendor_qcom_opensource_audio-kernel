@@ -516,6 +516,29 @@ static struct snd_soc_dai_link msm_common_be_dai_links[] = {
 		.ops = &msm_common_be_ops,
 		SND_SOC_DAILINK_REG(pcm_dummy_tx0),
 	},
+	/* Dummy Dev Rx BACK END DAI Link */
+	{
+		.name = LPASS_BE_PCM_DUMMY_RX_0,
+		.stream_name = LPASS_BE_PCM_DUMMY_RX_0,
+		.playback_only = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ignore_pmdown_time = 1,
+		.ignore_suspend = 1,
+		.ops = &msm_common_be_ops,
+		SND_SOC_DAILINK_REG(pcm_dummy_rx0),
+	},
+	/* Dummy Dev Tx BACK END DAI Link */
+	{
+		.name = LPASS_BE_PCM_DUMMY_TX_1,
+		.stream_name = LPASS_BE_PCM_DUMMY_TX_1,
+		.capture_only = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ignore_suspend = 1,
+		.ops = &msm_common_be_ops,
+		SND_SOC_DAILINK_REG(pcm_dummy_tx1),
+	},
 };
 
 #ifndef CONFIG_AUDIO_BTFM_PROXY
