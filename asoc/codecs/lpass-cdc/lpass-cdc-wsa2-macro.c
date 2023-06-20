@@ -1329,6 +1329,7 @@ static int lpass_cdc_wsa2_macro_enable_mix_path(struct snd_soc_dapm_widget *w,
 	int offset_val = 0;
 	int val = 0;
 	uint16_t mix_reg = 0;
+	uint16_t reg = 0;
 
 	dev_dbg(component->dev, "%s %d %s\n", __func__, event, w->name);
 
@@ -1342,13 +1343,17 @@ static int lpass_cdc_wsa2_macro_enable_mix_path(struct snd_soc_dapm_widget *w,
 		return 0;
 	}
 
+	reg = LPASS_CDC_WSA2_RX0_RX_PATH_CTL +
+				LPASS_CDC_WSA2_MACRO_RX_PATH_OFFSET * w->shift;
 	mix_reg = LPASS_CDC_WSA2_RX0_RX_PATH_MIX_CTL +
 				LPASS_CDC_WSA2_MACRO_RX_PATH_OFFSET * w->shift;
+
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		snd_soc_component_update_bits(component, mix_reg, 0x40, 0x40);
 		usleep_range(500, 510);
 		snd_soc_component_update_bits(component, mix_reg, 0x40, 0x00);
+		snd_soc_component_update_bits(component, reg, 0x20, 0x20);
 		snd_soc_component_update_bits(component,
 					mix_reg, 0x20, 0x20);
 		lpass_cdc_wsa2_macro_enable_swr(w, kcontrol, event);

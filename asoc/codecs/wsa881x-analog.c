@@ -1584,7 +1584,7 @@ err:
 	return ret;
 }
 
-static int wsa881x_i2c_remove(struct i2c_client *client)
+static void wsa881x_i2c_remove(struct i2c_client *client)
 {
 	struct wsa881x_pdata *wsa881x = client->dev.platform_data;
 
@@ -1601,7 +1601,6 @@ static int wsa881x_i2c_remove(struct i2c_client *client)
 	}
 	i2c_set_clientdata(client, NULL);
 	kfree(wsa881x);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

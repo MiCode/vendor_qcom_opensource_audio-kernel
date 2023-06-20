@@ -2,19 +2,23 @@
 
 LOCAL_PATH := $(call my-dir)
 
-ifeq ($(call is-board-platform, taro),true)
+ifeq ($(call is-board-platform-in-list,taro),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_WAIPIO=m
 endif
 
-ifeq ($(call is-board-platform, kalama),true)
+ifeq ($(call is-board-platform-in-list,kalama),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_KALAMA=m
 endif
 
-ifeq ($(call is-board-platform, bengal),true)
+ifeq ($(call is-board-platform-in-list,bengal),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_BENGAL=m
 endif
 
-ifeq ($(call is-board-platform, pineapple),true)
+ifeq ($(call is-board-platform-in-list,holi blair),true)
+AUDIO_SELECT  := CONFIG_SND_SOC_HOLI=m
+endif
+
+ifeq ($(call is-board-platform-in-list,pineapple),true)
 AUDIO_SELECT  := CONFIG_SND_SOC_PINEAPPLE=m
 endif
 
@@ -23,7 +27,7 @@ include $(call all-subdir-makefiles)
 endif
 
 # Build/Package only in case of supported target
-ifeq ($(call is-board-platform-in-list,taro kalama bengal pineapple), true)
+ifeq ($(call is-board-platform-in-list,taro kalama bengal pineapple holi blair), true)
 
 LOCAL_PATH := $(call my-dir)
 
@@ -34,6 +38,7 @@ ifneq ($(findstring opensource,$(LOCAL_PATH)),)
 	AUDIO_BLD_DIR := $(abspath .)/vendor/qcom/opensource/audio-kernel
 endif # opensource
 
+include $(AUDIO_BLD_DIR)/EnableBazel.mk
 DLKM_DIR := $(TOP)/device/qcom/common/dlkm
 
 
@@ -48,7 +53,10 @@ KBUILD_OPTIONS := AUDIO_ROOT=$(AUDIO_BLD_DIR)
 KBUILD_OPTIONS += MODNAME=audio_dlkm
 KBUILD_OPTIONS += BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
 KBUILD_OPTIONS += $(AUDIO_SELECT)
+
+ifneq ($(call is-board-platform-in-list, bengal holi blair),true)
 KBUILD_OPTIONS += KBUILD_EXTRA_SYMBOLS=$(PWD)/$(call intermediates-dir-for,DLKM,msm-ext-disp-module-symvers)/Module.symvers
+endif
 
 AUDIO_SRC_FILES := \
 	$(wildcard $(LOCAL_PATH)/*) \
@@ -196,7 +204,7 @@ LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/Build_external_kernelmodule.mk
 ###########################################################
-ifneq ($(call is-board-platform-in-list, bengal),true)
+ifneq ($(call is-board-platform-in-list, bengal holi blair),true)
 include $(CLEAR_VARS)
 LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
 LOCAL_MODULE              := swr_dmic_dlkm.ko
@@ -216,7 +224,7 @@ LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/Build_external_kernelmodule.mk
 ###########################################################
-ifneq ($(call is-board-platform-in-list, bengal),true)
+ifneq ($(call is-board-platform-in-list, bengal holi blair),true)
 include $(CLEAR_VARS)
 LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
 LOCAL_MODULE              := swr_haptics_dlkm.ko
@@ -245,7 +253,7 @@ LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/Build_external_kernelmodule.mk
 ########################### LPASS-CDC CODEC  ###########################
-ifneq ($(call is-board-platform-in-list, bengal),true)
+ifneq ($(call is-board-platform-in-list, bengal holi blair),true)
 include $(CLEAR_VARS)
 LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
 LOCAL_MODULE              := lpass_cdc_dlkm.ko
@@ -369,7 +377,7 @@ LOCAL_ADDITIONAL_DEPENDENCIES := $(call intermediates-dir-for,DLKM,msm-ext-disp-
 include $(DLKM_DIR)/Build_external_kernelmodule.mk
 endif
 
-ifeq ($(call is-board-platform-in-list, bengal),true)
+ifeq ($(call is-board-platform-in-list, bengal holi blair),true)
 ###########################################################
 include $(CLEAR_VARS)
 LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
@@ -434,6 +442,27 @@ LOCAL_MODULE_DEBUG_ENABLE := true
 LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
 include $(DLKM_DIR)/Build_external_kernelmodule.mk
 endif
+
+ifeq ($(call is-board-platform-in-list,holi blair),true)
+########################### WCD938x CODEC  ################################
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := wcd938x_dlkm.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/codecs/wcd938x/wcd938x_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
 ###########################################################
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := wcd938x_slave_dlkm.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/codecs/wcd938x/wcd938x_slave_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+endif
+##########################################################
 endif # DLKM check
 endif # supported target check

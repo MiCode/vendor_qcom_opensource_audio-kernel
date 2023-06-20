@@ -801,60 +801,66 @@ EXPORT_SYMBOL(wcd939x_soc_get_mbhc);
 static int  wcd939x_config_power_mode(struct snd_soc_component *component,
 				int event, int index, int mode)
 {
+	struct wcd939x_priv *wcd939x = snd_soc_component_get_drvdata(component);
 
 	switch (event) {
 	case SND_SOC_DAPM_PRE_PMU:
 		if (mode == CLS_H_ULP) {
 			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFP_IOUT_CTL, 0x2));
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFP_IOUT_CTL, 0x1));
 			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFN_IOUT_CTL, 0x2));
-			if (index == WCD939X_HPHL) {
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL12, ZONE3_RMS, 0x21));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL13, ZONE4_RMS, 0x30));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL14, ZONE5_RMS, 0x3F));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL15, ZONE6_RMS, 0x48));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL17, PATH_GAIN, 0x0C));
-			} else if (index == WCD939X_HPHR) {
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL12, ZONE3_RMS, 0x21));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL13, ZONE4_RMS, 0x30));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL14, ZONE5_RMS, 0x3F));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL15, ZONE6_RMS, 0x48));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL17, PATH_GAIN, 0x0C));
+				REG_FIELD_VALUE(REFBUFF_UHQA_CTL, REFBUFN_IOUT_CTL, 0x1));
+
+			if (wcd939x->compander_enabled[index]) {
+				if (index == WCD939X_HPHL) {
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL12, ZONE3_RMS, 0x21));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL13, ZONE4_RMS, 0x30));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL14, ZONE5_RMS, 0x3F));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL15, ZONE6_RMS, 0x48));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL17, PATH_GAIN, 0x0C));
+				} else if (index == WCD939X_HPHR) {
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL12, ZONE3_RMS, 0x21));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL13, ZONE4_RMS, 0x30));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL14, ZONE5_RMS, 0x3F));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL15, ZONE6_RMS, 0x48));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL17, PATH_GAIN, 0x0C));
+				}
 			}
 		} else {
-			if (index == WCD939X_HPHL) {
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL12, ZONE3_RMS, 0x1E));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL13, ZONE4_RMS, 0x2A));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL14, ZONE5_RMS, 0x36));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL15, ZONE6_RMS, 0x3C));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(CTL17, PATH_GAIN, 0x00));
-			} else if (index == WCD939X_HPHR) {
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL12, ZONE3_RMS, 0x1E));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL13, ZONE4_RMS, 0x2A));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL14, ZONE5_RMS, 0x36));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL15, ZONE6_RMS, 0x2C));
-				snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(R_CTL17, PATH_GAIN, 0x00));
+			if (wcd939x->compander_enabled[index]) {
+				if (index == WCD939X_HPHL) {
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL12, ZONE3_RMS, 0x1E));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL13, ZONE4_RMS, 0x2A));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL14, ZONE5_RMS, 0x36));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL15, ZONE6_RMS, 0x3C));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(CTL17, PATH_GAIN, 0x00));
+				} else if (index == WCD939X_HPHR) {
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL12, ZONE3_RMS, 0x1E));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL13, ZONE4_RMS, 0x2A));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL14, ZONE5_RMS, 0x36));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL15, ZONE6_RMS, 0x3C));
+					snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_CTL17, PATH_GAIN, 0x00));
+				}
 			}
 		}
 		break;
@@ -942,9 +948,8 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 				int event, int compander_indx)
 {
 	u16 comp_ctl7_reg = 0, comp_ctl0_reg = 0;
-	u16 comp_en_mask_val = 0;
+	u16 comp_en_mask_val = 0, gain_source_sel = 0;
 	struct wcd939x_priv *wcd939x;
-
 
 	if (compander_indx >= WCD939X_HPH_MAX || compander_indx < 0) {
 		pr_err_ratelimited("%s: Invalid compander value: %d\n",
@@ -957,11 +962,29 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 	wcd939x = snd_soc_component_get_drvdata(component);
-
-	if (!wcd939x->compander_enabled[compander_indx])
+	if (!wcd939x->hph_pcm_enabled)
 		return 0;
 
 	dev_dbg(component->dev, "%s compander_index = %d\n", __func__, compander_indx);
+
+	if (!wcd939x->compander_enabled[compander_indx]) {
+		if (SND_SOC_DAPM_EVENT_ON(event))
+			gain_source_sel = 0x01;
+		else
+			gain_source_sel = 0x00;
+		if (compander_indx == WCD939X_HPHL) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(L_EN, GAIN_SOURCE_SEL, gain_source_sel));
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(PA_GAIN_CTL_L, PA_GAIN_L, 0x04));
+		} else if (compander_indx == WCD939X_HPHR) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(R_EN, GAIN_SOURCE_SEL, gain_source_sel));
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(PA_GAIN_CTL_R, PA_GAIN_R, 0x04));
+		}
+		return 0;
+	}
 
 	if (compander_indx == WCD939X_HPHL)
 		comp_en_mask_val = 1 << 1;
@@ -969,7 +992,6 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 		comp_en_mask_val = 1 << 0;
 	else
 		return 0;
-
 
 	comp_ctl0_reg  = WCD939X_CTL0 + (compander_indx * WCD939X_COMP_OFFSET);
 	comp_ctl7_reg = WCD939X_CTL7 + (compander_indx * WCD939X_COMP_OFFSET);
@@ -982,12 +1004,12 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component,
 			comp_ctl0_reg , 0x01, 0x01);
 
-			/* 250us sleep required as per HW Sequence */
-			usleep_range(250, 260);
+		/* 250us sleep required as per HW Sequence */
+		usleep_range(250, 260);
 		snd_soc_component_update_bits(component,
-			comp_ctl0_reg , 0x02, 0x01);
+			comp_ctl0_reg, 0x02, 0x02);
 		snd_soc_component_update_bits(component,
-			comp_ctl0_reg , 0x02, 0x00);
+			comp_ctl0_reg, 0x02, 0x00);
 
 		/* Enable compander*/
 		snd_soc_component_update_bits(component,
@@ -998,6 +1020,12 @@ static int wcd939x_config_compander(struct snd_soc_component *component,
 				WCD939X_CDC_COMP_CTL_0, comp_en_mask_val, 0x00);
 			snd_soc_component_update_bits(component,
 				comp_ctl0_reg , 0x01, 0x00);
+			if (compander_indx == WCD939X_HPHL)
+				snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(L_EN, GAIN_SOURCE_SEL, 0x0));
+			if (compander_indx == WCD939X_HPHR)
+				snd_soc_component_update_bits(component,
+						REG_FIELD_VALUE(R_EN, GAIN_SOURCE_SEL, 0x0));
 	}
 
 	return 0;
@@ -1355,9 +1383,17 @@ static int wcd939x_codec_hphl_dac_event(struct snd_soc_dapm_widget *w,
 					REG_FIELD_VALUE(L_EN, GAIN_SOURCE_SEL, 0x01));
 			}
 		}
-                if (wcd939x->hph_pcm_enabled)
-		    snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(HPH_TIMER1, AUTOCHOP_TIMER_CTL_EN, 0x00));
+		if (wcd939x->hph_pcm_enabled) {
+			snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(HPH_TIMER1, AUTOCHOP_TIMER_CTL_EN, 0x00));
+			snd_soc_component_write(component, WCD939X_VNEG_CTRL_1, 0xEB);
+			if (wcd939x->hph_mode == CLS_H_LOHIFI)
+				snd_soc_component_write(component,
+					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x52);
+			else
+				snd_soc_component_write(component,
+					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x64);
+		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
 			snd_soc_component_update_bits(component,
@@ -1411,6 +1447,15 @@ static int wcd939x_codec_hphr_dac_event(struct snd_soc_dapm_widget *w,
 				snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(R_EN, GAIN_SOURCE_SEL, 0x01));
 			}
+		}
+		if (wcd939x->hph_pcm_enabled) {
+			snd_soc_component_write(component, WCD939X_VNEG_CTRL_1, 0xEB);
+			if (wcd939x->hph_mode == CLS_H_LOHIFI)
+				snd_soc_component_write(component,
+					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x52);
+			else
+				snd_soc_component_write(component,
+					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x64);
 		}
 		break;
 	case SND_SOC_DAPM_POST_PMD:
@@ -1487,33 +1532,30 @@ static int wcd939x_codec_enable_hphr_pa(struct snd_soc_dapm_widget *w,
 			     WCD_CLSH_EVENT_PRE_DAC,
 			     WCD_CLSH_STATE_HPHR,
 			     hph_mode);
-		wcd_clsh_set_hph_mode(component, CLS_H_HIFI);
 		if (hph_mode == CLS_H_LP || hph_mode == CLS_H_LOHIFI ||
 		    hph_mode == CLS_H_ULP) {
 			if (!wcd939x->hph_pcm_enabled)
 				snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x01));
 		}
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
-		snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(HPH, HPHR_REF_ENABLE, 0x01));
-		wcd_clsh_set_hph_mode(component, hph_mode);
+		/* update Mode for LOHIFI */
+		if (hph_mode == CLS_H_LOHIFI) {
+			snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
+		}
 		/* update USBSS power mode for AATC */
 		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog)
 			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE,
 				wcd939x_get_usbss_hph_power_mode(hph_mode));
-		/* update Mode for LOHIFI */
-		if (hph_mode == CLS_H_LOHIFI) {
-			snd_soc_component_write(component,
-					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x52);
-			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
-		}
-		/* 100 usec delay as per HW requirement */
-		usleep_range(100, 110);
-		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
 		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
+		snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(HPH, HPHR_REF_ENABLE, 0x01));
+		if ((snd_soc_component_read(component, WCD939X_HPH) & 0x30) == 0x30)
+			usleep_range(2500, 2600); /* 2.5msec delay as per HW requirement */
+		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
+		if (!wcd939x->hph_pcm_enabled)
+			snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(PDM_WD_CTL1, PDM_WD_EN, 0x03));
 		break;
 	case SND_SOC_DAPM_POST_PMU:
@@ -1642,33 +1684,30 @@ static int wcd939x_codec_enable_hphl_pa(struct snd_soc_dapm_widget *w,
 			     WCD_CLSH_EVENT_PRE_DAC,
 			     WCD_CLSH_STATE_HPHL,
 			     hph_mode);
-		wcd_clsh_set_hph_mode(component, CLS_H_HIFI);
 		if (hph_mode == CLS_H_LP || hph_mode == CLS_H_LOHIFI ||
 		    hph_mode == CLS_H_ULP) {
 			if (!wcd939x->hph_pcm_enabled)
 				snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(REFBUFF_LP_CTL, PREREF_FILT_BYPASS, 0x01));
 		}
-		snd_soc_component_update_bits(component,
-			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
-		snd_soc_component_update_bits(component,
-					REG_FIELD_VALUE(HPH, HPHL_REF_ENABLE, 0x01));
-		wcd_clsh_set_hph_mode(component, hph_mode);
+		/* update Mode for LOHIFI */
+		if (hph_mode == CLS_H_LOHIFI) {
+			snd_soc_component_update_bits(component,
+				REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
+		}
 		/* update USBSS power mode for AATC */
 		if (wcd939x->mbhc->wcd_mbhc.mbhc_cfg->enable_usbc_analog)
 			wcd_usbss_audio_config(NULL, WCD_USBSS_CONFIG_TYPE_POWER_MODE,
 				wcd939x_get_usbss_hph_power_mode(hph_mode));
-		/* update Mode for LOHIFI */
-		if (hph_mode == CLS_H_LOHIFI) {
-			snd_soc_component_write(component,
-					WCD939X_HPH_RDAC_BIAS_LOHIFI, 0x52);
-			snd_soc_component_update_bits(component,
-				REG_FIELD_VALUE(HPH, PWR_LEVEL, 0x00));
-		}
-		/* 100 usec delay as per HW requirement */
-		usleep_range(100, 110);
-		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
 		snd_soc_component_update_bits(component,
+			REG_FIELD_VALUE(VNEG_CTRL_4, ILIM_SEL, 0xD));
+		snd_soc_component_update_bits(component,
+					REG_FIELD_VALUE(HPH, HPHL_REF_ENABLE, 0x01));
+		if ((snd_soc_component_read(component, WCD939X_HPH) & 0x30) == 0x30)
+			usleep_range(2500, 2600); /* 2.5msec delay as per HW requirement */
+		set_bit(HPH_PA_DELAY, &wcd939x->status_mask);
+		if (!wcd939x->hph_pcm_enabled)
+			snd_soc_component_update_bits(component,
 					REG_FIELD_VALUE(PDM_WD_CTL0, PDM_WD_EN, 0x03));
 		break;
 	case SND_SOC_DAPM_POST_PMU:

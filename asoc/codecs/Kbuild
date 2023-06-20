@@ -79,6 +79,14 @@ ifeq ($(KERNEL_BUILD), 0)
 		export
 		INCS    +=  -include $(AUDIO_ROOT)/config/bengalautoconf.h
 	endif
+	ifeq ($(CONFIG_ARCH_HOLI), y)
+		include $(AUDIO_ROOT)/config/holiauto.conf
+		INCS    +=  -include $(AUDIO_ROOT)/config/holiautoconf.h
+	endif
+	ifeq ($(CONFIG_ARCH_BLAIR), y)
+		include $(AUDIO_ROOT)/config/holiauto.conf
+		INCS    +=  -include $(AUDIO_ROOT)/config/holiautoconf.h
+	endif
 	ifeq ($(CONFIG_ARCH_SDMSHRIKE), y)
 		include $(AUDIO_ROOT)/config/sm8150auto.conf
 		export
