@@ -422,7 +422,7 @@ static const struct snd_soc_dapm_widget msm_int_dapm_widgets[] = {
 static int msm_wcn_init(struct snd_soc_pcm_runtime *rtd)
 {
 	unsigned int rx_ch[WCN_CDC_SLIM_RX_CH_MAX] = {157, 158};
-	unsigned int tx_ch[]  = {159, 160, 161};
+	unsigned int tx_ch[WCN_CDC_SLIM_TX_CH_MAX]  = {159, 160, 161};
 	struct snd_soc_dai *codec_dai = asoc_rtd_to_codec(rtd, 0);
 	int ret = 0;
 
@@ -1023,53 +1023,8 @@ static int msm_populate_dai_link_component_of_node(
 	}
 
 	for (i = 0; i < card->num_links; i++) {
-		if (dai_link[i].platforms->of_node && dai_link[i].cpus->of_node)
-			continue;
-
-		/* populate platform_of_node for snd card dai links */
-		if (dai_link[i].platforms->name &&
-		    !dai_link[i].platforms->of_node) {
-			index = of_property_match_string(cdev->of_node,
-						"asoc-platform-names",
-						dai_link[i].platforms->name);
-			if (index < 0) {
-				dev_err(cdev, "%s: No match found for platform name: %s\n",
-					__func__, dai_link[i].platforms->name);
-				ret = index;
-				goto err;
-			}
-			np = of_parse_phandle(cdev->of_node, "asoc-platform",
-					      index);
-			if (!np) {
-				dev_err(cdev, "%s: retrieving phandle for platform %s, index %d failed\n",
-					__func__, dai_link[i].platforms->name,
-					index);
-				ret = -ENODEV;
-				goto err;
-			}
-			dai_link[i].platforms->of_node = np;
-			dai_link[i].platforms->name = NULL;
-		}
-
-		/* populate cpu_of_node for snd card dai links */
-		if (dai_link[i].cpus->dai_name && !dai_link[i].cpus->of_node) {
-			index = of_property_match_string(cdev->of_node,
-						 "asoc-cpu-names",
-						 dai_link[i].cpus->dai_name);
-			if (index >= 0) {
-				np = of_parse_phandle(cdev->of_node, "asoc-cpu",
-						index);
-				if (!np) {
-					dev_err(cdev, "%s: retrieving phandle for cpu dai %s failed\n",
-						__func__,
-						dai_link[i].cpus->dai_name);
-					ret = -ENODEV;
-					goto err;
-				}
-				dai_link[i].cpus->of_node = np;
-				dai_link[i].cpus->dai_name = NULL;
-			}
-		}
+		if (dai_link[i].init == NULL)
+			dai_link[i].init = &msm_common_dai_link_init;
 
 		/* populate codec_of_node for snd card dai links */
 		if (dai_link[i].num_codecs > 0) {
@@ -1500,9 +1455,7 @@ static int holi_ssr_enable(struct device *dev, void *data)
 		dev_dbg(dev, "%s: TODO \n", __func__);
 	}
 
-#if IS_ENABLED(CONFIG_AUDIO_QGKI)
-	snd_soc_card_change_online_state(card, 1);
-#endif /* CONFIG_AUDIO_QGKI */
+	snd_card_notify_user(SND_CARD_STATUS_ONLINE);
 	dev_dbg(dev, "%s: setting snd_card to ONLINE\n", __func__);
 
 err:
@@ -1520,9 +1473,7 @@ static void holi_ssr_disable(struct device *dev, void *data)
 	}
 
 	dev_dbg(dev, "%s: setting snd_card to OFFLINE\n", __func__);
-#if IS_ENABLED(CONFIG_AUDIO_QGKI)
-	snd_soc_card_change_online_state(card, 0);
-#endif /* CONFIG_AUDIO_QGKI */
+	snd_card_notify_user(SND_CARD_STATUS_OFFLINE);
 
 	if (!strcmp(card->name, "holi-stub-snd-card")) {
 		/* TODO */
@@ -1666,6 +1617,25 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		goto err;
 	}
 
+	/* Get maximum WSA device count for this platform */
+	ret = of_property_read_u32(pdev->dev.of_node,
+		"qcom,wsa-max-devs", &pdata->wsa_max_devs);
+	if (ret) {
+		dev_err(&pdev->dev,
+		"%s: wsa-max-devs property missing in DT %s, ret = %d\n",
+		__func__, pdev->dev.of_node->full_name, ret);
+		pdata->wsa_max_devs = 0;
+	}
+
+	/* Make sure prefix string passed for each WSA device */
+	ret = of_property_count_strings(pdev->dev.of_node,
+					"qcom,wsa-aux-dev-prefix");
+	if (!ret) {
+		dev_err(&pdev->dev,
+			"%s: property %s not defined in DT\n",
+			__func__, "qcom,wsa-aux-dev-prefix");
+	}
+
 	ret = devm_snd_soc_register_card(&pdev->dev, card);
 	if (ret == -EPROBE_DEFER) {
 		if (codec_reg_done)
@@ -1782,12 +1752,18 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	pdata->lpass_audio_hw_vote = lpass_audio_hw_vote;
 	pdata->core_audio_vote_count = 0;
 
+	msm_common_snd_init(pdev, card);
+
 	ret = msm_audio_ssr_register(&pdev->dev);
 	if (ret)
 		pr_err("%s: Registration with SND event FWK failed ret = %d\n",
 			__func__, ret);
 
 	is_initial_boot = true;
+
+	/* change card status to ONLINE */
+	dev_dbg(&pdev->dev, "%s: setting snd_card to ONLINE\n", __func__);
+	snd_card_set_card_status(SND_CARD_STATUS_ONLINE);
 
 	return 0;
 err:
@@ -1816,7 +1792,20 @@ static struct platform_driver holi_asoc_machine_driver = {
 	.probe = msm_asoc_machine_probe,
 	.remove = msm_asoc_machine_remove,
 };
-module_platform_driver(holi_asoc_machine_driver);
+
+static int __init msm_asoc_machine_init(void)
+{
+	snd_card_sysfs_init();
+	return platform_driver_register(&holi_asoc_machine_driver);
+}
+module_init(msm_asoc_machine_init);
+
+static void __exit msm_asoc_machine_exit(void)
+{
+	platform_driver_unregister(&holi_asoc_machine_driver);
+}
+module_exit(msm_asoc_machine_exit);
+
 
 MODULE_SOFTDEP("pre: bt_fm_slim");
 MODULE_DESCRIPTION("ALSA SoC msm");
