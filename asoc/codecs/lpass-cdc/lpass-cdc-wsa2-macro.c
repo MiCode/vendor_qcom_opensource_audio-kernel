@@ -314,10 +314,13 @@ struct lpass_cdc_wsa2_macro_priv {
 	u32 wsa2_sys_gain[2 * (LPASS_CDC_WSA2_MACRO_RX1 + 1)];
 	u32 wsa2_bat_cfg[LPASS_CDC_WSA2_MACRO_RX1 + 1];
 	u32 wsa2_rload[LPASS_CDC_WSA2_MACRO_RX1 + 1];
+	u32 wsa2_fs_ctl_reg;
 	u8 idle_detect_en;
 	int noise_gate_mode;
 	bool pre_dev_up;
 	int pbr_clk_users;
+	char __iomem *wsa2_fs_reg_base;
+	bool wsa2_2ch_dma_enable;
 };
 
 static struct snd_soc_dai_driver lpass_cdc_wsa2_macro_dai[];
@@ -590,7 +593,7 @@ static int lpass_cdc_wsa2_macro_set_prim_interpolator_rate(struct snd_soc_dai *d
 			 LPASS_CDC_WSA2_MACRO_RX_MAX) {
 		int_1_mix1_inp = port;
 		if ((int_1_mix1_inp < LPASS_CDC_WSA2_MACRO_RX0) ||
-			(int_1_mix1_inp > LPASS_CDC_WSA2_MACRO_RX_MIX1)) {
+			(int_1_mix1_inp >= LPASS_CDC_WSA2_MACRO_RX_MAX)) {
 			dev_err_ratelimited(wsa2_dev,
 				"%s: Invalid RX port, Dai ID is %d\n",
 				__func__, dai->id);
@@ -831,11 +834,13 @@ static int lpass_cdc_wsa2_macro_get_channel_map(struct snd_soc_dai *dai,
 			if (++cnt == LPASS_CDC_WSA2_MACRO_MAX_DMA_CH_PER_PORT)
 				break;
 		}
-		if (mask & 0x30)
-			mask = mask >> 0x4;
-		if (mask & 0x03)
-			mask = mask << 0x2;
-
+		/* consider WSA2 Backend is used when 2ch_dma is enabled
+		 * and doesn't require channel mask shift
+		 */
+		if (!wsa2_priv->wsa2_2ch_dma_enable) {
+			if (mask & 0x03)
+				mask = mask << 0x2;
+		}
 		*tx_slot = mask;
 		*tx_num = cnt;
 		break;
@@ -853,7 +858,7 @@ static int lpass_cdc_wsa2_macro_get_channel_map(struct snd_soc_dai *dai,
 		}
 		if (mask & 0x30)
 			mask = mask >> 0x4;
-		if (mask & 0x03)
+		else
 			mask = mask << 0x2;
 		*rx_slot = mask;
 		*rx_num = cnt;
@@ -873,7 +878,7 @@ static int lpass_cdc_wsa2_macro_get_channel_map(struct snd_soc_dai *dai,
 		*tx_num = cnt;
 		break;
 	default:
-		dev_err_ratelimited(wsa2_dev, "%s: Invalid AIF\n", __func__);
+		dev_err(wsa2_dev, "%s: Invalid AIF\n", __func__);
 		break;
 	}
 	return 0;
@@ -904,6 +909,8 @@ static int lpass_cdc_wsa2_macro_mute_stream(struct snd_soc_dai *dai, int mute, i
 	struct snd_soc_component *component = dai->component;
 	struct device *wsa2_dev = NULL;
 	struct lpass_cdc_wsa2_macro_priv *wsa2_priv = NULL;
+	uint32_t temp;
+
 	bool adie_lb = false;
 
 	if (mute)
@@ -921,6 +928,20 @@ static int lpass_cdc_wsa2_macro_mute_stream(struct snd_soc_dai *dai, int mute, i
 	default:
 		break;
 	}
+
+	if ((test_bit(LPASS_CDC_WSA2_MACRO_RX4,
+			&wsa2_priv->active_ch_mask[dai->id]) ||
+			test_bit(LPASS_CDC_WSA2_MACRO_RX5,
+			&wsa2_priv->active_ch_mask[dai->id])) &&
+			wsa2_priv->wsa2_fs_reg_base) {
+		temp = ioread32(wsa2_priv->wsa2_fs_reg_base);
+		if (temp != 1) {
+			temp = 1;
+			iowrite32(temp, wsa2_priv->wsa2_fs_reg_base);
+		}
+		dev_dbg(wsa2_dev, "%s: LPASS_WSA_FS_CTL : %d", __func__, temp);
+	}
+
 	return 0;
 }
 
@@ -2650,6 +2671,35 @@ static int lpass_cdc_wsa2_macro_pbr_enable_put(struct snd_kcontrol *kcontrol,
 
 }
 
+static int lpass_cdc_wsa2_macro_2ch_dma_enable_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct device *wsa2_dev = NULL;
+	struct lpass_cdc_wsa2_macro_priv *wsa2_priv = NULL;
+
+	if (!lpass_cdc_wsa2_macro_get_data(component, &wsa2_dev, &wsa2_priv, __func__))
+		return -EINVAL;
+
+	ucontrol->value.integer.value[0] = wsa2_priv->wsa2_2ch_dma_enable;
+	return 0;
+}
+
+static int lpass_cdc_wsa2_macro_2ch_dma_enable_put(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	struct snd_soc_component *component =
+		snd_soc_kcontrol_component(kcontrol);
+	struct device *wsa2_dev = NULL;
+	struct lpass_cdc_wsa2_macro_priv *wsa2_priv = NULL;
+
+	if (!lpass_cdc_wsa2_macro_get_data(component, &wsa2_dev, &wsa2_priv, __func__))
+		return -EINVAL;
+
+	wsa2_priv->wsa2_2ch_dma_enable = ucontrol->value.integer.value[0];
+	return 0;
+}
 
 static const struct snd_kcontrol_new lpass_cdc_wsa2_macro_snd_controls[] = {
 	SOC_ENUM_EXT("WSA2_GSM mode Enable", lpass_cdc_wsa2_macro_vbat_bcl_gsm_mode_enum,
@@ -2704,6 +2754,9 @@ static const struct snd_kcontrol_new lpass_cdc_wsa2_macro_snd_controls[] = {
 	SOC_SINGLE_EXT("WSA2 PBR Enable", SND_SOC_NOPM, 0, 1,
 			0, lpass_cdc_wsa2_macro_pbr_enable_get,
 			lpass_cdc_wsa2_macro_pbr_enable_put),
+	SOC_SINGLE_EXT("WSA2 2CH_DMA ENABLE", SND_SOC_NOPM, 0, 1,
+			0, lpass_cdc_wsa2_macro_2ch_dma_enable_get,
+			lpass_cdc_wsa2_macro_2ch_dma_enable_put),
 };
 
 static const struct soc_enum rx_mux_enum =
@@ -3847,6 +3900,17 @@ static int lpass_cdc_wsa2_macro_probe(struct platform_device *pdev)
 			__func__, "reg");
 		return ret;
 	}
+	ret = of_property_read_u32(pdev->dev.of_node, "wsa_data_fs_ctl_reg",
+						&wsa2_priv->wsa2_fs_ctl_reg);
+	if (ret) {
+		dev_dbg(&pdev->dev, "%s: error finding %s entry in dt\n",
+			__func__, "wsa_data_fs_ctl_reg");
+	}
+
+	if (!wsa2_priv->wsa2_fs_reg_base && wsa2_priv->wsa2_fs_ctl_reg)
+		wsa2_priv->wsa2_fs_reg_base = devm_ioremap(&pdev->dev,
+			wsa2_priv->wsa2_fs_ctl_reg, LPASS_CDC_WSA2_MACRO_MAX_OFFSET);
+
 	if (of_find_property(pdev->dev.of_node, is_used_wsa2_swr_gpio_dt,
 			     NULL)) {
 		ret = of_property_read_u32(pdev->dev.of_node,
