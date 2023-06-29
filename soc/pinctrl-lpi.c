@@ -67,6 +67,15 @@
 #define LPI_GPIO_FUNC_FUNC4              "func4"
 #define LPI_GPIO_FUNC_FUNC5              "func5"
 
+#define LPI_GPIO_DRV_2_MA      2
+#define LPI_GPIO_DRV_4_MA      4
+#define LPI_GPIO_DRV_6_MA      6
+#define LPI_GPIO_DRV_8_MA      8
+#define LPI_GPIO_DRV_10_MA      10
+#define LPI_GPIO_DRV_12_MA      12
+#define LPI_GPIO_DRV_14_MA      14
+#define LPI_GPIO_DRV_16_MA      16
+
 static bool lpi_dev_up;
 static struct device *lpi_dev;
 static bool initial_boot = false;
@@ -338,6 +347,11 @@ static int lpi_config_get(struct pinctrl_dev *pctldev,
 
 static unsigned int lpi_drive_to_regval(u32 arg)
 {
+	if (arg < LPI_GPIO_DRV_2_MA)
+		arg = LPI_GPIO_DRV_2_MA;
+	if (arg > LPI_GPIO_DRV_16_MA)
+		arg = LPI_GPIO_DRV_16_MA;
+
 	return (arg/2 - 1);
 }
 
