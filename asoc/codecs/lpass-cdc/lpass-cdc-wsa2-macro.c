@@ -1400,6 +1400,7 @@ static int lpass_cdc_wsa2_macro_config_compander(struct snd_soc_component *compo
 	struct lpass_cdc_wsa2_macro_priv *wsa2_priv = NULL;
 	struct lpass_cdc_comp_setting *comp_settings = NULL;
 	u16 mode = 0;
+	u16 index = 0;
 	int sys_gain, bat_cfg, sys_gain_int, upper_gain, lower_gain;
 
 	if (!lpass_cdc_wsa2_macro_get_data(component, &wsa2_dev, &wsa2_priv, __func__))
@@ -1430,7 +1431,13 @@ static int lpass_cdc_wsa2_macro_config_compander(struct snd_soc_component *compo
 
 	/* If System has battery configuration */
 	if (wsa2_priv->wsa2_bat_cfg[comp]) {
-		sys_gain = wsa2_priv->wsa2_sys_gain[comp * 2 + wsa2_priv->wsa2_spkrrecv];
+		index = (comp * 2) + wsa2_priv->wsa2_spkrrecv;
+		if (index >= (2 * (LPASS_CDC_WSA2_MACRO_RX1 + 1))) {
+			dev_err(component->dev, "%s: Invalid index: %d\n",
+					__func__, index);
+			return -EINVAL;
+		}
+		sys_gain = wsa2_priv->wsa2_sys_gain[index];
 		bat_cfg = wsa2_priv->wsa2_bat_cfg[comp];
 		/* Convert enum to value and
 		 * multiply all values by 10 to avoid float
