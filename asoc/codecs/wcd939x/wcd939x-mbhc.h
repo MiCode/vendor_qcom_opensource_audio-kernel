@@ -11,6 +11,9 @@ struct wcd939x_mbhc {
 	struct wcd_mbhc wcd_mbhc;
 	struct blocking_notifier_head notifier;
 	struct fw_info *fw_data;
+	struct timer_list rdown_timer;
+	int rdown_prev_iter;
+	bool rdown_timer_complete;
 };
 
 static inline u32 get_r_gnd_res_tot_mohms(u32 r_gnd_int_fet_mohms, u32 r_gnd_ext_fet_mohms,

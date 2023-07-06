@@ -13,6 +13,7 @@
 #include <linux/gpio.h>
 #include <linux/delay.h>
 #include <linux/regmap.h>
+#include <linux/timer.h>
 #include <sound/pcm.h>
 #include <sound/pcm_params.h>
 #include <sound/soc.h>
@@ -54,6 +55,7 @@
 #define MAX_TAP_OFFSET 1023
 #define MIN_TAP 0
 #define MAX_TAP 1023
+#define RDOWN_TIMER_PERIOD_MSEC 100
 
 static struct wcd_mbhc_register
 	wcd_mbhc_registers[WCD_MBHC_REG_FUNC_MAX] = {
@@ -400,6 +402,7 @@ static inline void wcd939x_mbhc_get_result_params(struct wcd939x_priv *wcd939x,
 	int minCode_param[] = {
 			3277, 1639, 820, 410, 205, 103, 52, 26
 	};
+	struct wcd939x_mbhc *wcd939x_mbhc = wcd939x->mbhc;
 
 	regmap_update_bits(wcd939x->regmap, WCD939X_MBHC_ZDET, 0x20, 0x20);
 	for (i = 0; i < WCD939X_ZDET_NUM_MEASUREMENTS; i++) {
@@ -410,6 +413,7 @@ static inline void wcd939x_mbhc_get_result_params(struct wcd939x_priv *wcd939x,
 	val = val << 0x8;
 	regmap_read(wcd939x->regmap, WCD939X_MBHC_RESULT_1, &val1);
 	val |= val1;
+	wcd939x_mbhc->rdown_prev_iter = val;
 	regmap_update_bits(wcd939x->regmap, WCD939X_MBHC_ZDET, 0x20, 0x00);
 	x1 = WCD939X_MBHC_GET_X1(val);
 	c1 = WCD939X_MBHC_GET_C1(val);
@@ -434,6 +438,8 @@ static inline void wcd939x_mbhc_get_result_params(struct wcd939x_priv *wcd939x,
 		__func__, d1, c1, x1, *zdet);
 ramp_down:
 	i = 0;
+	wcd939x_mbhc->rdown_timer_complete = false;
+	mod_timer(&wcd939x_mbhc->rdown_timer, jiffies + msecs_to_jiffies(RDOWN_TIMER_PERIOD_MSEC));
 	while (x1) {
 		regmap_read(wcd939x->regmap,
 				 WCD939X_MBHC_RESULT_1, &val);
@@ -445,7 +451,11 @@ ramp_down:
 		i++;
 		if (i == WCD939X_ZDET_NUM_MEASUREMENTS)
 			break;
+		if (wcd939x_mbhc->rdown_timer_complete && wcd939x_mbhc->rdown_prev_iter == val)
+			break;
+		wcd939x_mbhc->rdown_prev_iter = val;
 	}
+	del_timer(&wcd939x_mbhc->rdown_timer);
 }
 
 static void wcd939x_mbhc_zdet_ramp(struct snd_soc_component *component,
@@ -513,6 +523,13 @@ static inline void wcd939x_wcd_mbhc_qfuse_cal(
 		q1_cal = (10000 + (q1 * 10));
 	if (q1_cal > 0)
 		*z_val = ((*z_val) * 10000) / q1_cal;
+}
+
+static void rdown_timer_callback(struct timer_list *timer)
+{
+	struct wcd939x_mbhc *wcd939x_mbhc = container_of(timer, struct wcd939x_mbhc, rdown_timer);
+
+	wcd939x_mbhc->rdown_timer_complete = true;
 }
 
 static void update_hd2_codes(struct regmap *regmap, u32 r_gnd_res_tot_mohms, u32 r_load_eff)
@@ -1601,6 +1618,11 @@ int wcd939x_mbhc_init(struct wcd939x_mbhc **mbhc,
 	/* Setting default mbhc detection logic to ADC */
 	wcd_mbhc->mbhc_detection_logic = WCD_DETECTION_ADC;
 
+	/* Down ramp timer set-up */
+	timer_setup(&wcd939x_mbhc->rdown_timer, rdown_timer_callback, 0);
+	wcd939x_mbhc->rdown_prev_iter = 0;
+	wcd939x_mbhc->rdown_timer_complete = false;
+
 	pdata = dev_get_platdata(component->dev);
 	if (!pdata) {
 		dev_err(component->dev, "%s: pdata pointer is NULL\n",
@@ -1627,6 +1649,8 @@ int wcd939x_mbhc_init(struct wcd939x_mbhc **mbhc,
 
 	return 0;
 err:
+	if (wcd939x_mbhc)
+		del_timer(&wcd939x_mbhc->rdown_timer);
 	devm_kfree(component->dev, wcd939x_mbhc);
 	return ret;
 }
@@ -1654,6 +1678,7 @@ void wcd939x_mbhc_deinit(struct snd_soc_component *component)
 
 	wcd939x_mbhc = wcd939x->mbhc;
 	if (wcd939x_mbhc) {
+		del_timer(&wcd939x_mbhc->rdown_timer);
 		wcd_mbhc_deinit(&wcd939x_mbhc->wcd_mbhc);
 		devm_kfree(component->dev, wcd939x_mbhc);
 	}
