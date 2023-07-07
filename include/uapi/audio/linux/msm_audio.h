@@ -19,6 +19,19 @@
 
 #define IOCTL_MAP_HYP_ASSIGN _IOW(AUDIO_IOCTL_MAGIC, 109, int)
 #define IOCTL_UNMAP_HYP_ASSIGN _IOW(AUDIO_IOCTL_MAGIC, 110, int)
-#define	AUDIO_MAX_COMMON_IOCTL_NUM	111
+#define IOCTL_MAP_HYP_ASSIGN_V2 _IOW(AUDIO_IOCTL_MAGIC, 111, struct msm_mdf_data)
+#define IOCTL_UNMAP_HYP_ASSIGN_V2 _IOW(AUDIO_IOCTL_MAGIC, 112, struct msm_mdf_data)
+
+#define AUDIO_MAX_COMMON_IOCTL_NUM 113
+
+/* ss_masks is generated from sys_ids
+ * for id in sys_ids
+ * ss_masks |= 1 << (id - 1)
+ */
+struct msm_mdf_data {
+	__u64 ss_masks;
+	__u32 mem_fd;
+	__u32 reserved;
+};
 
 #endif

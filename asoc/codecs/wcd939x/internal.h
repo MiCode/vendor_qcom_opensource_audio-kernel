@@ -14,9 +14,14 @@
 #include "wcd939x-mbhc.h"
 #include "wcd939x.h"
 
-#define SWR_SCP_CONTROL    0x44
+#define SWR_SCP_CONTROL 0x44
 #define SWR_SCP_HOST_CLK_DIV2_CTL_BANK 0xE0
 #define WCD939X_MAX_MICBIAS 4
+#define MAX_XTALK_SCALE 31
+#define MIN_XTALK_ALPHA 0
+#define MIN_K_TIMES_100 -90
+#define MAX_K_TIMES_100 10000
+#define MAX_USBCSS_HS_IMPEDANCE_MOHMS 20000
 
 /* Convert from vout ctl to micbias voltage in mV */
 #define  WCD_VOUT_CTL_TO_MICB(v)  (1000 + v * 50)
@@ -157,27 +162,93 @@ struct wcd939x_micbias_setting {
 	u8 bias1_cfilt_sel;
 };
 
-struct wcd939x_xtalk_params {
-	u32 r_gnd_int_fet_mohms;
-	u32 r_gnd_par_route1_mohms;
-	u32 r_gnd_par_route2_mohms;
+struct wcd939x_usbcss_hs_params {
+	/* Resistance of ground-side internal FET for SBU1 */
+	u32 r_gnd_sbu1_int_fet_mohms;
+	/* Resistance of ground-side internal FET for SBU2 */
+	u32 r_gnd_sbu2_int_fet_mohms;
+	/* Customer-characterized resistance for the ground-side external FET */
+	u32 r_gnd_ext_fet_customer_mohms;
+	/* SW-computed resistance for the ground-side external FET */
 	u32 r_gnd_ext_fet_mohms;
-	u32 r_conn_par_load_neg_mohms;
+	/* Total ground-side parasitics between the WCD and external FET */
+	u32 r_gnd_par_route1_mohms;
+	/* Total ground-side parasitics between the external FET and connector */
+	u32 r_gnd_par_route2_mohms;
+	/* Total ground-side parasitics between the WCD and connector; sum of route1 and route2 */
+	u32 r_gnd_par_tot_mohms;
+	/* Total ground-side resistance for SBU1 */
+	u32 r_gnd_sbu1_res_tot_mohms;
+	/* Total ground-side resistance for SBU2 */
+	u32 r_gnd_sbu2_res_tot_mohms;
+	/* Customer-characterized positive parasitics introduced from the connector */
+	u32 r_conn_par_load_pos_mohms;
+	/* Resistance of left audio-side internal FET */
 	u32 r_aud_int_fet_l_mohms;
+	/* Resistance of right audio-side internal FET */
 	u32 r_aud_int_fet_r_mohms;
+	/* Resistance of left audio-side external FET */
 	u32 r_aud_ext_fet_l_mohms;
+	/* Resistance of right audio-side external FET */
 	u32 r_aud_ext_fet_r_mohms;
-	u32 r_conn_par_load_pos_l_mohms;
-	u32 r_conn_par_load_pos_r_mohms;
-	u32 r_gnd_res_tot_mohms;
+	/* Total left audio-side resistance */
 	u32 r_aud_res_tot_l_mohms;
+	/* Total right audio-side resistance */
 	u32 r_aud_res_tot_r_mohms;
-	u32 zl;
-	u32 zr;
+	/* Surge switch resistance */
+	u32 r_surge_mohms;
+	/* Sum of left audio-side parasitics and the left side of the load */
+	u32 r_load_eff_l_mohms;
+	/* Sum of right audio-side parasitics and the right side of the load */
+	u32 r_load_eff_r_mohms;
+	/* Customer-characterized audio-side parasitics between the WCD and external FET,
+	 * in milliohms
+	 */
+	u32 r3;
+	/* Customer-characterized ground-side parasitics between the external FET and connector,
+	 * in milliohms
+	 */
+	u32 r4;
+	/* For digital crosstalk with remote sensed analog crosstalk mode, customer-characterized
+	 * ground path parasitic resistance between the WCD SBU pin and the external MOSFET,
+	 * in milliohms
+	 */
+	u32 r5;
+	/* For digital crosstalk with local sensed analog crosstalk mode, customer-characterized
+	 * ground path parasitic resistance between the WCD GSBU tap point and the external MOSFET,
+	 * in milliohms
+	 */
+	u32 r6;
+	/* For digital crosstalk with local sensed analog crosstalk mode, customer-characterized
+	 * ground path parasitic resistance between the WCD GSBU tap point and the WCD SBU pin,
+	 * in milliohms
+	 */
+	u32 r7;
+	/* Tap out linearizer constant for the audio path, multiplied by 100 from the original
+	 * constants to support decimal values up to the hundredth place
+	 */
+	s32 k_aud_times_100;
+	/* Tap out linearizer constant for the ground path, multiplied by 100 from the original
+	 * constants to support decimal values up to the hundredth place
+	 */
+	s32 k_gnd_times_100;
+	/* Fixed offset to be applied to audio taps */
+	s32 aud_tap_offset;
+	/* Fixed offset to be applied to ground taps */
+	s32 gnd_tap_offset;
+	/* Computed optimal d-xtalk left-side scale value */
 	u8 scale_l;
+	/* Computed optimal d-xtalk left-side alpha value */
 	u8 alpha_l;
+	/* Computed optimal d-xtalk right-side scale value */
 	u8 scale_r;
+	/* Computed optimal d-xtalk right-side alpha value */
 	u8 alpha_r;
+	/* Customer-tuned configuration for d-xtalk:
+	 * 0 for digital crosstalk disabled,
+	 * 1 for digital crosstalk with local sensed a-xtalk enabled, and
+	 * 2 for digital crosstalk with remote sensed a-xtalk enabled.
+	 */
 	enum xtalk_mode xtalk_config;
 };
 
@@ -186,7 +257,7 @@ struct wcd939x_pdata {
 	struct device_node *rx_slave;
 	struct device_node *tx_slave;
 	struct wcd939x_micbias_setting micbias;
-	struct wcd939x_xtalk_params xtalk;
+	struct wcd939x_usbcss_hs_params usbcss_hs;
 
 	struct cdc_regulator *regulator;
 	int num_supplies;

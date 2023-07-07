@@ -265,7 +265,7 @@ audio_modules.register(
     path = ASOC_CODECS_PATH,
     config_option = "CONFIG_SND_SOC_MSM_HDMI_CODEC_RX",
     srcs = ["msm_hdmi_codec_rx.c"],
-    deps = ["//vendor/qcom/opensource/mm-drivers:%b_mm_drivers"]
+    deps = ["//vendor/qcom/opensource/mm-drivers/msm_ext_display:%b_msm_ext_display"]
 )
 # >>>> ASOC/CODECS/LPASS-CDC MODULES <<<<
 audio_modules.register(
