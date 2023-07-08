@@ -61,5 +61,12 @@ AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/wcd938x_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/wcd938x_slave_dlkm.ko
 endif
 endif
+else
+ifeq ($(call is-board-platform-in-list, gen4 msmnile), true)
+ifneq (,$(filter $(TARGET_BOARD_PLATFORM)$(TARGET_BOARD_SUFFIX), gen4_gvm msmnile_gvmq))
+AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/machine_dlkm.ko\
+	$(KERNEL_MODULES_OUT)/stub_dlkm.ko
+endif   #msmnile
+endif
 endif
 endif
