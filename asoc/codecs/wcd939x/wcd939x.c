@@ -443,6 +443,11 @@ static int wcd939x_init_reg(struct snd_soc_component *component)
 	if (wcd939x->version != WCD939X_VERSION_2_0)
 		snd_soc_component_write(component, WCD939X_CFG0, 0x05);
 
+	/*
+	 * Disable 1M pull-up by default during boot by writing 0b1 to bit[7].
+	 * This gets re-enabled when headset is inserted.
+	 */
+	snd_soc_component_update_bits(component, WCD939X_ZDET_BIAS_CTL, 0x80, 0x80);
 	return 0;
 }
 

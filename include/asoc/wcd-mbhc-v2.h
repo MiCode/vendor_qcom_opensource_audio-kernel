@@ -531,6 +531,7 @@ struct wcd_mbhc_cb {
 	void (*mbhc_moisture_polling_ctrl)(struct wcd_mbhc *mbhc, bool enable);
 	void (*mbhc_moisture_detect_en)(struct wcd_mbhc *mbhc, bool enable);
 	void (*surge_reset_routine)(struct wcd_mbhc *mbhc);
+	void (*zdet_leakage_resistance)(struct wcd_mbhc *mbhc, bool enable);
 };
 
 struct wcd_mbhc_fn {

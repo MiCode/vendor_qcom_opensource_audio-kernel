@@ -1344,6 +1344,17 @@ static void wcd939x_surge_reset_routine(struct wcd_mbhc *mbhc)
 	regcache_sync(wcd939x->regmap);
 }
 
+static void wcd939x_mbhc_zdet_leakage_resistance(struct wcd_mbhc *mbhc,
+							bool enable)
+{
+	if (enable)
+		snd_soc_component_update_bits(mbhc->component, WCD939X_ZDET_BIAS_CTL,
+				0x80, 0x80); /* disable 1M pull-up */
+	else
+		snd_soc_component_update_bits(mbhc->component, WCD939X_ZDET_BIAS_CTL,
+				0x80, 0x00); /* enable 1M pull-up */
+}
+
 static const struct wcd_mbhc_cb mbhc_cb = {
 	.request_irq = wcd939x_mbhc_request_irq,
 	.irq_control = wcd939x_mbhc_irq_control,
@@ -1370,6 +1381,7 @@ static const struct wcd_mbhc_cb mbhc_cb = {
 	.mbhc_moisture_detect_en = wcd939x_mbhc_moisture_detect_en,
 	.bcs_enable = wcd939x_mbhc_bcs_enable,
 	.surge_reset_routine = wcd939x_surge_reset_routine,
+	.zdet_leakage_resistance = wcd939x_mbhc_zdet_leakage_resistance,
 };
 
 static int wcd939x_get_hph_type(struct snd_kcontrol *kcontrol,
