@@ -146,9 +146,10 @@ static const struct wsa_reg_mask_val reg_init_2S[] = {
 };
 
 static const struct wsa_reg_mask_val reg_init_uvlo[] = {
-    {WSA884X_UVLO_PROG, 0xFF, 0x77},
-    {WSA884X_UVLO_DEGLITCH_CTL, 0xFF, 0x1B},
-    {WSA884X_UVLO_PROG1, 0xFF, 0x40},
+	{WSA884X_UVLO_PROG, 0xFF, 0x77},
+	{WSA884X_PA_FSM_TIMER0, 0xFF, 0xC0},
+	{WSA884X_UVLO_DEGLITCH_CTL, 0xFF, 0x1D},
+	{WSA884X_UVLO_PROG1, 0xFF, 0x40},
 };
 
 static int wsa884x_handle_post_irq(void *data);
