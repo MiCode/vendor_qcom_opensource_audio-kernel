@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -72,10 +73,22 @@ static int msm_cdc_dt_parse_vreg_info(struct device *dev,
 		cdc_vreg->lpm_supported = prop_val;
 	}
 
-	dev_info(dev, "%s: %s: vol=[%d %d]uV, curr=[%d]uA, ond %d lpm %d\n",
+	/* Parse supply - retention mode */
+	snprintf(prop_name, CODEC_DT_MAX_PROP_SIZE, "qcom,%s-rem-supported", name);
+	rc = of_property_read_u32(dev->of_node, prop_name, &prop_val);
+	if (rc) {
+		dev_dbg(dev, "%s: Looking up %s property in node %s failed",
+			__func__, prop_name, dev->of_node->full_name);
+		cdc_vreg->rem_supported = 0;
+		rc = 0;
+	} else {
+		cdc_vreg->rem_supported = prop_val;
+	}
+
+	dev_info(dev, "%s: %s: vol=[%d %d]uV, curr=[%d]uA, ond %d lpm %d rem %d\n",
 		 __func__, cdc_vreg->name, cdc_vreg->min_uV, cdc_vreg->max_uV,
 		 cdc_vreg->optimum_uA, cdc_vreg->ondemand,
-		 cdc_vreg->lpm_supported);
+		 cdc_vreg->lpm_supported, cdc_vreg->rem_supported);
 
 done:
 	return rc;
@@ -174,6 +187,94 @@ bool msm_cdc_is_ondemand_supply(struct device *dev,
 EXPORT_SYMBOL(msm_cdc_is_ondemand_supply);
 
 /*
+ * msm_cdc_supply_supports_retention_mode:
+ *	On certain hardware configurations, This means that the
+ *	PM will disable the supply and remove its power vote
+ *	if the PM enters into a suspended state.
+ *
+ *	return if supply supports retention mode or not
+ *
+ * @dev: pointer to codec device
+ * @supplies: pointer to regulator bulk data
+ * @cdc_vreg: pointer to platform regulator data
+ * @num_supplies: number of supplies
+ * @supply_name: supply name to be checked
+ *
+ * Return true/false
+ */
+bool msm_cdc_supply_supports_retention_mode(struct device *dev,
+				struct regulator_bulk_data *supplies,
+				struct cdc_regulator *cdc_vreg,
+				int num_supplies, char *supply_name)
+{
+	bool rc = false;
+	int ret, i;
+
+	if ((!supply_name) || (!supplies)) {
+		pr_err_ratelimited("%s: either dev or supplies or cdc_vreg is NULL\n",
+				__func__);
+		return rc;
+	}
+	/* input parameter validation */
+	ret = msm_cdc_check_supply_param(dev, cdc_vreg, num_supplies);
+	if (ret)
+		return rc;
+
+	for (i = 0; i < num_supplies; i++) {
+		if (cdc_vreg[i].rem_supported &&
+			!strcmp(cdc_vreg[i].name, supply_name))
+			return true;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(msm_cdc_supply_supports_retention_mode);
+
+/*
+ * msm_cdc_check_supply_vote:
+ *
+ *	return true if supply has voted for regulator enable
+ *
+ * @dev: pointer to codec device
+ * @supplies: pointer to regulator bulk data
+ * @cdc_vreg: pointer to platform regulator data
+ * @num_supplies: number of supplies
+ * @supply_name: supply name to be checked
+ *
+ * Return true/false
+ */
+bool msm_cdc_check_supply_vote(struct device *dev,
+				struct regulator_bulk_data *supplies,
+				struct cdc_regulator *cdc_vreg,
+				int num_supplies,
+				char *supply_name)
+{
+	bool rc = false;
+	int ret, i;
+
+	if ((!supply_name) || (!supplies)) {
+		pr_err_ratelimited("%s: either dev or supplies or cdc_vreg is NULL\n",
+				__func__);
+		return rc;
+	}
+
+	/* input parameter validation */
+	ret = msm_cdc_check_supply_param(dev, cdc_vreg, num_supplies);
+	if (ret)
+		return rc;
+
+	for (i = 0; i < num_supplies; i++) {
+		if (strcmp(cdc_vreg[i].name, supply_name) != 0)
+			continue;
+
+		return cdc_vreg[i].vote;
+	}
+
+	return rc;
+}
+EXPORT_SYMBOL(msm_cdc_check_supply_vote);
+
+/*
  * msm_cdc_set_supply_min_voltage:
  *	Set min supply voltage for particular supply
  *
@@ -257,6 +358,7 @@ int msm_cdc_disable_ondemand_supply(struct device *dev,
 				dev_err_ratelimited(dev,
 					"%s: failed to disable supply %s, err:%d\n",
 					__func__, supplies[i].supply, rc);
+			cdc_vreg[i].vote = false;
 			break;
 		}
 	}
@@ -307,6 +409,7 @@ int msm_cdc_enable_ondemand_supply(struct device *dev,
 			if (rc)
 				dev_err_ratelimited(dev, "%s: failed to enable supply %s, rc: %d\n",
 					__func__, supplies[i].supply, rc);
+			cdc_vreg[i].vote = true;
 			break;
 		}
 	}
@@ -409,9 +512,11 @@ int msm_cdc_disable_static_supplies(struct device *dev,
 		if (rc)
 			dev_err(dev, "%s: failed to disable supply %s, err:%d\n",
 				__func__, supplies[i].supply, rc);
-		else
+		else {
+			cdc_vreg[i].vote = false;
 			dev_dbg(dev, "%s: disabled regulator %s\n",
 				__func__, supplies[i].supply);
+		}
 	}
 
 	return rc;
@@ -500,11 +605,21 @@ int msm_cdc_enable_static_supplies(struct device *dev,
 				__func__, supplies[i].supply, rc);
 			break;
 		}
+		cdc_vreg[i].vote = true;
 	}
 
-	while (rc && i--)
-		if (!cdc_vreg[i].ondemand)
-			regulator_disable(supplies[i].consumer);
+	if (rc) {
+		while (i--) {
+			if (cdc_vreg[i].ondemand)
+				continue;
+
+			if (regulator_disable(supplies[i].consumer) == 0)
+				cdc_vreg[i].vote = false;
+			else
+				dev_err(dev, "%s: failed to disable supply %s during unwind\n",
+					__func__, supplies[i].supply);
+		}
+	}
 
 	return rc;
 }
@@ -593,6 +708,8 @@ int msm_cdc_init_supplies_v2(struct device *dev,
 
 		if (cdc_vreg[i].ondemand && vote_regulator_on_demand)
 			continue;
+
+		cdc_vreg[i].regulator = vsup[i].consumer;
 
 		rc = regulator_set_voltage(vsup[i].consumer,
 					   cdc_vreg[i].min_uV,

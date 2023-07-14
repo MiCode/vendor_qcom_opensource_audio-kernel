@@ -12,6 +12,7 @@
 #include <linux/kernel.h>
 #include <linux/component.h>
 #include <linux/stringify.h>
+#include <linux/regulator/consumer.h>
 #include <sound/soc.h>
 #include <sound/tlv.h>
 #include <soc/soundwire.h>
@@ -5316,6 +5317,18 @@ static int wcd939x_probe(struct platform_device *pdev)
 		return ret;
 	}
 
+	if (msm_cdc_is_ondemand_supply(wcd939x->dev, wcd939x->supplies,
+			pdata->regulator, pdata->num_supplies, "cdc-vdd-px")) {
+		ret = msm_cdc_enable_ondemand_supply(wcd939x->dev,
+				wcd939x->supplies, pdata->regulator,
+				pdata->num_supplies, "cdc-vdd-px");
+		if (ret) {
+			dev_err(dev, "%s: vdd px supply enable failed!\n",
+				__func__);
+			return ret;
+		}
+	}
+
 	ret = wcd939x_parse_port_mapping(dev, "qcom,rx_swr_ch_map",
 					CODEC_RX);
 	ret |= wcd939x_parse_port_mapping(dev, "qcom,tx_swr_ch_map",
@@ -5409,12 +5422,30 @@ static int wcd939x_suspend(struct device *dev)
 					      pdata->num_supplies,
 					      true);
 		set_bit(WCD_SUPPLIES_LPM_MODE, &wcd939x->status_mask);
+		if (msm_cdc_is_ondemand_supply(wcd939x->dev, wcd939x->supplies, pdata->regulator,
+				pdata->num_supplies, "cdc-vdd-px")) {
+
+			if (msm_cdc_supply_supports_retention_mode(wcd939x->dev, wcd939x->supplies,
+					pdata->regulator, pdata->num_supplies, "cdc-vdd-px") &&
+					msm_cdc_check_supply_vote(wcd939x->dev, wcd939x->supplies,
+					pdata->regulator, pdata->num_supplies, "cdc-vdd-px")) {
+				ret = msm_cdc_disable_ondemand_supply(wcd939x->dev,
+					wcd939x->supplies, pdata->regulator,
+					pdata->num_supplies, "cdc-vdd-px");
+				if (ret) {
+					dev_dbg(dev, "%s: vdd px supply suspend failed!\n",
+						__func__);
+				}
+			}
+		}
 	}
+
 	return 0;
 }
 
 static int wcd939x_resume(struct device *dev)
 {
+	int ret = 0;
 	struct wcd939x_priv *wcd939x = NULL;
 	struct wcd939x_pdata *pdata = NULL;
 
@@ -5430,6 +5461,21 @@ static int wcd939x_resume(struct device *dev)
 	if (!pdata) {
 		dev_err_ratelimited(dev, "%s: pdata is NULL\n", __func__);
 		return -EINVAL;
+	}
+
+	if (msm_cdc_is_ondemand_supply(wcd939x->dev, wcd939x->supplies, pdata->regulator,
+			pdata->num_supplies, "cdc-vdd-px")) {
+		if (msm_cdc_supply_supports_retention_mode(wcd939x->dev, wcd939x->supplies,
+				pdata->regulator, pdata->num_supplies, "cdc-vdd-px") &&
+			!msm_cdc_check_supply_vote(wcd939x->dev, wcd939x->supplies,
+					pdata->regulator, pdata->num_supplies, "cdc-vdd-px")) {
+			ret = msm_cdc_enable_ondemand_supply(wcd939x->dev, wcd939x->supplies,
+					pdata->regulator, pdata->num_supplies, "cdc-vdd-px");
+			if (ret) {
+				dev_dbg(dev, "%s: vdd px supply resume failed!\n",
+					__func__);
+			}
+		}
 	}
 
 	if (test_bit(WCD_SUPPLIES_LPM_MODE, &wcd939x->status_mask)) {
