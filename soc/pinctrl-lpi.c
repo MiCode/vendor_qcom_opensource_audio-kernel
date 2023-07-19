@@ -413,9 +413,24 @@ static int lpi_config_set(struct pinctrl_dev *pctldev, unsigned int pin,
 			mutex_lock(&state->slew_access_lock);
 			if (pad->lpi_slew_reg != NULL) {
 				pad->base = pad->lpi_slew_reg;
+				if (pad->slew_offset != LPI_SLEW_OFFSET_INVALID) {
+					val = lpi_gpio_read(pad, LPI_SLEW_REG_VAL_CTL);  //16-bit
+					pad->offset = pad->slew_offset;
+					for (i = 0; i < LPI_SLEW_BITS_SIZE; i++) {
+						if (arg & 0x01)
+							set_bit(pad->offset, &val);
+						else
+							clear_bit(pad->offset, &val);
+					pad->offset++;
+					arg = arg >> 1;
+				}
+				pad->offset = 0;
+				lpi_gpio_write(pad, LPI_SLEW_REG_VAL_CTL, val);
+			} else {
 				lpi_gpio_write(pad, LPI_SLEW_REG_VAL_CTL, arg);
-				pad->base = pad->slew_base;
-				goto slew_exit;
+			}
+			pad->base = pad->slew_base;
+			goto slew_exit;
 			}
 			val = lpi_gpio_read(pad, LPI_SLEW_REG_VAL_CTL);
 			pad->offset = pad->slew_offset;
