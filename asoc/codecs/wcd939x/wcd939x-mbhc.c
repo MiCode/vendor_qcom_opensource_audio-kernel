@@ -1050,7 +1050,7 @@ static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 		*zr = WCD939X_ZDET_FLOATING_IMPEDANCE;
 	} else {
 		*zr = z1R;
-		wcd939x_wcd_mbhc_qfuse_cal(component, zr, 1);
+		wcd939x_wcd_mbhc_qfuse_cal(component, zr, 4);
 	}
 	dev_dbg(component->dev, "%s: impedance on HPH_R = %d(mohms)\n",
 		__func__, *zr);
