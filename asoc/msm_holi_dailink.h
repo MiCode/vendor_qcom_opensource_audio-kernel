@@ -36,7 +36,7 @@ SND_SOC_DAILINK_DEFS(slimbus_7_tx,
 SND_SOC_DAILINK_DEFS(slimbus_8_tx,
 	DAILINK_COMP_ARRAY(COMP_CPU("snd-soc-dummy-dai")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("btfmslim_slave",
-			"btfm_bt_sco_slim_tx")),
+			"btfm_fm_slim_tx")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("snd-soc-dummy")));
 
 SND_SOC_DAILINK_DEFS(display_port,
