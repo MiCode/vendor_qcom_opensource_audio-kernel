@@ -1442,18 +1442,31 @@ audio_vote:
 		if (ret < 0) {
 			dev_err_ratelimited(dev, "%s:lpass audio hw enable failed\n",
 				__func__);
-			goto done;
+			goto core_clk_vote;
 		}
 	}
 	priv->core_audio_vote_count++;
 	trace_printk("%s: audio vote count %d\n",
 		__func__, priv->core_audio_vote_count);
 
+core_clk_vote:
+	if (priv->core_clk_vote_count == 0) {
+		ret = lpass_cdc_clk_rsc_request_clock(dev, TX_CORE_CLK,
+							  TX_CORE_CLK, true);
+		if (ret < 0) {
+			dev_err_ratelimited(dev, "%s:lpass Tx core clk enable failed\n",
+				__func__);
+			goto done;
+		}
+	}
+	priv->core_clk_vote_count++;
+
 done:
 	mutex_unlock(&priv->vote_lock);
 	trace_printk("%s, leave\n", __func__);
-	dev_dbg(dev,"%s, leave, hw_vote %d, audio_vote %d\n", __func__,
-			priv->core_hw_vote_count, priv->core_audio_vote_count);
+	dev_dbg(dev, "%s, leave, hw_vote %d, audio_vote %d, core_clk_vote %d\n",
+		 __func__, priv->core_hw_vote_count,
+		 priv->core_audio_vote_count, priv->core_clk_vote_count);
 	pm_runtime_set_autosuspend_delay(priv->dev, LPASS_CDC_AUTO_SUSPEND_DELAY);
 	return 0;
 }
@@ -1492,10 +1505,18 @@ int lpass_cdc_runtime_suspend(struct device *dev)
 	trace_printk("%s: audio vote count %d\n",
 		__func__, priv->core_audio_vote_count);
 
+	if (--priv->core_clk_vote_count == 0) {
+		lpass_cdc_clk_rsc_request_clock(dev, TX_CORE_CLK,
+						  TX_CORE_CLK, false);
+	}
+	if (priv->core_clk_vote_count < 0)
+		priv->core_clk_vote_count = 0;
+
 	mutex_unlock(&priv->vote_lock);
 	trace_printk("%s, leave\n", __func__);
-	dev_dbg(dev,"%s, leave, hw_vote %d, audio_vote %d\n", __func__,
-		priv->core_hw_vote_count, priv->core_audio_vote_count);
+	dev_dbg(dev, "%s, leave, hw_vote %d, audio_vote %d, core_clk_vote %d\n",
+		 __func__, priv->core_hw_vote_count,
+		 priv->core_audio_vote_count, priv->core_clk_vote_count);
 	return 0;
 }
 EXPORT_SYMBOL(lpass_cdc_runtime_suspend);

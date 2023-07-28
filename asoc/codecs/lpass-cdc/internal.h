@@ -73,6 +73,7 @@ struct lpass_cdc_priv {
 	struct clk *lpass_audio_hw_vote;
 	int core_hw_vote_count;
 	int core_audio_vote_count;
+	int core_clk_vote_count;
 
 	/* Entry for version info */
 	struct snd_info_entry *entry;
