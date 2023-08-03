@@ -936,7 +936,6 @@ static void lpass_cdc_ssr_disable(struct device *dev, void *data)
 		return;
 	}
 
-	lpass_cdc_notifier_call(priv, LPASS_CDC_WCD_EVT_PA_OFF_PRE_SSR);
 	regcache_cache_only(priv->regmap, true);
 
 	mutex_lock(&priv->clk_lock);
