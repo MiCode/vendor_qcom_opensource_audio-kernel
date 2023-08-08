@@ -24,12 +24,11 @@ endif
 
 ifeq ($(ENABLE_AUDIO_LEGACY_TECHPACK),true)
 include $(call all-subdir-makefiles)
+LOCAL_PATH := vendor/qcom/opensource/audio-kernel
 endif
 
 # Build/Package only in case of supported target
-ifeq ($(call is-board-platform-in-list,taro kalama bengal pineapple holi blair), true)
-
-LOCAL_PATH := $(call my-dir)
+ifeq ($(call is-board-platform-in-list,taro kalama bengal pineapple holi blair gen4 msmnile), true)
 
 # This makefile is only for DLKM
 ifneq ($(findstring vendor,$(LOCAL_PATH)),)
@@ -54,8 +53,15 @@ KBUILD_OPTIONS += MODNAME=audio_dlkm
 KBUILD_OPTIONS += BOARD_PLATFORM=$(TARGET_BOARD_PLATFORM)
 KBUILD_OPTIONS += $(AUDIO_SELECT)
 
-ifneq ($(call is-board-platform-in-list, bengal holi blair),true)
+ifneq ($(call is-board-platform-in-list, bengal holi blair msmnile gen4),true)
 KBUILD_OPTIONS += KBUILD_EXTRA_SYMBOLS=$(PWD)/$(call intermediates-dir-for,DLKM,msm-ext-disp-module-symvers)/Module.symvers
+endif
+
+ifeq ($(call is-board-platform-in-list, gen4 msmnile),true)
+KBUILD_OPTIONS += CONFIG_SND_SOC_AUTO=y
+ifneq (,$(filter $(TARGET_BOARD_PLATFORM)$(TARGET_BOARD_SUFFIX), gen4_gvm msmnile_gvmq))
+KBUILD_OPTIONS +=CONFIG_SND_SOC_GVM=y
+endif
 endif
 
 AUDIO_SRC_FILES := \
@@ -64,6 +70,26 @@ AUDIO_SRC_FILES := \
 	$(wildcard $(LOCAL_PATH)/*/*/*) \
 	$(wildcard $(LOCAL_PATH)/*/*/*/*)
 
+ifneq (,$(filter $(TARGET_BOARD_PLATFORM)$(TARGET_BOARD_SUFFIX), gen4_gvm msmnile_gvmq))
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := stub_dlkm.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/codecs/stub_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+########################### ASOC MACHINE ################################
+include $(CLEAR_VARS)
+LOCAL_SRC_FILES           := $(AUDIO_SRC_FILES)
+LOCAL_MODULE              := machine_dlkm.ko
+LOCAL_MODULE_KBUILD_NAME  := asoc/spf_machine_dlkm.ko
+LOCAL_MODULE_TAGS         := optional
+LOCAL_MODULE_DEBUG_ENABLE := true
+LOCAL_MODULE_PATH         := $(KERNEL_MODULES_OUT)
+include $(DLKM_DIR)/Build_external_kernelmodule.mk
+########################### LPASS-CDC CODEC  ###########################
+else
 ########################### dsp ################################
 
 include $(CLEAR_VARS)
@@ -466,3 +492,4 @@ endif
 ##########################################################
 endif # DLKM check
 endif # supported target check
+endif

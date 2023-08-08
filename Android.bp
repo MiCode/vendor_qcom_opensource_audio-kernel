@@ -11,6 +11,7 @@ audio_headers_out = [
     "sound/msmcal-hwdep.h",
     "sound/voice_params.h",
     "sound/wcd-dsp-glink.h",
+    "linux/msm_audio_calibration.h",
 ]
 
 audio_kernel_headers_verbose = "--verbose "
