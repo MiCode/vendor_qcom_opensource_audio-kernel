@@ -403,7 +403,11 @@ ssize_t audio_pkt_write(struct file *file, const char __user *buf,
 		mutex_unlock(&audpkt_dev->lock);
 		goto free_kbuf;
 	}
-	ret = gpr_send_pkt(ap_priv->adev,(struct gpr_pkt *) kbuf);
+	if (gpr_get_q6_state() != GPR_SUBSYS_DOWN)
+		ret = gpr_send_pkt(ap_priv->adev, (struct gpr_pkt *) kbuf);
+	else
+		AUDIO_PKT_ERR("q6 is down\n");
+
 	if (ret < 0) {
 		AUDIO_PKT_ERR("APR Send Packet Failed ret -%d\n", ret);
 		if (ret == -ECONNRESET)

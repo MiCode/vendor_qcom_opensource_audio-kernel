@@ -95,6 +95,12 @@ int gpr_send_pkt(struct gpr_device *adev, struct gpr_pkt *pkt)
 	uint32_t pkt_size;
 	int ret;
 
+	if (gpr_get_q6_state() == GPR_SUBSYS_DOWN)
+	{
+		pr_err_ratelimited("%s: q6 state is down adev[%pK]\n", __func__, adev);
+		return -EINVAL;
+	}
+
 	if(!adev)
 	{
 		pr_err_ratelimited("%s: enter pointer adev[%pK] \n", __func__, adev);
@@ -118,13 +124,12 @@ int gpr_send_pkt(struct gpr_device *adev, struct gpr_pkt *pkt)
 
 	if ((adev->domain_id == GPR_DOMAIN_ADSP) &&
 	    (gpr_get_q6_state() != GPR_SUBSYS_LOADED)) {
-		dev_err_ratelimited(gpr->dev, "%s: domain_id[%d], Still Dsp is not Up\n",
-			__func__, adev->domain_id);
+		dev_err_ratelimited(gpr->dev, "%s:  Still Dsp is not Up\n", __func__);
 		return -ENETRESET;
-		} else if ((adev->domain_id == GPR_DOMAIN_MODEM) &&
+	} else if ((adev->domain_id == GPR_DOMAIN_MODEM) &&
 		   (gpr_get_modem_state() == GPR_SUBSYS_DOWN)) {
-		dev_err_ratelimited(gpr->dev, "%s: domain_id[%d], Still Modem is not Up\n",
-			__func__, adev->domain_id );
+		dev_err_ratelimited(gpr->dev, "%s:  Still Modem is not Up\n",
+			__func__);
 		return -ENETRESET;
 	}
 
@@ -138,7 +143,6 @@ int gpr_send_pkt(struct gpr_device *adev, struct gpr_pkt *pkt)
 		adev->svc_id, __func__, pkt_size);
 	ret = rpmsg_trysend(gpr->ch, pkt, pkt_size);
 	spin_unlock_irqrestore(&adev->lock, flags);
-
 	return ret ? ret : pkt_size;
 }
 EXPORT_SYMBOL_GPL(gpr_send_pkt);
