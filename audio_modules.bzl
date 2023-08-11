@@ -6,6 +6,7 @@ SOC_PATH = "soc"
 ASOC_PATH = "asoc"
 ASOC_CODECS_PATH = ASOC_PATH + "/codecs"
 ASOC_CODECS_LPASS_CDC_PATH = ASOC_CODECS_PATH + "/lpass-cdc"
+ASOC_CODECS_BOLERO_PATH = ASOC_CODECS_PATH + "/bolero"
 
 audio_modules = create_module_registry([":audio_headers"])
 # ------------------------------------ AUDIO MODULE DEFINITIONS ---------------------------------
@@ -311,6 +312,55 @@ audio_modules.register(
     config_option = "CONFIG_LPASS_CDC_TX_MACRO",
     srcs = ["lpass-cdc-tx-macro.c"]
 )
+# >>>> ASOC/CODECS/BOLERO MODULES <<<<
+audio_modules.register(
+    name = "bolero_cdc_dlkm",
+    path = ASOC_CODECS_BOLERO_PATH,
+    config_option = "CONFIG_SND_SOC_BOLERO",
+    srcs = [
+        "bolero-cdc.c",
+        "bolero-cdc-utils.c",
+        "bolero-cdc-regmap.c",
+        "bolero-cdc-tables.c",
+        "bolero-clk-rsc.c",
+    ],
+)
+audio_modules.register(
+    name = "va_macro_dlkm",
+    path = ASOC_CODECS_BOLERO_PATH,
+    config_option = "CONFIG_VA_MACRO",
+    srcs = ["va-macro.c"]
+)
+audio_modules.register(
+    name = "rx_macro_dlkm",
+    path = ASOC_CODECS_BOLERO_PATH,
+    config_option = "CONFIG_RX_MACRO",
+    srcs = ["rx-macro.c"]
+)
+audio_modules.register(
+    name = "tx_macro_dlkm",
+    path = ASOC_CODECS_BOLERO_PATH,
+    config_option = "CONFIG_TX_MACRO",
+    srcs = ["tx-macro.c"]
+)
+# >>>> WSA881X-ANALOG MODULE <<<<
+audio_modules.register(
+    name = "wsa881x_analog_dlkm",
+    path = ASOC_CODECS_PATH,
+    config_option = "CONFIG_SND_SOC_WSA881X_ANALOG",
+    srcs = [
+        "wsa881x-analog.c",
+        "wsa881x-tables-analog.c",
+        "wsa881x-regmap-analog.c",
+	],
+    conditional_srcs = {
+        "CONFIG_WSA881X_TEMP_SENSOR_DISABLE": {
+            False: [
+                "wsa881x-temp-sensor.c"
+            ]
+        }
+    }
+)
 # >>>> WSA883X MODULE <<<<
 audio_modules.register(
     name = "wsa883x_dlkm",
@@ -332,6 +382,24 @@ audio_modules.register(
         "wsa884x-regmap.c",
         "wsa884x-tables.c",
     ]
+)
+# >>>> WCD937X MODULES <<<<
+audio_modules.register(
+    name = "wcd937x_dlkm",
+    path = ASOC_CODECS_PATH + "/wcd937x",
+    config_option = "CONFIG_SND_SOC_WCD937X",
+    srcs = [
+        "wcd937x.c",
+        "wcd937x-regmap.c",
+        "wcd937x-tables.c",
+        "wcd937x-mbhc.c",
+    ],
+)
+audio_modules.register(
+    name = "wcd937x_slave_dlkm",
+    path = ASOC_CODECS_PATH + "/wcd937x",
+    config_option = "CONFIG_SND_SOC_WCD937X_SLAVE",
+    srcs = ["wcd937x_slave.c"]
 )
 # >>>> WCD938X MODULES <<<<
 audio_modules.register(
