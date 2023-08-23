@@ -9,6 +9,7 @@
  * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
  * GNU General Public License for more details.
  */
+#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -144,6 +145,10 @@ static struct wcd_mbhc_register
 			  WCD937X_MBHC_NEW_CTL_1, 0x04, 2, 0),
 	WCD_MBHC_REGISTER("WCD_MBHC_ELECT_ISRC_EN",
 			  WCD937X_ANA_MBHC_ZDET, 0x02, 1, 0),
+#if defined(CONFIG_TARGET_PRODUCT_K9A)
+	WCD_MBHC_REGISTER("WCD_MBHC_TX2_EN",
+			  WCD937X_ANA_TX_CH2, 0x80, 7, 0),
+#endif
 };
 
 static const struct wcd_mbhc_intr intr_ids = {

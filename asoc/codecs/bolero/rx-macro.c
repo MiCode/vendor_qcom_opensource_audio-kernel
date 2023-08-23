@@ -2966,7 +2966,7 @@ static const struct snd_soc_dapm_widget rx_macro_dapm_widgets[] = {
 	SND_SOC_DAPM_OUTPUT("HPHL_OUT"),
 	SND_SOC_DAPM_OUTPUT("HPHR_OUT"),
 	SND_SOC_DAPM_OUTPUT("AUX_OUT"),
-
+	//SND_SOC_DAPM_OUTPUT("UPD_OUT"),
 	SND_SOC_DAPM_INPUT("RX_TX DEC0_INP"),
 	SND_SOC_DAPM_INPUT("RX_TX DEC1_INP"),
 	SND_SOC_DAPM_INPUT("RX_TX DEC2_INP"),
@@ -3125,7 +3125,7 @@ static const struct snd_soc_dapm_route rx_audio_map[] = {
 	{"RX INT0_2 MUX", "RX5", "RX_RX5"},
 	{"RX INT0_2 INTERP", NULL, "RX INT0_2 MUX"},
 	{"RX INT0 SEC MIX", NULL, "RX INT0_2 INTERP"},
-
+	//{"UPD_OUT", NULL, "RX INT0_2 MUX"},
 	/* Mixing path INT1 */
 	{"RX INT1_2 MUX", "RX0", "RX_RX0"},
 	{"RX INT1_2 MUX", "RX1", "RX_RX1"},
@@ -3438,6 +3438,7 @@ static int rx_macro_init(struct snd_soc_codec *codec)
 	snd_soc_dapm_ignore_suspend(dapm, "HPHL_OUT");
 	snd_soc_dapm_ignore_suspend(dapm, "HPHR_OUT");
 	snd_soc_dapm_ignore_suspend(dapm, "AUX_OUT");
+	//snd_soc_dapm_ignore_suspend(dapm, "UPD_OUT");
 	snd_soc_dapm_ignore_suspend(dapm, "RX_TX DEC0_INP");
 	snd_soc_dapm_ignore_suspend(dapm, "RX_TX DEC1_INP");
 	snd_soc_dapm_ignore_suspend(dapm, "RX_TX DEC2_INP");

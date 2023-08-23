@@ -13,6 +13,9 @@ $(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/soc/Module
 $(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/Module.symvers)
 $(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/Module.symvers)
 $(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/wcd934x/Module.symvers)
+$(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/tfa98xx/Module.symvers)
+$(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/fs1815/Module.symvers)
+$(shell rm -rf $(PRODUCT_OUT)/obj/vendor/qcom/opensource/audio-kernel/asoc/codecs/tfa9873/Module.symvers)
 
 include $(MY_LOCAL_PATH)/include/uapi/Android.mk
 include $(MY_LOCAL_PATH)/ipc/Android.mk
@@ -22,6 +25,19 @@ include $(MY_LOCAL_PATH)/soc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/Android.mk
 include $(MY_LOCAL_PATH)/asoc/codecs/wcd934x/Android.mk
+
+ifeq ($(TARGET_PRODUCT), $(filter $(TARGET_PRODUCT), sweet sweetin))
+$(warning compile fs15xx $(TARGET_PRODUCT))
+include $(MY_LOCAL_PATH)/asoc/codecs/fs1815/Android.mk
+else
+ifeq ($(TARGET_PRODUCT), $(filter $(TARGET_PRODUCT), courbet courbetin))
+$(warning compile 9873 $(TARGET_PRODUCT))
+include $(MY_LOCAL_PATH)/asoc/codecs/tfa9873/Android.mk
+else
+$(warning compile 9874 $(TARGET_PRODUCT))
+include $(MY_LOCAL_PATH)/asoc/codecs/tfa98xx/Android.mk
+endif
+endif
 endif
 
 ifeq ($(call is-board-platform-in-list, atoll),true)

@@ -992,12 +992,22 @@ static int msm_pcm_capture_copy(struct snd_pcm_substream *substream,
 	pr_debug("Size = %d\n", size);
 	pr_debug("fbytes = %lu\n", fbytes);
 	pr_debug("idx = %d\n", idx);
+	pr_debug("period_size = %d\n", prtd->pcm_count);
 	if (bufptr) {
 		xfer = fbytes;
 		if (xfer > size)
 			xfer = size;
 		offset = prtd->in_frame_info[idx].offset;
 		pr_debug("Offset value = %d\n", offset);
+#if defined(CONFIG_TARGET_PRODUCT_K6)
+		if (size == 0 || size < prtd->pcm_count) {
+			memset(bufptr + offset + size, 0, prtd->pcm_count - size);
+			if (fbytes > prtd->pcm_count)
+				size = xfer = prtd->pcm_count;
+			else
+				size = xfer = fbytes;
+		}
+#endif
 		if (copy_to_user(buf, bufptr+offset, xfer)) {
 			pr_err("Failed to copy buf to user\n");
 			ret = -EFAULT;

@@ -28,6 +28,9 @@
 #include <dsp/q6core.h>
 #include "msm-dai-q6-v2.h"
 #include "codecs/core.h"
+#ifdef CONFIG_SND_SOC_TFA9874_FOR_DAVI
+#include "codecs/tfa98xx/inc/tfa_platform_interface_definition.h"
+#endif
 
 #define MSM_DAI_PRI_AUXPCM_DT_DEV_ID 1
 #define MSM_DAI_SEC_AUXPCM_DT_DEV_ID 2
@@ -2645,7 +2648,6 @@ static int msm_dai_q6_set_channel_map(struct snd_soc_dai *dai,
 	return rc;
 }
 
-/* all ports with excursion logging requirement can use this digital_mute api */
 static int msm_dai_q6_spk_digital_mute(struct snd_soc_dai *dai,
 				       int mute)
 {
@@ -5058,7 +5060,16 @@ static int msm_dai_q6_mi2s_hw_params(struct snd_pcm_substream *substream,
 		&mi2s_dai_data->rx_dai : &mi2s_dai_data->tx_dai);
 	struct msm_dai_q6_dai_data *dai_data = &mi2s_dai_config->mi2s_dai_data;
 	struct afe_param_id_i2s_cfg *i2s = &dai_data->port_config.i2s;
+#ifdef CONFIG_SND_SOC_TFA9874_FOR_DAVI
+	u16 port_id = 0;
 
+	if (msm_mi2s_get_port_id(dai->id, substream->stream,
+				&port_id) != 0) {
+		dev_err(dai->dev, "%s: Invalid Port ID 0x%x\n",
+				__func__, port_id);
+		return -EINVAL;
+	}
+#endif
 	dai_data->channels = params_channels(params);
 	switch (dai_data->channels) {
 	case 15:
@@ -5244,6 +5255,12 @@ static int msm_dai_q6_mi2s_hw_params(struct snd_pcm_substream *substream,
 	    mi2s_dai_data->tx_dai.mi2s_dai_data.status_mask) &&
 	    test_bit(STATUS_PORT_STARTED,
 	    mi2s_dai_data->tx_dai.mi2s_dai_data.hwfree_status))) {
+#ifdef CONFIG_SND_SOC_TFA9874_FOR_DAVI
+		if (AFE_PORT_ID_TFADSP_RX == port_id ||
+			AFE_PORT_ID_TFADSP_TX == port_id) {
+			dev_dbg(dai->dev, "%s, port_id = 0x%x\n", __func__, port_id);
+		} else
+#endif
 		if ((mi2s_dai_data->tx_dai.mi2s_dai_data.rate !=
 		    mi2s_dai_data->rx_dai.mi2s_dai_data.rate) ||
 		   (mi2s_dai_data->rx_dai.mi2s_dai_data.bitwidth !=
@@ -10596,7 +10613,8 @@ static int msm_dai_q6_cdc_dma_prepare(struct snd_pcm_substream *substream,
 static void msm_dai_q6_cdc_dma_shutdown(struct snd_pcm_substream *substream,
 				     struct snd_soc_dai *dai)
 {
-	struct msm_dai_q6_dai_data *dai_data = dev_get_drvdata(dai->dev);
+	struct msm_dai_q6_cdc_dma_dai_data *dai_data =
+					dev_get_drvdata(dai->dev);
 	int rc = 0;
 
 	if (test_bit(STATUS_PORT_STARTED, dai_data->status_mask)) {
@@ -10615,6 +10633,19 @@ static void msm_dai_q6_cdc_dma_shutdown(struct snd_pcm_substream *substream,
 		clear_bit(STATUS_PORT_STARTED, dai_data->hwfree_status);
 }
 
+static int msm_dai_q6_cdc_dma_digital_mute(struct snd_soc_dai *dai,
+				       int mute)
+{
+	int port_id = dai->id;
+	struct msm_dai_q6_cdc_dma_dai_data *dai_data =
+					dev_get_drvdata(dai->dev);
+
+	if (mute && !dai_data->xt_logging_disable)
+		afe_get_sp_xt_logging_data(port_id);
+
+	return 0;
+}
+
 static struct snd_soc_dai_ops msm_dai_q6_cdc_dma_ops = {
 	.prepare          = msm_dai_q6_cdc_dma_prepare,
 	.hw_params        = msm_dai_q6_cdc_dma_hw_params,
@@ -10627,7 +10658,7 @@ static struct snd_soc_dai_ops msm_dai_q6_cdc_wsa_dma_ops = {
 	.hw_params        = msm_dai_q6_cdc_dma_hw_params,
 	.shutdown         = msm_dai_q6_cdc_dma_shutdown,
 	.set_channel_map = msm_dai_q6_cdc_dma_set_channel_map,
-	.digital_mute = msm_dai_q6_spk_digital_mute,
+	.digital_mute = msm_dai_q6_cdc_dma_digital_mute,
 };
 
 static struct snd_soc_dai_driver msm_dai_q6_cdc_dma_dai[] = {
