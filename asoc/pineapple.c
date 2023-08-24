@@ -26,6 +26,7 @@
 #include <sound/pcm_params.h>
 #include <sound/info.h>
 #include <soc/snd_event.h>
+#include <soc/qcom/socinfo.h>
 #include <dsp/audio_prm.h>
 #include <soc/swr-common.h>
 #include <soc/soundwire.h>
@@ -1540,12 +1541,14 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int w
 		rc = of_property_read_u32(dev->of_node,
 					   "qcom,ext-disp-audio-rx", &val);
 		if (!rc && val) {
-			dev_dbg(dev, "%s(): ext disp audio support present\n",
-				__func__);
-			memcpy(msm_pineapple_dai_links + total_links,
-			       ext_disp_be_dai_link,
-			       sizeof(ext_disp_be_dai_link));
-			total_links += ARRAY_SIZE(ext_disp_be_dai_link);
+			if (!socinfo_get_part_info(PART_DISPLAY)) {
+				dev_dbg(dev, "%s(): ext disp audio support present\n",
+					__func__);
+				memcpy(msm_pineapple_dai_links + total_links,
+				       ext_disp_be_dai_link,
+				       sizeof(ext_disp_be_dai_link));
+				total_links += ARRAY_SIZE(ext_disp_be_dai_link);
+			}
 		}
 
 		rc = of_property_read_u32(dev->of_node, "qcom,wcn-bt", &val);

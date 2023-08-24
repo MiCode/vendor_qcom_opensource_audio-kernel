@@ -1039,6 +1039,11 @@ static irqreturn_t wcd_mbhc_adc_hs_rem_irq(int irq, void *data)
 		goto exit;
 	}
 
+	if (!(test_bit(WCD_MBHC_ELEC_HS_REM, &mbhc->intr_status))) {
+		pr_debug("%s: plug removal already reported.\n", __func__);
+		goto exit;
+	}
+
 	if (mbhc->mbhc_cfg->moisture_en ||
 	    mbhc->mbhc_cfg->moisture_duty_cycle_en) {
 		if (mbhc->mbhc_cb->hph_pa_on_status)
