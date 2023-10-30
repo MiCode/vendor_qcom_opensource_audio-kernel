@@ -52,3 +52,4 @@
 | marble-s-oss | Redmi Note 12 Turbo | Android S | LA.VENDOR.1.0.r1-19000-r2.0.r1_00029.0 |[marble-s-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/marble-s-oss) |
 | fuxi-t-oss | Xiaomi 13 | Android T | LA.VENDOR.13.2.0.r1-07300-KAILUA.0 |[fuxi-t-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/fuxi-t-oss) |
 | topaz-t-oss | Redmi Note 12 | Android T | AU_LINUX_ANDROID_LA.VENDOR.13.2.1.R1.11.00.00.1008.048 |[topaz-t-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/topaz-t-oss) |
+| garnet-t-oss | Redmi Note 13 Pro | Android T | KERNEL.PLATFORM.1.0.r1-15100-kernel.0-1* |[garnet-t-oss](https://github.com/MiCode/vendor_qcom_opensource_audio-kernel/tree/garnet-t-oss) |
