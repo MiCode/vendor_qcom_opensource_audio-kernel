@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _LPASS_CDC_INTERNAL_H
@@ -50,6 +51,7 @@ struct lpass_cdc_priv {
 	struct device *dev;
 	struct snd_soc_component *component;
 	struct regmap *regmap;
+	struct mutex macro_lock;
 	struct mutex io_lock;
 	struct mutex clk_lock;
 	struct mutex vote_lock;

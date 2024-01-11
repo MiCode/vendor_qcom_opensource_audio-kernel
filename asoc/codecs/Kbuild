@@ -65,12 +65,16 @@ ifeq ($(KERNEL_BUILD), 0)
 		include $(AUDIO_ROOT)/config/kalamaauto.conf
 		INCS    +=  -include $(AUDIO_ROOT)/config/kalamaautoconf.h
 	endif
+	ifeq ($(CONFIG_ARCH_CROW), y)
+		include $(AUDIO_ROOT)/config/kalamaauto.conf
+		INCS    +=  -include $(AUDIO_ROOT)/config/kalamaautoconf.h
+	endif
 	ifeq ($(CONFIG_ARCH_LITO), y)
 		include $(AUDIO_ROOT)/config/litoauto.conf
 		export
 		INCS    +=  -include $(AUDIO_ROOT)/config/litoautoconf.h
 	endif
-	ifeq ($(CONFIG_ARCH_BENGAL), y)
+	ifeq ($(CONFIG_ARCH_KHAJE), y)
 		include $(AUDIO_ROOT)/config/bengalauto.conf
 		export
 		INCS    +=  -include $(AUDIO_ROOT)/config/bengalautoconf.h
@@ -94,6 +98,11 @@ ifeq ($(KERNEL_BUILD), 0)
 		include $(AUDIO_ROOT)/config/sdxlemurauto.conf
 		export
 		INCS    +=  -include $(AUDIO_ROOT)/config/sdxlemurautoconf.h
+	endif
+	ifeq ($(CONFIG_ARCH_SDXPINN), y)
+		include $(AUDIO_ROOT)/config/sdxpinnauto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdxpinnautoconf.h
 	endif
 endif
 endif
@@ -128,7 +137,6 @@ ifdef CONFIG_WCD9XXX_CODEC_CORE
 	CORE_OBJS += wcd9xxx-core-init.o
 	CORE_OBJS += wcd9xxx-core.o
 	CORE_OBJS += wcd9xxx-irq.o
-	CORE_OBJS += wcd9xxx-slimslave.o
 	CORE_OBJS += wcd9xxx-utils.o
 	CORE_OBJS += wcd9335-regmap.o
 	CORE_OBJS += wcd9335-tables.o
@@ -136,6 +144,9 @@ ifdef CONFIG_WCD9XXX_CODEC_CORE
 	CORE_OBJS += msm-cdc-supply.o
 	CORE_OBJS += wcd934x/wcd934x-regmap.o
 	CORE_OBJS += wcd934x/wcd934x-tables.o
+ifndef CONFIG_SND_SOC_SDX
+	CORE_OBJS += wcd9xxx-slimslave.o
+endif
 endif
 
 ifdef CONFIG_WCD9XXX_CODEC_CORE_V2
@@ -148,8 +159,10 @@ ifdef CONFIG_SND_SOC_WCD9XXX_V2
 ifdef CONFIG_WCD9XXX_CODEC_CORE
 	WCD9XXX_OBJS += wcd9xxx-common-v2.o
 	WCD9XXX_OBJS += wcd9xxx-resmgr-v2.o
+ifndef CONFIG_SND_SOC_SDX
 	WCD9XXX_OBJS += wcd-dsp-utils.o
 	WCD9XXX_OBJS += wcd-dsp-mgr.o
+endif
 else
 	WCD9XXX_OBJS += wcd-clsh.o
 endif
@@ -258,7 +271,11 @@ ifeq ($(KERNEL_BUILD), 1)
 	obj-y	+= bolero/
 	obj-y	+= lpass-cdc/
 	obj-y	+= wsa884x/
+	obj-y	+= wsa883x/
 	obj-y	+= rouleur/
+	obj-y	+= cs35l41/
+	obj-y	+= cs35l43/
+	obj-y	+= aw882xx/
 endif
 # Module information used by KBuild framework
 obj-$(CONFIG_WCD9XXX_CODEC_CORE) += wcd_core_dlkm.o

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -44,9 +44,11 @@
 #define LPASS_CDC_TX_MACRO_ADC_MODE_CFG0_SHIFT 1
 
 #define LPASS_CDC_TX_MACRO_DMIC_UNMUTE_DELAY_MS	40
-#define LPASS_CDC_TX_MACRO_AMIC_UNMUTE_DELAY_MS	100
+#define LPASS_CDC_TX_MACRO_AMIC_UNMUTE_DELAY_MS	130
 #define LPASS_CDC_TX_MACRO_DMIC_HPF_DELAY_MS	300
 #define LPASS_CDC_TX_MACRO_AMIC_HPF_DELAY_MS	300
+
+struct lpass_cdc_tx_macro_priv *g_lpass_cdc_tx_priv;
 
 static int tx_unmute_delay = LPASS_CDC_TX_MACRO_DMIC_UNMUTE_DELAY_MS;
 module_param(tx_unmute_delay, int, 0664);
@@ -129,10 +131,13 @@ struct lpass_cdc_tx_macro_priv {
 	int tx_mclk_users;
 	bool dapm_mclk_enable;
 	struct mutex mclk_lock;
+	struct mutex wlock;
 	struct snd_soc_component *component;
 	struct hpf_work tx_hpf_work[NUM_DECIMATORS];
 	struct tx_mute_work tx_mute_dwork[NUM_DECIMATORS];
+	struct delayed_work tx_hs_unmute_dwork;
 	u16 dmic_clk_div;
+	u16 reg_before_mute;
 	u32 version;
 	unsigned long active_ch_mask[LPASS_CDC_TX_MACRO_MAX_DAIS];
 	unsigned long active_ch_cnt[LPASS_CDC_TX_MACRO_MAX_DAIS];
@@ -147,7 +152,31 @@ struct lpass_cdc_tx_macro_priv {
 	bool hs_slow_insert_complete;
 	int pcm_rate[NUM_DECIMATORS];
 	bool swr_dmic_enable;
+	int wlock_holders;
 };
+
+static int lpass_cdc_tx_macro_wake_enable(struct lpass_cdc_tx_macro_priv *tx_priv,
+					bool wake_enable)
+{
+	int ret = 0;
+
+	mutex_lock(&tx_priv->wlock);
+	if (wake_enable) {
+		if (tx_priv->wlock_holders++ == 0) {
+			dev_dbg(tx_priv->dev, "%s: pm wake\n", __func__);
+			pm_stay_awake(tx_priv->dev);
+		}
+	} else {
+		if (--tx_priv->wlock_holders == 0) {
+			dev_dbg(tx_priv->dev, "%s: pm release\n", __func__);
+			pm_relax(tx_priv->dev);
+		}
+		if (tx_priv->wlock_holders < 0)
+			tx_priv->wlock_holders = 0;
+	}
+	mutex_unlock(&tx_priv->wlock);
+	return ret;
+}
 
 static bool lpass_cdc_tx_macro_get_data(struct snd_soc_component *component,
 			      struct device **tx_dev,
@@ -305,7 +334,7 @@ static int lpass_cdc_tx_macro_event_handler(struct snd_soc_component *component,
 
 	switch (event) {
 	case LPASS_CDC_MACRO_EVT_SSR_DOWN:
-		trace_printk("%s, enter SSR down\n", __func__);
+		TRACE_PRINTK("%s, enter SSR down\n", __func__);
 		if ((!pm_runtime_enabled(tx_dev) ||
 		     !pm_runtime_suspended(tx_dev))) {
 			ret = lpass_cdc_runtime_suspend(tx_dev);
@@ -317,7 +346,7 @@ static int lpass_cdc_tx_macro_event_handler(struct snd_soc_component *component,
 		}
 		break;
 	case LPASS_CDC_MACRO_EVT_SSR_UP:
-		trace_printk("%s, enter SSR up\n", __func__);
+		TRACE_PRINTK("%s, enter SSR up\n", __func__);
 		break;
 	case LPASS_CDC_MACRO_EVT_CLK_RESET:
 		lpass_cdc_rsc_clk_reset(tx_dev, TX_CORE_CLK);
@@ -431,6 +460,7 @@ static void lpass_cdc_tx_macro_tx_hpf_corner_freq_callback(struct work_struct *w
 		snd_soc_component_update_bits(component, hpf_gate_reg,
 						0x02, 0x00);
 	}
+	lpass_cdc_tx_macro_wake_enable(tx_priv, 0);
 }
 
 static void lpass_cdc_tx_macro_mute_update_callback(struct work_struct *work)
@@ -454,6 +484,7 @@ static void lpass_cdc_tx_macro_mute_update_callback(struct work_struct *work)
 	snd_soc_component_update_bits(component, tx_vol_ctl_reg, 0x10, 0x00);
 	dev_dbg(tx_priv->dev, "%s: decimator %u unmute\n",
 		__func__, decimator);
+	lpass_cdc_tx_macro_wake_enable(tx_priv, 0);
 }
 
 static int lpass_cdc_tx_macro_put_dec_enum(struct snd_kcontrol *kcontrol,
@@ -585,11 +616,21 @@ static int lpass_cdc_tx_macro_tx_mixer_put(struct snd_kcontrol *kcontrol,
 		return -EINVAL;
 
 	if (enable) {
-		set_bit(dec_id, &tx_priv->active_ch_mask[dai_id]);
-		tx_priv->active_ch_cnt[dai_id]++;
+		if (test_bit(dec_id, &tx_priv->active_ch_mask[dai_id])) {
+			dev_err(component->dev, "%s: channel is already enabled, dec_id = %d, dai_id = %d\n",
+					__func__, dec_id, dai_id);
+		} else {
+			set_bit(dec_id, &tx_priv->active_ch_mask[dai_id]);
+			tx_priv->active_ch_cnt[dai_id]++;
+		}
 	} else {
-		tx_priv->active_ch_cnt[dai_id]--;
-		clear_bit(dec_id, &tx_priv->active_ch_mask[dai_id]);
+		if (!test_bit(dec_id, &tx_priv->active_ch_mask[dai_id])) {
+			dev_err(component->dev, "%s: channel is already disabled, dec_id = %d, dai_id = %d\n",
+					__func__, dec_id, dai_id);
+		} else {
+			tx_priv->active_ch_cnt[dai_id]--;
+			clear_bit(dec_id, &tx_priv->active_ch_mask[dai_id]);
+		}
 	}
 	snd_soc_dapm_mixer_update_power(widget->dapm, kcontrol, enable, update);
 
@@ -634,6 +675,47 @@ err:
 	kfree(w_name);
 	return ret;
 }
+
+static void tx_macro_hs_unmute_dwork(struct work_struct *work)
+{
+	struct snd_soc_component *component = NULL;
+	struct lpass_cdc_tx_macro_priv *lpass_cdc_tx_priv = NULL;
+	struct delayed_work *delayed_work = NULL;
+	u16 reg_val = 0;
+
+	delayed_work = to_delayed_work(work);
+	lpass_cdc_tx_priv = container_of(delayed_work, struct lpass_cdc_tx_macro_priv,
+        		tx_hs_unmute_dwork);
+	component = lpass_cdc_tx_priv->component;
+	snd_soc_component_update_bits(component, LPASS_CDC_TX0_TX_VOL_CTL,
+			0xff, lpass_cdc_tx_priv->reg_before_mute);
+	reg_val = snd_soc_component_read(component, LPASS_CDC_TX0_TX_VOL_CTL);
+	dev_info(lpass_cdc_tx_priv->dev, "%s: the reg value after unmute is: %#x \n",
+			__func__, reg_val);
+}
+
+void lpass_cdc_tx_macro_mute_hs(void)
+{
+	struct snd_soc_component *component = NULL;
+	u16 reg_val = 0;
+	int tx_unmute_delay = 1200;
+	if (!g_lpass_cdc_tx_priv)
+		return;
+
+	component = g_lpass_cdc_tx_priv->component;
+	g_lpass_cdc_tx_priv->reg_before_mute = snd_soc_component_read(component,
+			LPASS_CDC_TX0_TX_VOL_CTL);
+	dev_info(component->dev, "%s: the reg value before mute is: %#x \n",
+			__func__, g_lpass_cdc_tx_priv->reg_before_mute);
+	snd_soc_component_update_bits(component, LPASS_CDC_TX0_TX_VOL_CTL, 0xff, 0xac);
+	reg_val = snd_soc_component_read(component, LPASS_CDC_TX0_TX_VOL_CTL);
+	dev_info(component->dev, "%s: the reg value after mute is: %#x \n",
+			__func__, reg_val);
+	schedule_delayed_work(&g_lpass_cdc_tx_priv->tx_hs_unmute_dwork,
+			msecs_to_jiffies(tx_unmute_delay));
+	return;
+}
+EXPORT_SYMBOL(lpass_cdc_tx_macro_mute_hs);
 
 static int lpass_cdc_tx_macro_dec_mode_get(struct snd_kcontrol *kcontrol,
 				 struct snd_ctl_elem_value *ucontrol)
@@ -941,12 +1023,14 @@ static int lpass_cdc_tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 		}
 		if (tx_unmute_delay < unmute_delay)
 			tx_unmute_delay = unmute_delay;
+		lpass_cdc_tx_macro_wake_enable(tx_priv, 1);
 		/* schedule work queue to Remove Mute */
 		queue_delayed_work(system_freezable_wq,
 				   &tx_priv->tx_mute_dwork[decimator].dwork,
 				   msecs_to_jiffies(tx_unmute_delay));
 		if (tx_priv->tx_hpf_work[decimator].hpf_cut_off_freq !=
 							CF_MIN_3DB_150HZ) {
+			lpass_cdc_tx_macro_wake_enable(tx_priv, 1);
 			queue_delayed_work(system_freezable_wq,
 				&tx_priv->tx_hpf_work[decimator].dwork,
 				msecs_to_jiffies(hpf_delay));
@@ -1011,8 +1095,10 @@ static int lpass_cdc_tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 						0x03, 0x01);
 			}
 		}
+		lpass_cdc_tx_macro_wake_enable(tx_priv, 0);
 		cancel_delayed_work_sync(
 				&tx_priv->tx_mute_dwork[decimator].dwork);
+		lpass_cdc_tx_macro_wake_enable(tx_priv, 0);
 
 		if (snd_soc_component_read(component, adc_mux_reg)
 						& SWR_MIC)
@@ -1023,10 +1109,16 @@ static int lpass_cdc_tx_macro_enable_dec(struct snd_soc_dapm_widget *w,
 	case SND_SOC_DAPM_POST_PMD:
 		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
 						0x20, 0x00);
+		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
+						0x40, 0x40);
+		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
+						0x40, 0x00);
 		snd_soc_component_update_bits(component,
 			dec_cfg_reg, 0x06, 0x00);
 		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
 						0x10, 0x00);
+		snd_soc_component_update_bits(component, tx_vol_ctl_reg,
+						0x0F, 0x04);
 		if (tx_priv->bcs_enable) {
 			snd_soc_component_update_bits(component, dec_cfg_reg,
 					0x01, 0x00);
@@ -1963,6 +2055,7 @@ static int lpass_cdc_tx_macro_init(struct snd_soc_component *component)
 		INIT_DELAYED_WORK(&tx_priv->tx_mute_dwork[i].dwork,
 			  lpass_cdc_tx_macro_mute_update_callback);
 	}
+	INIT_DELAYED_WORK(&tx_priv->tx_hs_unmute_dwork, tx_macro_hs_unmute_dwork);
 	tx_priv->component = component;
 
 	for (i = 0; i < ARRAY_SIZE(lpass_cdc_tx_macro_reg_init); i++)
@@ -2021,6 +2114,7 @@ static int lpass_cdc_tx_macro_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	platform_set_drvdata(pdev, tx_priv);
 
+	g_lpass_cdc_tx_priv = tx_priv;
 	tx_priv->dev = &pdev->dev;
 	ret = of_property_read_u32(pdev->dev.of_node, "reg",
 				   &tx_base_addr);
@@ -2039,6 +2133,7 @@ static int lpass_cdc_tx_macro_probe(struct platform_device *pdev)
 	}
 	tx_priv->tx_io_base = tx_io_base;
 	tx_priv->swr_dmic_enable = false;
+	tx_priv->wlock_holders = 0;
 	ret = of_property_read_u32(pdev->dev.of_node, dmic_sample_rate,
 				   &sample_rate);
 	if (ret) {
@@ -2053,6 +2148,7 @@ static int lpass_cdc_tx_macro_probe(struct platform_device *pdev)
 	}
 
 	mutex_init(&tx_priv->mclk_lock);
+	mutex_init(&tx_priv->wlock);
 	lpass_cdc_tx_macro_init_ops(&ops, tx_io_base);
 	ops.clk_id_req = TX_CORE_CLK;
 	ops.default_clk_id = TX_CORE_CLK;
@@ -2071,6 +2167,7 @@ static int lpass_cdc_tx_macro_probe(struct platform_device *pdev)
 	return 0;
 err_reg_macro:
 	mutex_destroy(&tx_priv->mclk_lock);
+	mutex_destroy(&tx_priv->wlock);
 	return ret;
 }
 
@@ -2086,6 +2183,7 @@ static int lpass_cdc_tx_macro_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_set_suspended(&pdev->dev);
 	mutex_destroy(&tx_priv->mclk_lock);
+	mutex_destroy(&tx_priv->wlock);
 	lpass_cdc_unregister_macro(&pdev->dev, TX_MACRO);
 	return 0;
 }

@@ -7,6 +7,7 @@
 
 #include <sound/soc.h>
 #include <linux/regmap.h>
+#include <dsp/digital-cdc-rsc-mgr.h>
 
 #define BOLERO_VERSION_1_0 0x0001
 #define BOLERO_VERSION_1_1 0x0002

@@ -1,4 +1,5 @@
 /* Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License version 2 and
@@ -62,6 +63,7 @@ do {									      \
 #define MINOR_NUMBER_COUNT 1
 #define AUDPKT_DRIVER_NAME "aud_pasthru_adsp"
 #define CHANNEL_NAME "adsp_apps"
+#define MAX_PACKET_SIZE 4096
 
 
 enum audio_pkt_state {
@@ -334,11 +336,18 @@ int audpkt_chk_and_update_physical_addr(struct audio_gpr_pkt *gpr_pkt)
 ssize_t audio_pkt_write(struct file *file, const char __user *buf,
 			size_t count, loff_t *ppos)
 {
-	struct audio_pkt_priv *ap_priv = file->private_data;
-	struct audio_pkt_device *audpkt_dev = ap_priv->ap_dev;
+	struct audio_pkt_priv *ap_priv = NULL;
+	struct audio_pkt_device *audpkt_dev = NULL;
 	struct gpr_hdr *audpkt_hdr = NULL;
 	void *kbuf;
 	int ret;
+
+	if (file == NULL || file->private_data == NULL || buf == NULL) {
+		AUDIO_PKT_ERR("invalid parameters\n");
+		return -EINVAL;
+	}
+	ap_priv = file->private_data;
+	audpkt_dev = ap_priv->ap_dev;
 
 	if (!audpkt_dev)  {
 		AUDIO_PKT_ERR("invalid device handle\n");
@@ -353,17 +362,34 @@ ssize_t audio_pkt_write(struct file *file, const char __user *buf,
 		return -ENETRESET;
 	}
 	mutex_unlock(&ap_priv->lock);
+	if (count < sizeof(struct gpr_hdr)) {
+		AUDIO_PKT_ERR("Invalid count %zu\n", count);
+		return  -EINVAL;
+	}
 
 	kbuf = memdup_user(buf, count);
 	if (IS_ERR(kbuf))
 		return PTR_ERR(kbuf);
 
 	audpkt_hdr = (struct gpr_hdr *) kbuf;
+
+	/* validate packet size */
+	if ((count > MAX_PACKET_SIZE) || (count < GPR_PKT_GET_PACKET_BYTE_SIZE(audpkt_hdr->header)))
+	{
+		ret = -EINVAL;
+		goto free_kbuf;
+	}
+
 	if (audpkt_hdr->opcode == APM_CMD_SHARED_MEM_MAP_REGIONS) {
+		if (count < sizeof(struct audio_gpr_pkt)) {
+			AUDIO_PKT_ERR("Invalid count %zu\n", count);
+			ret = -EINVAL;
+			goto free_kbuf;
+		}
 		ret = audpkt_chk_and_update_physical_addr((struct audio_gpr_pkt *) audpkt_hdr);
 		if (ret < 0) {
 			AUDIO_PKT_ERR("Update Physical Address Failed -%d\n", ret);
-		        return ret;
+			goto free_kbuf;
 		}
 	}
 
@@ -371,11 +397,17 @@ ssize_t audio_pkt_write(struct file *file, const char __user *buf,
 		ret = -ERESTARTSYS;
 		goto free_kbuf;
 	}
+	if (count < sizeof(struct gpr_pkt )) {
+		AUDIO_PKT_ERR("Invalid count %zu\n", count);
+		ret = -EINVAL;
+		mutex_unlock(&audpkt_dev->lock);
+		goto free_kbuf;
+	}
 	ret = gpr_send_pkt(ap_priv->adev,(struct gpr_pkt *) kbuf);
 	if (ret < 0) {
 		AUDIO_PKT_ERR("APR Send Packet Failed ret -%d\n", ret);
-		mutex_unlock(&audpkt_dev->lock);
-		return ret;
+		if (ret == -ECONNRESET)
+			ret = -ENETRESET;
 	}
 	mutex_unlock(&audpkt_dev->lock);
 

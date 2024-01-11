@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  */
+#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -660,6 +661,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	int pt_gnd_mic_swap_cnt = 0;
 	int no_gnd_mic_swap_cnt = 0;
 	bool is_pa_on = false, spl_hs = false, spl_hs_reported = false;
+	bool swap_gnd_and_mic = true;
 	int ret = 0;
 	int spl_hs_count = 0;
 	int output_mv = 0;
@@ -669,6 +671,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 
 	pr_debug("%s: enter\n", __func__);
 
+try_again:
 	mbhc = container_of(work, struct wcd_mbhc, correct_plug_swch);
 	component = mbhc->component;
 
@@ -687,6 +690,14 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	} while (try < mbhc->swap_thr);
 
 	if (cross_conn > 0) {
+		if (swap_gnd_and_mic && mbhc->mbhc_cfg->swap_gnd_mic) {
+			mbhc->mbhc_cfg->swap_gnd_mic(component, swap_gnd_and_mic);
+			swap_gnd_and_mic = false;
+			try = 0;
+			msleep(10);
+			pr_info("%s: swap gnd and mic, and try again", __func__);
+			goto try_again;
+		}
 		plug_type = MBHC_PLUG_TYPE_GND_MIC_SWAP;
 		pr_debug("%s: cross connection found, Plug type %d\n",
 			 __func__, plug_type);
@@ -745,6 +756,12 @@ correct_plug_type:
 		}
 
 		msleep(180);
+		/* In the case of system bootup with headset pluged, mbhc
+		 * begin to detect without sound card registered. delay
+		 * about 150ms to wait sound card registe.
+		 */
+		if ((mbhc->mbhc_cfg->swap_gnd_mic == NULL) && (mbhc->mbhc_cfg->enable_usbc_analog))
+			msleep(200);
 		/*
 		 * Use ADC single mode to minimize the chance of missing out
 		 * btn press/release for HEADSET type during correct work.
@@ -924,6 +941,9 @@ enable_supply:
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_DETECTION_DONE, 1);
 	else
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_DETECTION_DONE, 0);
+
+	if (plug_type == MBHC_PLUG_TYPE_HEADSET)
+		mbhc->micbias_enable = true;
 
 	if (mbhc->mbhc_cb->bcs_enable)
 		mbhc->mbhc_cb->bcs_enable(mbhc, true);

@@ -6,8 +6,10 @@
 #define WCD934X_H
 
 #include <dsp/apr_audio-v2.h>
+#ifndef CONFIG_WCD934X_I2S
 #include "wcd934x-dsp-cntl.h"
 #include <asoc/wcd9xxx-slimslave.h>
+#endif
 #include <asoc/wcd9xxx-common-v2.h>
 #include <asoc/wcd-mbhc-v2.h>
 

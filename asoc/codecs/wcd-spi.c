@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/init.h>
@@ -15,7 +16,9 @@
 #include <linux/component.h>
 #include <linux/ratelimit.h>
 #include <linux/platform_device.h>
+#ifndef CONFIG_WCD934X_I2S
 #include <sound/wcd-dsp-mgr.h>
+#endif
 #include <sound/wcd-spi.h>
 #include <soc/wcd-spi-ac.h>
 #include "wcd-spi-registers.h"

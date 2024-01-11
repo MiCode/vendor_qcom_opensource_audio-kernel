@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2014, 2017 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 #ifndef _MSM_SLIMBUS_DMA_H
 #define _MSM_SLIMBUS_DMA_H
 
-#include <linux/slimbus/slimbus.h>
+#include <linux/slimbus.h>
 
 /*
  * struct msm_slim_dma_data - DMA data for slimbus data transfer

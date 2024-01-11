@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -253,8 +254,8 @@ void tavil_dsd_set_interp_rate(struct tavil_dsd_config *dsd_conf, u16 rx_port,
 
 	dsd_inp_sel = DSD_INP_SEL_RX0 + rx_port - WCD934X_RX_PORT_START_NUMBER;
 
-	val0 = snd_soc_component_read32(component, WCD934X_CDC_DSD0_CFG0);
-	val1 = snd_soc_component_read32(component, WCD934X_CDC_DSD1_CFG0);
+	val0 = snd_soc_component_read(component, WCD934X_CDC_DSD0_CFG0);
+	val1 = snd_soc_component_read(component, WCD934X_CDC_DSD1_CFG0);
 	dsd0_inp = (val0 & 0x3C) >> 2;
 	dsd1_inp = (val1 & 0x3C) >> 2;
 	dsd0_out_sel = (val0 & 0x02) >> 1;
@@ -274,7 +275,7 @@ void tavil_dsd_set_interp_rate(struct tavil_dsd_config *dsd_conf, u16 rx_port,
 
 	if (interp_num) {
 		int_fs_reg = WCD934X_CDC_RX0_RX_PATH_CTL + 20 * interp_num;
-		if ((snd_soc_component_read32(component, int_fs_reg) & 0x0f) <
+		if ((snd_soc_component_read(component, int_fs_reg) & 0x0f) <
 		     0x09) {
 			dev_dbg(component->dev, "%s: Set Interp %d to sample_rate val 0x%x\n",
 				__func__, interp_num, sample_rate_val);
@@ -342,7 +343,7 @@ static void tavil_dsd_data_pull(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component,
 				WCD934X_CDC_RX7_RX_PATH_MIX_CTL,
 				0x20, clk_en);
-		dsd_inp_sel = (snd_soc_component_read32(
+		dsd_inp_sel = (snd_soc_component_read(
 				component, WCD934X_CDC_DSD0_CFG0) &
 				0x3C) >> 2;
 		dsd_inp_sel = (enable) ? dsd_inp_sel : 0;
@@ -362,7 +363,7 @@ static void tavil_dsd_data_pull(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component,
 				WCD934X_CDC_RX8_RX_PATH_MIX_CTL,
 				0x20, clk_en);
-		dsd_inp_sel = (snd_soc_component_read32(
+		dsd_inp_sel = (snd_soc_component_read(
 				component, WCD934X_CDC_DSD1_CFG0) &
 				0x3C) >> 2;
 		dsd_inp_sel = (enable) ? dsd_inp_sel : 0;
@@ -411,14 +412,14 @@ static int tavil_enable_dsd(struct snd_soc_dapm_widget *w,
 
 	if (w->shift == DSD0) {
 		/* Read out select */
-		if (snd_soc_component_read32(
+		if (snd_soc_component_read(
 			component, WCD934X_CDC_DSD0_CFG0) & 0x02)
 			interp_idx = INTERP_LO1;
 		else
 			interp_idx = INTERP_HPHL;
 	} else if (w->shift == DSD1) {
 		/* Read out select */
-		if (snd_soc_component_read32(
+		if (snd_soc_component_read(
 			component, WCD934X_CDC_DSD1_CFG0) & 0x02)
 			interp_idx = INTERP_LO2;
 		else
@@ -515,9 +516,9 @@ static int tavil_enable_dsd(struct snd_soc_dapm_widget *w,
 
 		tavil_codec_enable_interp_clk(component, event, interp_idx);
 
-		if (!(snd_soc_component_read32(
+		if (!(snd_soc_component_read(
 			component, WCD934X_CDC_DSD0_PATH_CTL) & 0x01) &&
-		    !(snd_soc_component_read32(
+		    !(snd_soc_component_read(
 			component, WCD934X_CDC_DSD1_PATH_CTL) & 0x01)) {
 			snd_soc_component_update_bits(component,
 					WCD934X_CDC_CLK_RST_CTRL_DSD_CONTROL,
@@ -733,7 +734,7 @@ struct tavil_dsd_config *tavil_dsd_init(struct snd_soc_component *component)
 	dapm = snd_soc_component_get_dapm(component);
 
 	/* Read efuse register to check if DSD is supported */
-	val = snd_soc_component_read32(component,
+	val = snd_soc_component_read(component,
 				WCD934X_CHIP_TIER_CTRL_EFUSE_VAL_OUT14);
 	if (val & 0x80) {
 		dev_info(component->dev, "%s: DSD unsupported for this codec version\n",
@@ -749,7 +750,7 @@ struct tavil_dsd_config *tavil_dsd_init(struct snd_soc_component *component)
 	dsd_conf->component = component;
 
 	/* Read version */
-	dsd_conf->version = snd_soc_component_read32(component,
+	dsd_conf->version = snd_soc_component_read(component,
 					 WCD934X_CHIP_TIER_CTRL_CHIP_ID_BYTE0);
 	/* DSD registers init */
 	if (dsd_conf->version == TAVIL_VERSION_1_0) {

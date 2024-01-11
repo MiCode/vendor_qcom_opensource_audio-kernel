@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __WCD934X_DSP_CNTL_H__
@@ -8,7 +9,6 @@
 
 #include <linux/miscdevice.h>
 #include <sound/soc.h>
-#include <sound/wcd-dsp-mgr.h>
 
 enum cdc_ssr_event {
 	WCD_CDC_DOWN_EVENT,
@@ -109,9 +109,26 @@ struct wcd_dsp_cntl {
 #endif
 };
 
+#ifndef CONFIG_WCD934X_I2S
 void wcd_dsp_cntl_init(struct snd_soc_component *component,
 		       struct wcd_dsp_params *params,
 		       struct wcd_dsp_cntl **cntl);
 void wcd_dsp_cntl_deinit(struct wcd_dsp_cntl **cntl);
 int wcd_dsp_ssr_event(struct wcd_dsp_cntl *cntl, enum cdc_ssr_event event);
+#else
+static void wcd_dsp_cntl_init(struct snd_soc_component *component,
+		       struct wcd_dsp_params *params,
+		       struct wcd_dsp_cntl **cntl){
+	return;
+}
+
+static void wcd_dsp_cntl_deinit(struct wcd_dsp_cntl **cntl) {
+	return;
+}
+
+int wcd_dsp_ssr_event(struct wcd_dsp_cntl *cntl, enum cdc_ssr_event event) {
+	return 0;
+}
+#endif
+
 #endif /* end __WCD_DSP_CONTROL_H__ */

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/module.h>
@@ -793,7 +794,7 @@ static int wsa881x_get_boost_level(struct snd_kcontrol *kcontrol,
 			snd_soc_kcontrol_component(kcontrol);
 	u8 wsa_boost_level = 0;
 
-	wsa_boost_level = snd_soc_component_read32(component,
+	wsa_boost_level = snd_soc_component_read(component,
 				WSA881X_BOOST_PRESET_OUT1);
 	ucontrol->value.integer.value[0] = wsa_boost_level;
 	dev_dbg(component->dev, "%s: boost level = 0x%x\n", __func__,
@@ -1146,7 +1147,7 @@ static void wsa881x_init(struct snd_soc_component *component)
 	struct wsa881x_priv *wsa881x = snd_soc_component_get_drvdata(component);
 
 	wsa881x->version =
-			snd_soc_component_read32(component, WSA881X_CHIP_ID1);
+			snd_soc_component_read(component, WSA881X_CHIP_ID1);
 	wsa881x_regmap_defaults(wsa881x->regmap, wsa881x->version);
 	/* Enable software reset output from soundwire slave */
 	snd_soc_component_update_bits(component, WSA881X_SWR_RESET_EN,
@@ -1186,7 +1187,7 @@ static void wsa881x_init(struct snd_soc_component *component)
 	snd_soc_component_update_bits(component,
 			WSA881X_BOOST_SLOPE_COMP_ISENSE_FB,
 			0x03, 0x00);
-	if (snd_soc_component_read32(component, WSA881X_OTP_REG_0))
+	if (snd_soc_component_read(component, WSA881X_OTP_REG_0))
 		snd_soc_component_update_bits(component,
 				WSA881X_BOOST_PRESET_OUT1,
 				0xF0, 0x70);
@@ -1248,19 +1249,19 @@ static int32_t wsa881x_temp_reg_read(struct snd_soc_component *component,
 
 	snd_soc_component_update_bits(component, WSA881X_TADC_VALUE_CTL,
 				0x01, 0x00);
-	wsa_temp_reg->dmeas_msb = snd_soc_component_read32(
+	wsa_temp_reg->dmeas_msb = snd_soc_component_read(
 					component, WSA881X_TEMP_MSB);
-	wsa_temp_reg->dmeas_lsb = snd_soc_component_read32(
+	wsa_temp_reg->dmeas_lsb = snd_soc_component_read(
 					component, WSA881X_TEMP_LSB);
 	snd_soc_component_update_bits(component, WSA881X_TADC_VALUE_CTL,
 					0x01, 0x01);
-	wsa_temp_reg->d1_msb = snd_soc_component_read32(
+	wsa_temp_reg->d1_msb = snd_soc_component_read(
 					component, WSA881X_OTP_REG_1);
-	wsa_temp_reg->d1_lsb = snd_soc_component_read32(
+	wsa_temp_reg->d1_lsb = snd_soc_component_read(
 					component, WSA881X_OTP_REG_2);
-	wsa_temp_reg->d2_msb = snd_soc_component_read32(
+	wsa_temp_reg->d2_msb = snd_soc_component_read(
 					component, WSA881X_OTP_REG_3);
-	wsa_temp_reg->d2_lsb = snd_soc_component_read32(
+	wsa_temp_reg->d2_lsb = snd_soc_component_read(
 					component, WSA881X_OTP_REG_4);
 
 	wsa881x_resource_acquire(component, DISABLE);
@@ -1396,7 +1397,7 @@ static int wsa881x_event_notify(struct notifier_block *nb,
 		break;
 	case BOLERO_SLV_EVT_PA_ON_POST_FSCLK:
 	case BOLERO_SLV_EVT_PA_ON_POST_FSCLK_ADIE_LB:
-		if ((snd_soc_component_read32(wsa881x->component,
+		if ((snd_soc_component_read(wsa881x->component,
 				WSA881X_SPKR_DAC_CTL) & 0x80) == 0x80)
 			snd_soc_component_update_bits(wsa881x->component,
 					      WSA881X_SPKR_DRV_EN,

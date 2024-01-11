@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/slab.h>
@@ -8,7 +9,6 @@
 #include <linux/component.h>
 #include <linux/debugfs.h>
 #include <sound/soc.h>
-#include <sound/wcd-dsp-mgr.h>
 #include <asoc/wcd934x_registers.h>
 #include "wcd934x.h"
 #include "wcd934x-dsp-cntl.h"
@@ -128,7 +128,7 @@ static void wcd_cntl_collect_debug_dumps(struct wcd_dsp_cntl *cntl,
 	/* Collect important WDSP registers dump for debug use */
 	pr_err("%s: Dump the WDSP registers for debug use\n", __func__);
 	for (i = 0; i < sizeof(wdsp_reg_for_debug_dump)/sizeof(u16); i++) {
-		val = snd_soc_component_read32(component,
+		val = snd_soc_component_read(component,
 				wdsp_reg_for_debug_dump[i]);
 		pr_err("%s: reg = 0x%x, val = 0x%x\n", __func__,
 		       wdsp_reg_for_debug_dump[i], val);
@@ -382,7 +382,7 @@ static int wcd_cntl_cpe_fll_calibrate(struct wcd_dsp_cntl *cntl)
 	do {
 		/* Time for FLL calibration to complete */
 		usleep_range(1000, 1100);
-		lock_det = snd_soc_component_read32(
+		lock_det = snd_soc_component_read(
 				component, WCD934X_CPE_FLL_STATUS_3);
 		retry++;
 	} while (!(lock_det & 0x01) &&
@@ -623,7 +623,7 @@ static int wcd_cntl_enable_memory(struct wcd_dsp_cntl *cntl,
 			loop_cnt++;
 			/* Time to enable the power domain for memory */
 			usleep_range(100, 150);
-			status = snd_soc_component_read32(component,
+			status = snd_soc_component_read(component,
 					WCD934X_CPE_SS_SOC_SW_COLLAPSE_CTL);
 		} while ((status & 0x02) != 0x02 &&
 			  loop_cnt != WCD_MEM_ENABLE_MAX_RETRIES);
@@ -696,7 +696,7 @@ static void wcd_cntl_disable_memory(struct wcd_dsp_cntl *cntl,
 		snd_soc_component_update_bits(component,
 				WCD934X_CPE_SS_SOC_SW_COLLAPSE_CTL,
 				0x01, 0x00);
-		val = snd_soc_component_read32(component,
+		val = snd_soc_component_read(component,
 				WCD934X_CPE_SS_SOC_SW_COLLAPSE_CTL);
 		if (val & 0x02)
 			dev_err(component->dev,
@@ -847,11 +847,11 @@ static irqreturn_t wcd_cntl_err_irq(int irq, void *data)
 	u8 reg_val;
 	int rc, ret = 0;
 
-	reg_val = snd_soc_component_read32(component,
+	reg_val = snd_soc_component_read(component,
 				WCD934X_CPE_SS_SS_ERROR_INT_STATUS_0A);
 	status = status | reg_val;
 
-	reg_val = snd_soc_component_read32(component,
+	reg_val = snd_soc_component_read(component,
 				WCD934X_CPE_SS_SS_ERROR_INT_STATUS_0B);
 	status = status | (reg_val << 8);
 

@@ -41,6 +41,11 @@ ifeq ($(KERNEL_BUILD), 0)
 		export
 		INCS    +=  -include $(AUDIO_ROOT)/config/sdxlemurautoconf.h
 	endif
+	ifeq ($(CONFIG_ARCH_SDXPINN), y)
+		include $(AUDIO_ROOT)/config/sdxpinnauto.conf
+		export
+		INCS    +=  -include $(AUDIO_ROOT)/config/sdxpinnautoconf.h
+	endif
 endif
 
 # As per target team, build is done as follows:
@@ -72,9 +77,11 @@ COMMON_INC :=	-I$(AUDIO_ROOT)/$(COMMON_DIR)
 # for WCD934X Codec
 ifdef CONFIG_SND_SOC_WCD934X
 	WCD934X_OBJS += wcd934x.o
-	WCD934X_OBJS += wcd934x-dsp-cntl.o
 	WCD934X_OBJS += wcd934x-mbhc.o
 	WCD934X_OBJS += wcd934x-dsd.o
+ifndef CONFIG_SND_SOC_SDX
+	WCD934X_OBJS += wcd934x-dsp-cntl.o
+endif
 endif
 
 

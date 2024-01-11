@@ -423,7 +423,6 @@ static int lpass_cdc_rx_macro_hw_params(struct snd_pcm_substream *substream,
 static int lpass_cdc_rx_macro_get_channel_map(struct snd_soc_dai *dai,
 				unsigned int *tx_num, unsigned int *tx_slot,
 				unsigned int *rx_num, unsigned int *rx_slot);
-static int lpass_cdc_rx_macro_mute_stream(struct snd_soc_dai *dai, int mute, int stream);
 static int lpass_cdc_rx_macro_int_dem_inp_mux_put(struct snd_kcontrol *kcontrol,
 				     struct snd_ctl_elem_value *ucontrol);
 static int lpass_cdc_rx_macro_mux_get(struct snd_kcontrol *kcontrol,
@@ -503,6 +502,7 @@ struct lpass_cdc_rx_macro_priv {
 	bool is_fir_coeff_written[FIR_PATH_MAX][GRP_MAX];
 	bool is_fir_capable;
 	bool dev_up;
+	bool pre_dev_up;
 	bool hph_pwr_mode;
 	bool hph_hd2_mode;
 	struct mutex mclk_lock;
@@ -731,7 +731,6 @@ static const struct snd_kcontrol_new rx_mix_tx0_mux =
 static struct snd_soc_dai_ops lpass_cdc_rx_macro_dai_ops = {
 	.hw_params = lpass_cdc_rx_macro_hw_params,
 	.get_channel_map = lpass_cdc_rx_macro_get_channel_map,
-	.mute_stream = lpass_cdc_rx_macro_mute_stream,
 };
 
 static struct snd_soc_dai_driver lpass_cdc_rx_macro_dai[] = {
@@ -1279,60 +1278,6 @@ static int lpass_cdc_rx_macro_get_channel_map(struct snd_soc_dai *dai,
 	return 0;
 }
 
-static int lpass_cdc_rx_macro_mute_stream(struct snd_soc_dai *dai, int mute, int stream)
-{
-	struct snd_soc_component *component = dai->component;
-	struct device *rx_dev = NULL;
-	struct lpass_cdc_rx_macro_priv *rx_priv = NULL;
-	uint16_t j = 0, reg = 0, mix_reg = 0, dsm_reg = 0;
-	u16 int_mux_cfg0 = 0, int_mux_cfg1 = 0;
-	u8 int_mux_cfg0_val = 0, int_mux_cfg1_val = 0;
-
-	if (mute)
-		return 0;
-
-	if (!lpass_cdc_rx_macro_get_data(component, &rx_dev, &rx_priv, __func__))
-		return -EINVAL;
-
-	switch (dai->id) {
-	case RX_MACRO_AIF1_PB:
-	case RX_MACRO_AIF2_PB:
-	case RX_MACRO_AIF3_PB:
-	case RX_MACRO_AIF4_PB:
-	for (j = 0; j < INTERP_MAX; j++) {
-		reg = LPASS_CDC_RX_RX0_RX_PATH_CTL +
-				(j * LPASS_CDC_RX_MACRO_RX_PATH_OFFSET);
-		mix_reg = LPASS_CDC_RX_RX0_RX_PATH_MIX_CTL +
-				(j * LPASS_CDC_RX_MACRO_RX_PATH_OFFSET);
-		dsm_reg = LPASS_CDC_RX_RX0_RX_PATH_DSM_CTL +
-				(j * LPASS_CDC_RX_MACRO_RX_PATH_OFFSET);
-		if (j == INTERP_AUX)
-			dsm_reg = LPASS_CDC_RX_RX2_RX_PATH_DSM_CTL;
-		int_mux_cfg0 = LPASS_CDC_RX_INP_MUX_RX_INT0_CFG0 + j * 8;
-		int_mux_cfg1 = int_mux_cfg0 + 4;
-		int_mux_cfg0_val = snd_soc_component_read(component,
-							int_mux_cfg0);
-		int_mux_cfg1_val = snd_soc_component_read(component,
-							int_mux_cfg1);
-		if (snd_soc_component_read(component, dsm_reg) & 0x01) {
-			if (int_mux_cfg0_val || (int_mux_cfg1_val & 0xF0))
-				snd_soc_component_update_bits(component,
-							reg, 0x20, 0x20);
-			if (int_mux_cfg1_val & 0x0F) {
-				snd_soc_component_update_bits(component,
-							reg, 0x20, 0x20);
-				snd_soc_component_update_bits(component,
-							mix_reg, 0x20, 0x20);
-			}
-		}
-	}
-		break;
-	default:
-		break;
-	}
-	return 0;
-}
-
 static int lpass_cdc_rx_macro_mclk_enable(
 				struct lpass_cdc_rx_macro_priv *rx_priv,
 				bool mclk_enable, bool dapm)
@@ -1424,12 +1369,13 @@ static int lpass_cdc_rx_macro_mclk_enable(
 						 rx_priv->default_clk_id,
 						 rx_priv->clk_id,
 						 false);
-			lpass_cdc_rx_macro_core_vote(rx_priv, false);
+			if (!ret)
+				lpass_cdc_rx_macro_core_vote(rx_priv, false);
 			rx_priv->clk_id = rx_priv->default_clk_id;
 		}
 	}
 exit:
-	trace_printk("%s: mclk_enable = %u, dapm = %d clk_users= %d\n",
+	TRACE_PRINTK("%s: mclk_enable = %u, dapm = %d clk_users= %d\n",
 		__func__, mclk_enable, dapm, rx_priv->rx_mclk_users);
 	mutex_unlock(&rx_priv->mclk_lock);
 	return ret;
@@ -1516,7 +1462,8 @@ static int lpass_cdc_rx_macro_event_handler(struct snd_soc_component *component,
 		lpass_cdc_rx_macro_wcd_clsh_imped_config(component, data, false);
 		break;
 	case LPASS_CDC_MACRO_EVT_SSR_DOWN:
-		trace_printk("%s, enter SSR down\n", __func__);
+		TRACE_PRINTK("%s, enter SSR down\n", __func__);
+		rx_priv->pre_dev_up = false;
 		rx_priv->dev_up = false;
 		if (rx_priv->swr_ctrl_data) {
 			swrm_wcd_notify(
@@ -1534,6 +1481,7 @@ static int lpass_cdc_rx_macro_event_handler(struct snd_soc_component *component,
 		}
 		break;
 	case LPASS_CDC_MACRO_EVT_PRE_SSR_UP:
+		rx_priv->pre_dev_up = true;
 		ret = lpass_cdc_rx_macro_core_vote(rx_priv, true);
 		if (ret < 0) {
 			dev_err_ratelimited(rx_priv->dev,
@@ -1556,7 +1504,7 @@ static int lpass_cdc_rx_macro_event_handler(struct snd_soc_component *component,
 		lpass_cdc_rx_macro_core_vote(rx_priv, false);
 		break;
 	case LPASS_CDC_MACRO_EVT_SSR_UP:
-		trace_printk("%s, enter SSR up\n", __func__);
+		TRACE_PRINTK("%s, enter SSR up\n", __func__);
 		rx_priv->dev_up = true;
 		/* reset swr after ssr/pdr */
 		rx_priv->reset_swr = true;
@@ -1774,6 +1722,8 @@ static int lpass_cdc_rx_macro_enable_mix_path(struct snd_soc_dapm_widget *w,
 		lpass_cdc_rx_macro_set_idle_detect_thr(component, rx_priv, w->shift,
 					INTERP_MIX_PATH);
 		lpass_cdc_rx_macro_enable_interp_clk(component, event, w->shift);
+		/* Clk Enable */
+		snd_soc_component_update_bits(component, mix_reg, 0x20, 0x20);
 		break;
 	case SND_SOC_DAPM_POST_PMU:
 		snd_soc_component_write(component, gain_reg,
@@ -2773,6 +2723,9 @@ static int lpass_cdc_rx_macro_enable_interp_clk(struct snd_soc_component *compon
 					0x10, 0x10);
 			snd_soc_component_update_bits(component, dsm_reg,
 					0x01, 0x01);
+			/* Clk Enable */
+			snd_soc_component_update_bits(component, main_reg,
+					0x20, 0x20);
 			snd_soc_component_update_bits(component, rx_cfg2_reg,
 					0x03, 0x03);
 			lpass_cdc_rx_macro_idle_detect_control(component, rx_priv,
@@ -4349,6 +4302,12 @@ static int lpass_cdc_rx_macro_core_vote(void *handle, bool enable)
 		pr_err_ratelimited("%s: rx priv data is NULL\n", __func__);
 		return -EINVAL;
 	}
+
+	if (!rx_priv->pre_dev_up && enable) {
+		pr_debug("%s: adsp is not up\n", __func__);
+		return -EINVAL;
+	}
+
 	if (enable) {
 		pm_runtime_get_sync(rx_priv->dev);
 		if (lpass_cdc_check_core_votes(rx_priv->dev))
@@ -4375,7 +4334,7 @@ static int rx_swrm_clock(void *handle, bool enable)
 
 	mutex_lock(&rx_priv->swr_clk_lock);
 
-	trace_printk("%s: swrm clock %s\n",
+	TRACE_PRINTK("%s: swrm clock %s\n",
 			__func__, (enable ? "enable" : "disable"));
 	dev_dbg(rx_priv->dev, "%s: swrm clock %s\n",
 		__func__, (enable ? "enable" : "disable"));
@@ -4443,7 +4402,7 @@ static int rx_swrm_clock(void *handle, bool enable)
 			}
 		}
 	}
-	trace_printk("%s: swrm clock users %d\n",
+	TRACE_PRINTK("%s: swrm clock users %d\n",
 		__func__, rx_priv->swr_clk_users);
 	dev_dbg(rx_priv->dev, "%s: swrm clock users %d\n",
 		__func__, rx_priv->swr_clk_users);
@@ -4718,6 +4677,7 @@ static int lpass_cdc_rx_macro_probe(struct platform_device *pdev)
 	if (!rx_priv)
 		return -ENOMEM;
 
+	rx_priv->pre_dev_up = true;
 	rx_priv->dev = &pdev->dev;
 	ret = of_property_read_u32(pdev->dev.of_node, "reg",
 				   &rx_base_addr);

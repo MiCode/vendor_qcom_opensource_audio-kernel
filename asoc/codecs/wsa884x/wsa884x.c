@@ -28,6 +28,7 @@
 #include <sound/tlv.h>
 #include <asoc/msm-cdc-pinctrl.h>
 #include <asoc/msm-cdc-supply.h>
+#include "wsa884x-registers.h"
 #include "wsa884x.h"
 #include "internal.h"
 #include "asoc/bolero-slave-internal.h"
@@ -129,6 +130,19 @@ static const struct wsa_reg_mask_val reg_init[] = {
 	{REG_FIELD_VALUE(VBAT_CAL_CTL, RESERVE, 0x02)},
 	{REG_FIELD_VALUE(REF_CTRL, BG_RDY_SEL, 0x01)},
 	{REG_FIELD_VALUE(ZX_CTRL1, ZX_DET_SW_SEL, 0x03)},
+};
+
+static const struct wsa_reg_mask_val reg_init_2S[] = {
+	{REG_FIELD_VALUE(CLSH_CTL_1, SLR_MAX, 0x02)},
+	{REG_FIELD_VALUE(CLSH_V_HD_PA, V_HD_PA, 0x13)},
+	{REG_FIELD_VALUE(UVLO_PROG, UVLO1_VTH, 0x03)},
+	{REG_FIELD_VALUE(UVLO_PROG, UVLO1_HYST, 0x03)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG2, DAC_VCM_SHIFT, 0x06)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG3, DAC_VCM_SHIFT, 0x14)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG4, DAC_VCM_SHIFT, 0x19)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG5, DAC_VCM_SHIFT, 0x1B)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG6, DAC_VCM_SHIFT, 0x1C)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG7, DAC_VCM_SHIFT_FINAL_OVERRIDE, 0x01)},
 };
 
 static int wsa884x_handle_post_irq(void *data);
@@ -773,13 +787,6 @@ static void wsa_noise_gate_write(struct snd_soc_component *component,
 	}
 }
 
-static const char * const wsa_dev_mode_text[] = {
-	"speaker", "receiver"
-};
-
-static const struct soc_enum wsa_dev_mode_enum =
-	SOC_ENUM_SINGLE_EXT(ARRAY_SIZE(wsa_dev_mode_text), wsa_dev_mode_text);
-
 static int wsa_dev_mode_get(struct snd_kcontrol *kcontrol,
 			   struct snd_ctl_elem_value *ucontrol)
 {
@@ -804,8 +811,13 @@ static int wsa_dev_mode_put(struct snd_kcontrol *kcontrol,
 	int dev_mode;
 	int wsa_dev_index;
 
-	dev_mode = ucontrol->value.integer.value[0];
-	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d  = %ld\n",
+	if ((ucontrol->value.integer.value[0] >= SPEAKER) &&
+			(ucontrol->value.integer.value[0] < MAX_DEV_MODE))
+		dev_mode = ucontrol->value.integer.value[0];
+	else
+		return -EINVAL;
+
+	dev_dbg(component->dev, "%s: Dev Mode current: %d, new: %d\n",
 		__func__, wsa884x->dev_mode, dev_mode);
 
 	/* Check if input parameter is in range */
@@ -1506,9 +1518,13 @@ static void wsa884x_codec_init(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, reg_init[i].reg,
 					reg_init[i].mask, reg_init[i].val);
 
-	if (wsa884x->variant == WSA8845H)
-		snd_soc_component_update_bits(wsa884x->component,
-		REG_FIELD_VALUE(DRE_CTL_1, CSR_GAIN_EN, 0x01));
+	/* Register updates for 2S battery configuration */
+	if (wsa884x->bat_cfg == CONFIG_2S) {
+		for (i = 0; i < ARRAY_SIZE(reg_init_2S); i++)
+			snd_soc_component_update_bits(component, reg_init_2S[i].reg,
+						reg_init_2S[i].mask, reg_init_2S[i].val);
+	}
+
 	wsa_noise_gate_write(component, wsa884x->noise_gate_mode);
 
 }
@@ -1814,6 +1830,9 @@ static int wsa884x_event_notify(struct notifier_block *nb,
 		/* Add delay to allow enumerate */
 		usleep_range(20000, 20010);
 		wsa884x_swr_reset(wsa884x);
+		dev_err(wsa884x->dev, "%s: BOLERO_SLV_EVT_SSR_UP Called", __func__);
+		swr_init_port_params(wsa884x->swr_slave, WSA884X_MAX_SWR_PORTS,
+			wsa884x->swr_wsa_port_params);
 		break;
 
 	case BOLERO_SLV_EVT_PA_ON_POST_FSCLK:
@@ -2172,7 +2191,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 			ret = of_property_read_u32_index(
 				wsa884x->macro_dev->dev.of_node,
 				"qcom,wsa-bat-cfgs",
-				dev_index - 1,
+				wsa_dev_index,
 				&wsa884x->bat_cfg);
 			if (ret) {
 				dev_err(&pdev->dev,
@@ -2239,10 +2258,15 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 		ret = -EINVAL;
 		goto err_mem;
 	}
+	/* Assume that compander is enabled by default unless it is haptics sku */
+	if (wsa884x->variant == WSA8845H)
+		wsa884x->comp_enable = false;
+	else
+		wsa884x->comp_enable = true;
 	wsa884x_set_gain_parameters(component);
 	wsa884x_set_pbr_parameters(component);
 	/* Must write WO registers in a single write */
-	wo0_val = (0xC | (wsa884x->pa_aux_gain << 0x02) | !wsa884x->dev_mode);
+	wo0_val = (0xC0 | (wsa884x->pa_aux_gain << 0x02) | !wsa884x->dev_mode);
 	snd_soc_component_write(component, WSA884X_ANA_WO_CTL_0, wo0_val);
 	snd_soc_component_write(component, WSA884X_ANA_WO_CTL_1, 0x0);
 	if (wsa884x->rload == WSA_4_OHMS || wsa884x->rload == WSA_6_OHMS)
@@ -2397,7 +2421,9 @@ static int wsa884x_swr_suspend(struct device *dev)
 		return -EINVAL;
 	}
 	dev_dbg(dev, "%s: system suspend\n", __func__);
-	if (wsa884x->dapm_bias_off) {
+	if (wsa884x->dapm_bias_off ||
+		(snd_soc_component_get_bias_level(wsa884x->component) ==
+		 SND_SOC_BIAS_OFF)) {
 		msm_cdc_set_supplies_lpm_mode(dev, wsa884x->supplies,
 					wsa884x->regulator,
 					wsa884x->num_supplies,

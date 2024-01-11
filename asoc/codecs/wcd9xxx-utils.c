@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2016-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/kernel.h>
@@ -12,6 +13,7 @@
 #include <linux/delay.h>
 #include <linux/sched.h>
 #include <linux/mfd/core.h>
+#include <trace/events/power.h>
 #include <asoc/core.h>
 #include <asoc/msm-cdc-supply.h>
 #include <asoc/msm-cdc-pinctrl.h>
@@ -972,10 +974,8 @@ int wcd9xxx_core_res_init(
 	wcd9xxx_core_res->wlock_holders = 0;
 	wcd9xxx_core_res->pm_state = WCD9XXX_PM_SLEEPABLE;
 	init_waitqueue_head(&wcd9xxx_core_res->pm_wq);
-	pm_qos_add_request(&wcd9xxx_core_res->pm_qos_req,
-				PM_QOS_CPU_DMA_LATENCY,
+	cpu_latency_qos_add_request(&wcd9xxx_core_res->pm_qos_req,
 				PM_QOS_DEFAULT_VALUE);
-
 	wcd9xxx_core_res->num_irqs = num_irqs;
 	wcd9xxx_core_res->num_irq_regs = num_irq_regs;
 	wcd9xxx_core_res->wcd_core_regmap = wcd_regmap;
@@ -999,7 +999,7 @@ void wcd9xxx_core_res_deinit(struct wcd9xxx_core_resource *wcd9xxx_core_res)
 	if (!wcd9xxx_core_res)
 		return;
 
-	pm_qos_remove_request(&wcd9xxx_core_res->pm_qos_req);
+	cpu_latency_qos_remove_request(&wcd9xxx_core_res->pm_qos_req);
 	mutex_destroy(&wcd9xxx_core_res->pm_lock);
 }
 EXPORT_SYMBOL(wcd9xxx_core_res_deinit);

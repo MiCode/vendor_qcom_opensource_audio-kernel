@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2018, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/module.h>
 #include <linux/init.h>
@@ -79,7 +80,7 @@ static int wcd_resmgr_codec_reg_read(struct wcd9xxx_resmgr_v2 *resmgr,
 			return 0;
 	}
 	if (resmgr->component) {
-		val = snd_soc_component_read32(resmgr->component, reg);
+		val = snd_soc_component_read(resmgr->component, reg);
 	} else if (resmgr->core_res->wcd_core_regmap) {
 		ret = regmap_read(resmgr->core_res->wcd_core_regmap,
 				  reg, &val);

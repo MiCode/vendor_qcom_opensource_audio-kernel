@@ -1,13 +1,7 @@
-/* Copyright (c) 2019-2022, The Linux Foundation. All rights reserved.
- *
- * This program is free software; you can redistribute it and/or modify
- * it under the terms of the GNU General Public License version 2 and
- * only version 2 as published by the Free Software Foundation.
- *
- * This program is distributed in the hope that it will be useful,
- * but WITHOUT ANY WARRANTY; without even the implied warranty of
- * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
- * GNU General Public License for more details.
+/* SPDX-License-Identifier: GPL-2.0-only */
+/*
+ * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef _MSM_AUDIO_DEFS_H
 #define _MSM_AUDIO_DEFS_H
@@ -64,6 +58,7 @@
 #define LPASS_BE_SLIMBUS_6_TX "SLIM-DEV1-TX-6"
 #define LPASS_BE_SLIMBUS_7_RX "SLIM-DEV1-RX-7"
 #define LPASS_BE_SLIMBUS_7_TX "SLIM-DEV1-TX-7"
+#define LPASS_BE_SLIMBUS_8_TX "SLIM-DEV1-TX-8"
 
 #define LPASS_BE_PRI_TDM_RX_0 "TDM-LPAIF-RX-PRIMARY"
 #define LPASS_BE_PRI_TDM_TX_0 "TDM-LPAIF-TX-PRIMARY"

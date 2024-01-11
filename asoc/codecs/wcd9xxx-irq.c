@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2011-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #include <linux/bitops.h>
 #include <linux/kernel.h>
@@ -15,7 +16,6 @@
 #include <linux/of_irq.h>
 #include <linux/slab.h>
 #include <linux/ratelimit.h>
-#include <soc/qcom/pm.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <asoc/core.h>
@@ -26,6 +26,8 @@
 #define BIT_BYTE(nr)			((nr) / BITS_PER_BYTE)
 
 #define WCD9XXX_SYSTEM_RESUME_TIMEOUT_MS 100
+
+#define CPU_IDLE_LATENCY 10
 
 #ifndef NO_IRQ
 #define NO_IRQ	(-1)
@@ -179,8 +181,8 @@ bool wcd9xxx_lock_sleep(
 	mutex_lock(&wcd9xxx_res->pm_lock);
 	if (wcd9xxx_res->wlock_holders++ == 0) {
 		pr_debug("%s: holding wake lock\n", __func__);
-		pm_qos_update_request(&wcd9xxx_res->pm_qos_req,
-				      msm_cpuidle_get_deep_idle_latency());
+		cpu_latency_qos_update_request(&wcd9xxx_res->pm_qos_req,
+				      CPU_IDLE_LATENCY);
 		pm_stay_awake(wcd9xxx_res->dev);
 	}
 	mutex_unlock(&wcd9xxx_res->pm_lock);
@@ -218,7 +220,7 @@ void wcd9xxx_unlock_sleep(
 		 */
 		if (likely(wcd9xxx_res->pm_state == WCD9XXX_PM_AWAKE))
 			wcd9xxx_res->pm_state = WCD9XXX_PM_SLEEPABLE;
-		pm_qos_update_request(&wcd9xxx_res->pm_qos_req,
+		cpu_latency_qos_update_request(&wcd9xxx_res->pm_qos_req,
 				PM_QOS_DEFAULT_VALUE);
 		pm_relax(wcd9xxx_res->dev);
 	}

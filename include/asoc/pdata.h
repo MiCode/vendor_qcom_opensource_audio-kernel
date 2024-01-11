@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2011-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __MFD_WCD9XXX_PDATA_H__
@@ -7,7 +8,7 @@
 #define __MFD_WCD9XXX_PDATA_H__
 
 #if IS_ENABLED(CONFIG_WCD9XXX_CODEC_CORE)
-#include <linux/slimbus/slimbus.h>
+#include <linux/slimbus.h>
 #endif
 
 #include "msm-cdc-supply.h"

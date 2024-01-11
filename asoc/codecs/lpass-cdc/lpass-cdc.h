@@ -7,6 +7,7 @@
 
 #include <sound/soc.h>
 #include <linux/regmap.h>
+#include <dsp/digital-cdc-rsc-mgr.h>
 
 #define LPASS_CDC_VERSION_1_0 0x0001
 #define LPASS_CDC_VERSION_1_1 0x0002
@@ -278,11 +279,15 @@ int lpass_cdc_tx_mclk_enable(struct snd_soc_component *c, bool enable);
 int lpass_cdc_get_version(struct device *dev);
 int lpass_cdc_dmic_clk_enable(struct snd_soc_component *component,
 			   u32 dmic, u32 tx_mode, bool enable);
+void lpass_cdc_tx_macro_mute_hs(void);
 
 /* RX MACRO utilities */
 int lpass_cdc_rx_set_fir_capability(struct snd_soc_component *component,
 					bool capable);
 #else
+static inline void lpass_cdc_tx_macro_mute_hs(void)
+{
+}
 static inline int lpass_cdc_register_res_clk(struct device *dev, rsc_clk_cb_t cb)
 {
 	return 0;

@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2015-2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #ifndef WCD9335_H
 #define WCD9335_H
@@ -8,7 +9,9 @@
 #include <sound/soc.h>
 #include <sound/jack.h>
 #include <dsp/apr_audio-v2.h>
+#ifndef CONFIG_WCD934X_I2S
 #include <asoc/wcd9xxx-slimslave.h>
+#endif
 #include <asoc/wcd-mbhc-v2.h>
 
 #define TASHA_REG_VAL(reg, val)      {reg, 0, val}

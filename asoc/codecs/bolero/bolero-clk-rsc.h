@@ -1,13 +1,14 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2019, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef BOLERO_CLK_RSC_H
 #define BOLERO_CLK_RSC_H
 
 #include <linux/regmap.h>
-#include <dt-bindings/sound/qcom,bolero-clk-rsc.h>
+#include <bindings/qcom,bolero-clk-rsc.h>
 
 #if IS_ENABLED(CONFIG_SND_SOC_BOLERO)
 int bolero_clk_rsc_mgr_init(void);

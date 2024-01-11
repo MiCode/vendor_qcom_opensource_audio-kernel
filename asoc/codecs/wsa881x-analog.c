@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2016, 2018-2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/clk.h>
@@ -21,7 +22,6 @@
 #include <sound/soc.h>
 #include <sound/soc-dapm.h>
 #include <sound/tlv.h>
-#include <dsp/q6afe-v2.h>
 #include <linux/delay.h>
 #include <linux/i2c.h>
 #include <linux/kernel.h>
@@ -415,7 +415,7 @@ static int wsa881x_boost_ctrl(struct snd_soc_component *component, bool enable)
 			snd_soc_component_update_bits(component,
 					WSA881X_BOOST_SLOPE_COMP_ISENSE_FB,
 					0x03, 0x00);
-			if (snd_soc_component_read32(component, WSA881X_OTP_REG_0))
+			if (snd_soc_component_read(component, WSA881X_OTP_REG_0))
 				snd_soc_component_update_bits(component,
 					WSA881X_BOOST_PRESET_OUT1,
 					0xF0, 0x70);
@@ -527,13 +527,13 @@ static int wsa881x_visense_adc_ctrl(struct snd_soc_component *component,
 			snd_soc_component_update_bits(component,
 					WSA881X_ADC_SEL_IBIAS,
 					0x70, 0x40);
-			snd_soc_component_update_bits(component,
-					WSA881X_ADC_EN_SEL_IBIAS,
-					0x07, 0x04);
-			snd_soc_component_update_bits(component,
-					WSA881X_ADC_EN_MODU_V, 0x80, 0x80);
-			snd_soc_component_update_bits(component,
-					WSA881X_ADC_EN_MODU_I, 0x80, 0x80);
+		snd_soc_component_update_bits(component,
+				WSA881X_ADC_EN_SEL_IBIAS,
+				0x07, 0x04);
+		snd_soc_component_update_bits(component,
+				WSA881X_ADC_EN_MODU_V, 0x80, 0x80);
+		snd_soc_component_update_bits(component,
+				WSA881X_ADC_EN_MODU_I, 0x80, 0x80);
 	} else {
 		/* Ensure: Speaker Protection has been stopped */
 		snd_soc_component_update_bits(component,
@@ -1109,26 +1109,26 @@ static int32_t wsa881x_temp_reg_read(struct snd_soc_component *component,
 		snd_soc_component_update_bits(component,
 					WSA881X_TADC_VALUE_CTL, 0x01, 0x00);
 		wsa_temp_reg->dmeas_msb =
-				snd_soc_component_read32(component,
+				snd_soc_component_read(component,
 							 WSA881X_TEMP_MSB);
 		wsa_temp_reg->dmeas_lsb =
-				snd_soc_component_read32(component,
+				snd_soc_component_read(component,
 							 WSA881X_TEMP_LSB);
 		snd_soc_component_update_bits(component,
 					WSA881X_TADC_VALUE_CTL, 0x01, 0x01);
 	} else {
-		wsa_temp_reg->dmeas_msb = snd_soc_component_read32(component,
+		wsa_temp_reg->dmeas_msb = snd_soc_component_read(component,
 						   WSA881X_TEMP_DOUT_MSB);
-		wsa_temp_reg->dmeas_lsb = snd_soc_component_read32(component,
+		wsa_temp_reg->dmeas_lsb = snd_soc_component_read(component,
 						   WSA881X_TEMP_DOUT_LSB);
 	}
-	wsa_temp_reg->d1_msb = snd_soc_component_read32(component,
+	wsa_temp_reg->d1_msb = snd_soc_component_read(component,
 							WSA881X_OTP_REG_1);
-	wsa_temp_reg->d1_lsb = snd_soc_component_read32(component,
+	wsa_temp_reg->d1_lsb = snd_soc_component_read(component,
 							WSA881X_OTP_REG_2);
-	wsa_temp_reg->d2_msb = snd_soc_component_read32(component,
+	wsa_temp_reg->d2_msb = snd_soc_component_read(component,
 							WSA881X_OTP_REG_3);
-	wsa_temp_reg->d2_lsb = snd_soc_component_read32(component,
+	wsa_temp_reg->d2_lsb = snd_soc_component_read(component,
 							WSA881X_OTP_REG_4);
 
 	ret = wsa881x_resource_acquire(component, false);

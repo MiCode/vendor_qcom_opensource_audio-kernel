@@ -1,12 +1,13 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /* Copyright (c) 2012-2015, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __WCD9XXX_SLIMSLAVE_H_
 #define __WCD9XXX_SLIMSLAVE_H_
 
-#include <linux/slimbus/slimbus.h>
-#include "core.h"
+#include <linux/slimbus.h>
+#include "asoc/core.h"
 
 
 /*
@@ -78,6 +79,7 @@
 #define BASE_CH_NUM 128
 
 
+#ifndef CONFIG_WCD934X_I2S
 int wcd9xxx_init_slimslave(struct wcd9xxx *wcd9xxx,
 			   u8 wcd9xxx_pgd_la,
 			   unsigned int tx_num, unsigned int *tx_slot,
@@ -108,4 +110,66 @@ int wcd9xxx_rx_vport_validation(u32 port_id,
 int wcd9xxx_tx_vport_validation(u32 vtable, u32 port_id,
 				struct wcd9xxx_codec_dai_data *codec_dai,
 				u32 num_codec_dais);
+#else
+static int wcd9xxx_init_slimslave(struct wcd9xxx *wcd9xxx,
+			   u8 wcd9xxx_pgd_la,
+			   unsigned int tx_num, unsigned int *tx_slot,
+			   unsigned int rx_num, unsigned int *rx_slot)
+{
+	return 0;
+}
+
+static int wcd9xxx_cfg_slim_sch_rx(struct wcd9xxx *wcd9xxx,
+			    struct list_head *wcd9xxx_ch_list,
+			    unsigned int rate, unsigned int bit_width,
+			    u16 *grph)
+{
+	return 0;
+}
+
+static int wcd9xxx_cfg_slim_sch_tx(struct wcd9xxx *wcd9xxx,
+			    struct list_head *wcd9xxx_ch_list,
+			    unsigned int rate, unsigned int bit_width,
+				u16 *grph)
+{
+	return 0;
+}
+
+static int wcd9xxx_close_slim_sch_rx(struct wcd9xxx *wcd9xxx,
+			      struct list_head *wcd9xxx_ch_list, u16 grph)
+{
+	return 0;
+}
+
+static int wcd9xxx_close_slim_sch_tx(struct wcd9xxx *wcd9xxx,
+			      struct list_head *wcd9xxx_ch_list, u16 grph)
+{
+	return 0;
+}
+
+static int wcd9xxx_get_slave_port(unsigned int ch_num)
+{
+	return 0;
+}
+
+static int wcd9xxx_disconnect_port(struct wcd9xxx *wcd9xxx,
+			    struct list_head *wcd9xxx_ch_list, u16 grph)
+{
+	return 0;
+}
+
+static int wcd9xxx_rx_vport_validation(u32 port_id,
+				struct list_head *codec_dai_list)
+{
+	return 0;
+}
+
+static int wcd9xxx_tx_vport_validation(u32 vtable, u32 port_id,
+				struct wcd9xxx_codec_dai_data *codec_dai,
+				u32 num_codec_dais)
+{
+	return 0;
+}
+
+#endif
 #endif /* __WCD9XXX_SLIMSLAVE_H_ */

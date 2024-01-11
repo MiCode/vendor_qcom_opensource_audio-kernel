@@ -26,6 +26,9 @@
 #include <soc/snd_event.h>
 #include <dsp/audio_notifier.h>
 
+#define APM_EVENT_MODULE_TO_CLIENT	0x03001000
+#define WAKELOCK_TIMEOUT 200
+
 struct gpr {
 	struct rpmsg_endpoint *ch;
 	struct device *dev;
@@ -36,6 +39,7 @@ struct gpr {
 	struct idr svcs_idr;
 	int dest_domain_id;
 	struct work_struct notifier_reg_work;
+	struct wakeup_source *wsource;
 };
 
 static struct gpr_q6 q6;
@@ -105,6 +109,12 @@ int gpr_send_pkt(struct gpr_device *adev, struct gpr_pkt *pkt)
 	}
 
 	gpr = dev_get_drvdata(adev->dev.parent);
+
+	if (!gpr) {
+		pr_err_ratelimited("%s: Failed to get gpr dev pointer : gpr[%pK] \n",
+			__func__, gpr);
+		return -EINVAL;
+	}
 
 	if ((adev->domain_id == GPR_DOMAIN_ADSP) &&
 	    (gpr_get_q6_state() != GPR_SUBSYS_LOADED)) {
@@ -297,6 +307,11 @@ static int gpr_callback(struct rpmsg_device *rpdev, void *buf,
 	dev_dbg(gpr->dev, "%s: dst_port %x hdr_size %d pkt_size %d\n",
 	__func__ , hdr->dst_port, hdr_size, pkt_size);
 
+	if (hdr->opcode == APM_EVENT_MODULE_TO_CLIENT) {
+		dev_err(gpr->dev, "%s: Acquire wakelock in case of module event with timeout %d",
+			__func__, WAKELOCK_TIMEOUT);
+		pm_wakeup_ws_event(gpr_priv->wsource, WAKELOCK_TIMEOUT, true);
+	}
 	svc_id = hdr->dst_port;
 	spin_lock_irqsave(&gpr->svcs_lock, flags);
 	svc = idr_find(&gpr->svcs_idr, svc_id);
@@ -312,6 +327,8 @@ static int gpr_callback(struct rpmsg_device *rpdev, void *buf,
 
 	if (!adrv) {
 		dev_err_ratelimited(gpr->dev, "GPR: service is not registered\n");
+		if (hdr->opcode == APM_EVENT_MODULE_TO_CLIENT)
+			__pm_relax(gpr_priv->wsource);
 		return -EINVAL;
 	}
 
@@ -481,6 +498,13 @@ static int gpr_probe(struct rpmsg_device *rpdev)
 {
 	struct device *dev = &rpdev->dev;
 	int ret;
+
+	if (!audio_notifier_probe_status()) {
+		pr_err("%s: Audio notify probe not completed, defer audio gpr probe\n",
+			__func__);
+		return -EPROBE_DEFER;
+	}
+
 	gpr_priv = devm_kzalloc(dev, sizeof(*gpr_priv), GFP_KERNEL);
 	if (!gpr_priv)
 		return -ENOMEM;
@@ -524,6 +548,7 @@ static int gpr_probe(struct rpmsg_device *rpdev)
 		return -EINVAL;
 	}
 
+	gpr_priv->wsource = wakeup_source_register(gpr_priv->dev, "audio-gpr");
 	dev_info(dev, "%s: gpr-lite probe success\n",
 		__func__);
 
@@ -540,6 +565,8 @@ static int gpr_remove_device(struct device *dev, void *null)
 static void gpr_remove(struct rpmsg_device *rpdev)
 {
 	struct device *dev = &rpdev->dev;
+
+	wakeup_source_unregister(gpr_priv->wsource);
 	snd_event_client_deregister(&rpdev->dev);
 	dev_info(dev, "%s: deregistering via subsys_notif_register for domain_id(%d)",
 		__func__, gpr_priv->dest_domain_id );
