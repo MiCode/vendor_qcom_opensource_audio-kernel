@@ -2,6 +2,7 @@
 /* Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
+#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -636,7 +637,7 @@ static int wcd_mbhc_get_plug_from_adc(struct wcd_mbhc *mbhc, int adc_result)
 
 	hs_thr = wcd_mbhc_adc_get_hs_thres(mbhc);
 	hph_thr = wcd_mbhc_adc_get_hph_thres(mbhc);
-
+	pr_debug("%s: hs_thr %d, hph_thr %d, adc_result %d\n", __func__, hs_thr, hph_thr, adc_result);
 	if (adc_result < hph_thr)
 		plug_type = MBHC_PLUG_TYPE_HEADPHONE;
 	else if (adc_result > hs_thr)
@@ -658,6 +659,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	int pt_gnd_mic_swap_cnt = 0;
 	int no_gnd_mic_swap_cnt = 0;
 	bool is_pa_on = false, spl_hs = false, spl_hs_reported = false;
+	bool swap_gnd_and_mic = true;
 	int ret = 0;
 	int spl_hs_count = 0;
 	int output_mv = 0;
@@ -667,6 +669,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 
 	pr_debug("%s: enter\n", __func__);
 
+try_again:
 	mbhc = container_of(work, struct wcd_mbhc, correct_plug_swch);
 	component = mbhc->component;
 
@@ -685,6 +688,14 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	} while (try < mbhc->swap_thr);
 
 	if (cross_conn > 0) {
+		if (swap_gnd_and_mic && mbhc->mbhc_cfg->swap_gnd_mic) {
+			mbhc->mbhc_cfg->swap_gnd_mic(component, swap_gnd_and_mic);
+			swap_gnd_and_mic = false;
+			try = 0;
+			msleep(10);
+			pr_info("%s: swap gnd and mic, and try again", __func__);
+			goto try_again;
+		}
 		plug_type = MBHC_PLUG_TYPE_GND_MIC_SWAP;
 		pr_debug("%s: cross connection found, Plug type %d\n",
 			 __func__, plug_type);
@@ -926,6 +937,9 @@ enable_supply:
 	else
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_DETECTION_DONE, 0);
 
+	if (plug_type == MBHC_PLUG_TYPE_HEADSET)
+		mbhc->micbias_enable = true;
+
 	if (mbhc->mbhc_cb->bcs_enable)
 		mbhc->mbhc_cb->bcs_enable(mbhc, true);
 
@@ -1001,6 +1015,7 @@ static irqreturn_t wcd_mbhc_adc_hs_rem_irq(int irq, void *data)
 	timeout = jiffies +
 		  msecs_to_jiffies(WCD_FAKE_REMOVAL_MIN_PERIOD_MS);
 	adc_threshold = wcd_mbhc_adc_get_hs_thres(mbhc);
+	pr_debug("%s: adc_threshold %d\n", __func__, adc_threshold);
 
 	/* Enable MICBIAS before checking for ADC Voltage */
 	if (mbhc->mbhc_cb->mbhc_micbias_control)

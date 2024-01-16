@@ -298,10 +298,30 @@ SND_SOC_DAILINK_DEFS(pri_tdm_tx_0,
 	DAILINK_COMP_ARRAY(COMP_CODEC("msm-stub-codec.1", "msm-stub-tx")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("snd-soc-dummy")));
 
+#if defined(CONFIG_TARGET_PRODUCT_SHENNONG)
+SND_SOC_DAILINK_DEFS(sec_tdm_rx_0,
+	DAILINK_COMP_ARRAY(COMP_CPU("snd-soc-dummy-dai")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("cs35l43.2-0040", "cs35l43-rx-0040"),
+			    COMP_CODEC("cs35l43.2-0042", "cs35l43-rx-0042")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("snd-soc-dummy")));
+#elif defined(CONFIG_TARGET_PRODUCT_HOUJI)
+SND_SOC_DAILINK_DEFS(sec_tdm_rx_0,
+	DAILINK_COMP_ARRAY(COMP_CPU("snd-soc-dummy-dai")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("cs35l41.2-0040", "cs35l41-rx-0040"),
+			COMP_CODEC("cs35l41.2-0042", "cs35l41-rx-0042")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("snd-soc-dummy")));
+#elif defined(CONFIG_TARGET_PRODUCT_MANET)
+SND_SOC_DAILINK_DEFS(sec_tdm_rx_0,
+	DAILINK_COMP_ARRAY(COMP_CPU("snd-soc-dummy-dai")),
+	DAILINK_COMP_ARRAY(COMP_CODEC("cs35l43.2-0040", "cs35l43-rx-0040"),
+			    COMP_CODEC("cs35l43.2-0042", "cs35l43-rx-0042")),
+	DAILINK_COMP_ARRAY(COMP_PLATFORM("snd-soc-dummy")));
+#else
 SND_SOC_DAILINK_DEFS(sec_tdm_rx_0,
 	DAILINK_COMP_ARRAY(COMP_CPU("snd-soc-dummy-dai")),
 	DAILINK_COMP_ARRAY(COMP_CODEC("msm-stub-codec.1", "msm-stub-rx")),
 	DAILINK_COMP_ARRAY(COMP_PLATFORM("snd-soc-dummy")));
+#endif
 
 SND_SOC_DAILINK_DEFS(sec_tdm_tx_0,
 	DAILINK_COMP_ARRAY(COMP_CPU("snd-soc-dummy-dai")),

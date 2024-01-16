@@ -62,18 +62,15 @@ UAPI_INC :=	-I$(AUDIO_ROOT)/include/$(UAPI_DIR)
 COMMON_DIR :=	include
 COMMON_INC :=	-I$(AUDIO_ROOT)/$(COMMON_DIR)
 
-############ WCD939X ############
+############ CS35L41 ############
 
-# for WCD939X Codec
-ifdef CONFIG_SND_SOC_WCD939X
-	WCD939X_OBJS += wcd939x.o
-	WCD939X_OBJS += wcd939x-regmap.o
-	WCD939X_OBJS += wcd939x-tables.o
-	WCD939X_OBJS += wcd939x-mbhc.o
-endif
-
-ifdef CONFIG_SND_SOC_WCD939X_SLAVE
-	WCD939X_SLAVE_OBJS += wcd939x-slave.o
+# for CS35L41 Codec
+ifdef CONFIG_SND_SOC_CS35L41
+	CS35L41_OBJS += cs35l41.o
+	CS35L41_OBJS += cs35l41-i2c.o
+	CS35L41_OBJS += cs35l41-tables.o
+	CS35L41_OBJS += wm_adsp.o
+	#CS35L41_OBJS += send_data_to_xlog.o
 endif
 
 LINUX_INC +=	-Iinclude/linux
@@ -83,6 +80,9 @@ INCS +=		$(COMMON_INC) \
 
 EXTRA_CFLAGS += $(INCS)
 
+ifeq ($(TARGET_PRODUCT), $(filter $(TARGET_PRODUCT), taro))
+       CDEFINES += -DCONFIG_AUDIO_SMARTPA_STEREO
+endif
 
 CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-DANI_LITTLE_BIT_ENDIAN \
@@ -93,6 +93,11 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Wall\
 		-Werror\
 		-D__linux__
+
+
+ifneq (, $(filter $(word 2,$(subst _, ,$(TARGET_PRODUCT))), houji))
+	CDEFINES += -DCONFIG_TARGET_PRODUCT_HOUJI
+endif
 
 KBUILD_CPPFLAGS += $(CDEFINES)
 
@@ -109,24 +114,10 @@ ifeq ($(call cc-option-yn, -Wheader-guard),y)
 EXTRA_CFLAGS += -Wheader-guard
 endif
 
-ifneq (, $(filter $(word 2,$(subst _, ,$(TARGET_PRODUCT))), shennong))
-	CDEFINES += -DCONFIG_TARGET_PRODUCT_SHENNONG
-endif
-
-ifneq (, $(filter $(word 2,$(subst _, ,$(TARGET_PRODUCT))), houji))
-	CDEFINES += -DCONFIG_TARGET_PRODUCT_HOUJI
-endif
-
-ifneq (, $(filter $(word 2,$(subst _, ,$(TARGET_PRODUCT))), manet))
-        CDEFINES += -DCONFIG_TARGET_PRODUCT_MANET
-endif
 
 # Module information used by KBuild framework
-obj-$(CONFIG_SND_SOC_WCD939X) += wcd939x_dlkm.o
-wcd939x_dlkm-y := $(WCD939X_OBJS)
-
-obj-$(CONFIG_SND_SOC_WCD939X_SLAVE) += wcd939x_slave_dlkm.o
-wcd939x_slave_dlkm-y := $(WCD939X_SLAVE_OBJS)
+obj-$(CONFIG_SND_SOC_CS35L41) += cs35l41_dlkm.o
+cs35l41_dlkm-y := $(CS35L41_OBJS)
 
 # inject some build related information
 DEFINES += -DBUILD_TIMESTAMP=\"$(shell date -u +'%Y-%m-%dT%H:%M:%SZ')\"

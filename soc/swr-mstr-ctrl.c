@@ -4012,7 +4012,7 @@ static int swrm_suspend(struct device *dev)
 			dev_dbg(swrm->dev, "%s: suspend failed state %d, wlock %d\n",
 				 __func__, swrm->pm_state,
 				 swrm->wlock_holders);
-			return -EBUSY;
+			return 0;
 		} else {
 			dev_dbg(swrm->dev,
 				"%s: done, state %d, wlock %d\n",

@@ -440,6 +440,9 @@ struct wcd_mbhc_config {
 	bool enable_anc_mic_detect;
 	u32 enable_usbc_analog;
 	bool moisture_duty_cycle_en;
+	int uart_audio_switch_gpio;
+	struct device_node *uart_audio_switch_gpio_p; /* used by pinctrl API */
+	bool flip_switch;
 	bool usbss_hsj_connect_enable;
 };
 

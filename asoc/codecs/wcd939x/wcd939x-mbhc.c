@@ -34,6 +34,7 @@
 #define WCD939X_ZDET_VAL_100K           100000000
 /* Z floating defined in ohms */
 #define WCD939X_ZDET_FLOATING_IMPEDANCE 0x0FFFFFFE
+#define THR_FOR_16OHM_AND_32OHM_HEADSET 33443
 
 #define WCD939X_ZDET_NUM_MEASUREMENTS   900
 #define WCD939X_MBHC_GET_C1(c)          ((c & 0xC000) >> 14)
@@ -42,6 +43,12 @@
 #define WCD939X_MBHC_IS_SECOND_RAMP_REQUIRED(z) false
 #define WCD939X_MBHC_ZDET_CONST         (1071 * 1024)
 #define WCD939X_MBHC_MOISTURE_RREF      R_24_KOHM
+#define RDOWN_TIMER_PERIOD_MSEC 100
+
+#define WCD_USBSS_EXT_LIN_EN 0x3D
+#define WCD_USBSS_EXT_SW_CTRL_1 0x43
+#define WCD_USBSS_MG1_BIAS 0x25
+#define WCD_USBSS_MG2_BIAS 0x29
 
 #define OHMS_TO_MILLIOHMS 1000
 #define FLOAT_TO_FIXED_XTALK (1UL << 16)
@@ -963,10 +970,16 @@ static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 	uint32_t *zdiff = &zdiff_val;
 	int32_t z1L, z1R, z1Ls, z1Diff;
 	int zMono, z_diff1, z_diff2;
+	uint32_t HPH_L_Z = 0;
 	bool is_fsm_disable = false;
 	struct wcd939x_mbhc_zdet_param zdet_param = {4, 0, 6, 0x18, 0x60, 0x78};
 	struct wcd939x_mbhc_zdet_param *zdet_param_ptr = &zdet_param;
 	s16 d1[] = {0, 30, 30, 6};
+	uint32_t cached_regs[4][2] = {{WCD_USBSS_EXT_LIN_EN, 0}, {WCD_USBSS_EXT_SW_CTRL_1, 0},
+				      {WCD_USBSS_MG1_BIAS, 0}, {WCD_USBSS_MG2_BIAS, 0}};
+	uint32_t l_3_6V_regs[4][2] = {{WCD_USBSS_EXT_LIN_EN, 0x00}, {WCD_USBSS_EXT_SW_CTRL_1, 0x00},
+				      {WCD_USBSS_MG1_BIAS, 0x0E}, {WCD_USBSS_MG2_BIAS, 0x0E}};
+	uint32_t diff_regs[2][2] = {{WCD_USBSS_EXT_LIN_EN, 0x00}, {WCD_USBSS_EXT_SW_CTRL_1, 0xE8}};
 
 	WCD_MBHC_RSC_ASSERT_LOCKED(mbhc);
 
@@ -987,6 +1000,11 @@ static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 		/* Wait 500us for settling */
 		usleep_range(500, 510);
 	}
+
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	/* Cache relevant USB-SS registers */
+	wcd_usbss_register_update(cached_regs, false, 4);
+#endif
 
 	/* Store register values */
 	reg0 = snd_soc_component_read(component, WCD939X_MBHC_BTN5);
@@ -1028,6 +1046,9 @@ static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 #endif
 
 	/* L-channel impedance */
+#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+	wcd_usbss_register_update(l_3_6V_regs, true, 4);
+#endif
 	wcd939x_mbhc_zdet_ramp(component, zdet_param_ptr, &z1L, NULL, d1);
 	if ((z1L == WCD939X_ZDET_FLOATING_IMPEDANCE) || (z1L > WCD939X_ZDET_VAL_100K)) {
 		*zl = WCD939X_ZDET_FLOATING_IMPEDANCE;
@@ -1035,6 +1056,7 @@ static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 		*zl = z1L;
 		wcd939x_wcd_mbhc_qfuse_cal(component, zl, 0);
 	}
+	HPH_L_Z = *zl;
 	/* Differential measurement for USB-C analog platforms */
 	if (mbhc->mbhc_cfg->enable_usbc_analog) {
 		dev_dbg(component->dev, "%s: effective impedance on HPH_L = %d(mohms)\n",
@@ -1063,6 +1085,7 @@ diff_impedance:
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 	/* Disable AGND switch */
 	wcd_usbss_set_switch_settings_enable(AGND_SWITCHES, USBSS_SWITCH_DISABLE);
+	wcd_usbss_register_update(diff_regs, true, 2);
 #endif
 	/* Enable HPHR NCLAMP */
 	regmap_update_bits(wcd939x->regmap, WCD939X_HPHLR_SURGE_MISC1, 0x08, 0x08);
@@ -1116,6 +1139,39 @@ diff_impedance:
 	update_xtalk_scale_and_alpha(pdata, wcd939x->regmap);
 	dev_dbg(component->dev, "%s: Xtalk scale is 0x%x and alpha is 0x%x\n",
 		__func__, pdata->usbcss_hs.scale_l, pdata->usbcss_hs.alpha_l);
+#if defined(CONFIG_TARGET_PRODUCT_SHENNONG)
+	// 32ohm
+	pdata->usbcss_hs.scale_l = 0x05;
+	pdata->usbcss_hs.alpha_l = 0x0B;
+	pdata->usbcss_hs.scale_r = 0x05;
+	pdata->usbcss_hs.alpha_r = 0x0B;
+	// 16ohm
+	if (HPH_L_Z < THR_FOR_16OHM_AND_32OHM_HEADSET) {
+		pdata->usbcss_hs.scale_l = 0x05;
+		pdata->usbcss_hs.alpha_l = 0x87;
+		pdata->usbcss_hs.scale_r = 0x05;
+		pdata->usbcss_hs.alpha_r = 0x87;
+	}
+	dev_dbg(component->dev, "%s: Xtalk scale_l is 0x%x, alpha_l is 0x%x, scale_r is 0x%x and alpha_r is 0x%x, HPH_L_Z is %d(mohms)\n",
+		__func__, pdata->usbcss_hs.scale_l, pdata->usbcss_hs.alpha_l, pdata->usbcss_hs.scale_r, pdata->usbcss_hs.alpha_r, HPH_L_Z);
+#endif
+
+#if defined(CONFIG_TARGET_PRODUCT_HOUJI)
+	// 32ohm
+	pdata->usbcss_hs.scale_l = 0x05;
+	pdata->usbcss_hs.alpha_l = 0x42;
+	pdata->usbcss_hs.scale_r = 0x05;
+	pdata->usbcss_hs.alpha_r = 0x44;
+	// 16ohm
+	if (HPH_L_Z < THR_FOR_16OHM_AND_32OHM_HEADSET) {
+		pdata->usbcss_hs.scale_l = 0x05;
+		pdata->usbcss_hs.alpha_l = 0xE4;
+		pdata->usbcss_hs.scale_r = 0x05;
+		pdata->usbcss_hs.alpha_r = 0xE4;
+	}
+	dev_dbg(component->dev, "%s: Xtalk scale_l is 0x%x, alpha_l is 0x%x, scale_r is 0x%x and alpha_r is 0x%x, HPH_L_Z is %d(mohms)\n",
+		__func__, pdata->usbcss_hs.scale_l, pdata->usbcss_hs.alpha_l, pdata->usbcss_hs.scale_r, pdata->usbcss_hs.alpha_r, HPH_L_Z);
+#endif
 	get_linearizer_taps(pdata, &aud_tap, &gnd_tap);
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 	wcd_usbss_set_linearizer_sw_tap(aud_tap, gnd_tap);
@@ -1191,6 +1247,8 @@ zdet_complete:
 	if (is_fsm_disable)
 		regmap_update_bits(wcd939x->regmap,
 				   WCD939X_MBHC_ELECT, 0x80, 0x80);
+
+	wcd_usbss_register_update(cached_regs, true, 4);
 
 	/* Turn off RX supplies */
 	if (wcd939x->version == WCD939X_VERSION_2_0) {

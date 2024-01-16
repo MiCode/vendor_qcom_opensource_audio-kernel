@@ -3,6 +3,8 @@
  * Copyright (c) 2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#define DEBUG
+
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/io.h>

@@ -29,6 +29,8 @@ AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/q6_notifier_dlkm.ko\
 	$(KERNEL_MODULES_OUT)/mbhc_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/wcd9xxx_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/stub_dlkm.ko \
+	$(KERNEL_MODULES_OUT)/cs35l41_dlkm.ko \
+	$(KERNEL_MODULES_OUT)/cs35l43_dlkm.ko \
 	$(KERNEL_MODULES_OUT)/machine_dlkm.ko
 ifneq ($(call is-board-platform-in-list,bengal holi blair), true)
 AUDIO_KERNEL_MODULES += $(KERNEL_MODULES_OUT)/swr_dmic_dlkm.ko \
