@@ -132,6 +132,19 @@ static const struct wsa_reg_mask_val reg_init[] = {
 	{REG_FIELD_VALUE(ZX_CTRL1, ZX_DET_SW_SEL, 0x03)},
 };
 
+static const struct wsa_reg_mask_val reg_init_2S[] = {
+	{REG_FIELD_VALUE(CLSH_CTL_1, SLR_MAX, 0x02)},
+	{REG_FIELD_VALUE(CLSH_V_HD_PA, V_HD_PA, 0x13)},
+	{REG_FIELD_VALUE(UVLO_PROG, UVLO1_VTH, 0x03)},
+	{REG_FIELD_VALUE(UVLO_PROG, UVLO1_HYST, 0x03)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG2, DAC_VCM_SHIFT, 0x06)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG3, DAC_VCM_SHIFT, 0x14)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG4, DAC_VCM_SHIFT, 0x19)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG5, DAC_VCM_SHIFT, 0x1B)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG6, DAC_VCM_SHIFT, 0x1C)},
+	{REG_FIELD_VALUE(DAC_VCM_CTRL_REG7, DAC_VCM_SHIFT_FINAL_OVERRIDE, 0x01)},
+};
+
 static int wsa884x_handle_post_irq(void *data);
 static int wsa884x_get_temperature(struct snd_soc_component *component,
 				   int *temp);
@@ -1505,6 +1518,13 @@ static void wsa884x_codec_init(struct snd_soc_component *component)
 		snd_soc_component_update_bits(component, reg_init[i].reg,
 					reg_init[i].mask, reg_init[i].val);
 
+	/* Register updates for 2S battery configuration */
+	if (wsa884x->bat_cfg == CONFIG_2S) {
+		for (i = 0; i < ARRAY_SIZE(reg_init_2S); i++)
+			snd_soc_component_update_bits(component, reg_init_2S[i].reg,
+						reg_init_2S[i].mask, reg_init_2S[i].val);
+	}
+
 	wsa_noise_gate_write(component, wsa884x->noise_gate_mode);
 
 }
@@ -2246,7 +2266,7 @@ static int wsa884x_swr_probe(struct swr_device *pdev)
 	wsa884x_set_gain_parameters(component);
 	wsa884x_set_pbr_parameters(component);
 	/* Must write WO registers in a single write */
-	wo0_val = (0xC | (wsa884x->pa_aux_gain << 0x02) | !wsa884x->dev_mode);
+	wo0_val = (0xC0 | (wsa884x->pa_aux_gain << 0x02) | !wsa884x->dev_mode);
 	snd_soc_component_write(component, WSA884X_ANA_WO_CTL_0, wo0_val);
 	snd_soc_component_write(component, WSA884X_ANA_WO_CTL_1, 0x0);
 	if (wsa884x->rload == WSA_4_OHMS || wsa884x->rload == WSA_6_OHMS)

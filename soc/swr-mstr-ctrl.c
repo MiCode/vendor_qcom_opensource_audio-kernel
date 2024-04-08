@@ -800,16 +800,7 @@ static int swrm_pcm_port_config(struct swr_mstr_ctrl *swrm, u8 port_num,
 	reg_addr = ((dir) ? SWRM_DIN_DP_PCM_PORT_CTRL(port_num) : \
 			SWRM_DOUT_DP_PCM_PORT_CTRL(port_num));
 	reg_val = enable ? 0x3 : 0x0;
-	if (enable) {
-		if (swrm->pcm_enable_count == 0)
-			swr_master_write(swrm, reg_addr, reg_val);
-		swrm->pcm_enable_count++;
-	} else {
-		if (swrm->pcm_enable_count > 0)
-			swrm->pcm_enable_count--;
-		if (swrm->pcm_enable_count == 0)
-			swr_master_write(swrm, reg_addr, reg_val);
-	}
+	swr_master_write(swrm, reg_addr, reg_val);
 	dev_dbg(swrm->dev, "%s : pcm port %s, reg_val = %d, for addr %x, pcm_enable_cnt:%d\n",
 			__func__, enable ? "Enabled" : "disabled", reg_val, reg_addr,
 			swrm->pcm_enable_count);
@@ -4017,7 +4008,7 @@ static int swrm_suspend(struct device *dev)
 			dev_dbg(swrm->dev, "%s: suspend failed state %d, wlock %d\n",
 				 __func__, swrm->pm_state,
 				 swrm->wlock_holders);
-			return -EBUSY;
+			return 0;
 		} else {
 			dev_dbg(swrm->dev,
 				"%s: done, state %d, wlock %d\n",

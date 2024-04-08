@@ -209,6 +209,10 @@ CDEFINES +=	-DANI_LITTLE_BYTE_ENDIAN \
 		-Werror\
 		-D__linux__
 
+ifneq (, $(filter $(word 2,$(subst _, ,$(TARGET_PRODUCT))), sheng))
+	CDEFINES += -DAUDIO_SILENT_OBSERVER
+endif
+
 KBUILD_CPPFLAGS += $(CDEFINES)
 
 # Currently, for versions of gcc which support it, the kernel Makefile
@@ -234,7 +238,6 @@ ifneq ($(MODNAME), qdsp6v2)
 CHIP_NAME ?= $(MODNAME)
 CDEFINES += -DMULTI_IF_NAME=\"$(CHIP_NAME)\"
 endif
-
 
 obj-$(CONFIG_SND_SOC_MSM_QDSP6V2_INTF) += q6_dlkm.o
 q6_dlkm-y := $(Q6_OBJS)

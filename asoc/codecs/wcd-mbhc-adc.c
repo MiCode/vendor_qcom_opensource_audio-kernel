@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright (c) 2017-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
+#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/slab.h>
@@ -128,6 +128,9 @@ static int wcd_measure_adc_once(struct wcd_mbhc *mbhc, int mux_ctl)
 	int ret = 0;
 	int output_mv = 0;
 	u8 adc_en = 0;
+#ifdef AUDIO_MBHC_ABNORMAL
+	char reason[256] = "";
+#endif
 
 	pr_debug("%s: enter\n", __func__);
 
@@ -172,6 +175,11 @@ static int wcd_measure_adc_once(struct wcd_mbhc *mbhc, int mux_ctl)
 	if (retry <= 0) {
 		pr_err("%s: adc complete: %d, adc timeout: %d\n",
 			__func__, adc_complete, adc_timeout);
+#ifdef AUDIO_MBHC_ABNORMAL
+		snprintf(reason, sizeof(reason) - 1, "%s: adc complete: %d, adc timeout: %d",
+			__func__, adc_complete, adc_timeout);
+		send_audio_mbhc_abnormal_to_onetrack(MBHC_DETECT_PLUG, reason);
+#endif
 		ret = -EINVAL;
 	} else {
 		pr_debug("%s: adc complete: %d, adc timeout: %d output_mV: %d\n",
@@ -292,6 +300,9 @@ static int wcd_check_cross_conn(struct wcd_mbhc *mbhc)
 	u8 adc_mode = 0;
 	u8 elect_ctl = 0;
 	u8 adc_en = 0;
+#ifdef AUDIO_MBHC_ABNORMAL
+	char reason[256] = "";
+#endif
 
 	pr_debug("%s: enter\n", __func__);
 	/* Check for button press and plug detection */
@@ -324,6 +335,11 @@ static int wcd_check_cross_conn(struct wcd_mbhc *mbhc)
 	hphl_adc_res = wcd_measure_adc_once(mbhc, MUX_CTL_HPH_L);
 	if (hphl_adc_res < 0) {
 		pr_err("%s: hphl_adc_res adc measurement failed\n", __func__);
+#ifdef AUDIO_MBHC_ABNORMAL
+		snprintf(reason, sizeof(reason)-1, "%s: hphl_adc_res adc measurement failed",
+			__func__);
+		send_audio_mbhc_abnormal_to_onetrack(MBHC_DETECT_PLUG, reason);
+#endif
 		ret = hphl_adc_res;
 		goto done;
 	}
@@ -332,6 +348,11 @@ static int wcd_check_cross_conn(struct wcd_mbhc *mbhc)
 	hphr_adc_res = wcd_measure_adc_once(mbhc, MUX_CTL_HPH_R);
 	if (hphr_adc_res < 0) {
 		pr_err("%s: hphr_adc_res adc measurement failed\n", __func__);
+#ifdef AUDIO_MBHC_ABNORMAL
+		snprintf(reason, sizeof(reason)-1, "%s: hphr_adc_res adc measurement failed",
+			__func__);
+		send_audio_mbhc_abnormal_to_onetrack(MBHC_DETECT_PLUG, reason);
+#endif
 		ret = hphr_adc_res;
 		goto done;
 	}
@@ -484,6 +505,9 @@ static bool wcd_is_special_headset(struct wcd_mbhc *mbhc)
 	bool is_spl_hs = false;
 	int output_mv = 0;
 	int adc_threshold = 0;
+#ifdef AUDIO_MBHC_ABNORMAL
+	char reason[256] = "";
+#endif
 
 	/*
 	 * Increase micbias to 2.7V to detect headsets with
@@ -500,6 +524,10 @@ static bool wcd_is_special_headset(struct wcd_mbhc *mbhc)
 		if (ret) {
 			pr_err("%s: mbhc_micb_ctrl_thr_mic failed, ret: %d\n",
 				__func__, ret);
+#ifdef AUDIO_MBHC_ABNORMAL
+			snprintf(reason, sizeof(reason)-1, "%s: mbhc_micb_ctrl_thr_mic failed, ret: %d", __func__, ret);
+			send_audio_mbhc_abnormal_to_onetrack(MBHC_DETECT_PLUG, reason);
+#endif
 			return false;
 		}
 	}
@@ -596,7 +624,9 @@ static void wcd_cancel_hs_detect_plug(struct wcd_mbhc *mbhc,
 static void wcd_mbhc_adc_detect_plug_type(struct wcd_mbhc *mbhc)
 {
 	struct snd_soc_component *component = mbhc->component;
-
+#ifdef AUDIO_MBHC_ABNORMAL
+	char reason[256] = "";
+#endif
 	pr_debug("%s: enter\n", __func__);
 	WCD_MBHC_RSC_ASSERT_LOCKED(mbhc);
 
@@ -610,6 +640,10 @@ static void wcd_mbhc_adc_detect_plug_type(struct wcd_mbhc *mbhc)
 						    MICB_ENABLE);
 	} else {
 		pr_err("%s: Mic Bias is not enabled\n", __func__);
+#ifdef AUDIO_MBHC_ABNORMAL
+		snprintf(reason, sizeof(reason)-1, "%s: Mic Bias is not enabled", __func__);
+		send_audio_mbhc_abnormal_to_onetrack(MBHC_DETECT_PLUG, reason);
+#endif
 		return;
 	}
 
@@ -661,6 +695,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	int pt_gnd_mic_swap_cnt = 0;
 	int no_gnd_mic_swap_cnt = 0;
 	bool is_pa_on = false, spl_hs = false, spl_hs_reported = false;
+	bool swap_gnd_and_mic = true;
 	int ret = 0;
 	int spl_hs_count = 0;
 	int output_mv = 0;
@@ -670,6 +705,7 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 
 	pr_debug("%s: enter\n", __func__);
 
+try_again:
 	mbhc = container_of(work, struct wcd_mbhc, correct_plug_swch);
 	component = mbhc->component;
 
@@ -688,6 +724,14 @@ static void wcd_correct_swch_plug(struct work_struct *work)
 	} while (try < mbhc->swap_thr);
 
 	if (cross_conn > 0) {
+		if (swap_gnd_and_mic && mbhc->mbhc_cfg->swap_gnd_mic) {
+			mbhc->mbhc_cfg->swap_gnd_mic(component, swap_gnd_and_mic);
+			swap_gnd_and_mic = false;
+			try = 0;
+			msleep(10);
+			pr_info("%s: swap gnd and mic, and try again", __func__);
+			goto try_again;
+		}
 		plug_type = MBHC_PLUG_TYPE_GND_MIC_SWAP;
 		pr_debug("%s: cross connection found, Plug type %d\n",
 			 __func__, plug_type);
@@ -746,6 +790,12 @@ correct_plug_type:
 		}
 
 		msleep(180);
+		/* In the case of system bootup with headset pluged, mbhc
+		 * begin to detect without sound card registered. delay
+		 * about 150ms to wait sound card registe.
+		 */
+		if ((mbhc->mbhc_cfg->swap_gnd_mic == NULL) && (mbhc->mbhc_cfg->enable_usbc_analog))
+			msleep(200);
 		/*
 		 * Use ADC single mode to minimize the chance of missing out
 		 * btn press/release for HEADSET type during correct work.
@@ -911,6 +961,15 @@ report:
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_ADC_MODE, 0);
 	WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_ADC_EN, 0);
 
+#if defined CONFIG_TARGET_PRODUCT_SHENG
+	if (mbhc->hs_detect_work_stop) {
+		pr_debug("%s: stop requested: %d\n", __func__,
+				mbhc->hs_detect_work_stop);
+		wcd_micbias_disable(mbhc);
+		goto exit;
+	}
+#endif
+
 	WCD_MBHC_RSC_LOCK(mbhc);
 	wcd_mbhc_find_plug_and_report(mbhc, plug_type);
 	WCD_MBHC_RSC_UNLOCK(mbhc);
@@ -925,6 +984,9 @@ enable_supply:
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_DETECTION_DONE, 1);
 	else
 		WCD_MBHC_REG_UPDATE_BITS(WCD_MBHC_DETECTION_DONE, 0);
+
+	if (plug_type == MBHC_PLUG_TYPE_HEADSET)
+		mbhc->micbias_enable = true;
 
 	if (mbhc->mbhc_cb->bcs_enable)
 		mbhc->mbhc_cb->bcs_enable(mbhc, true);

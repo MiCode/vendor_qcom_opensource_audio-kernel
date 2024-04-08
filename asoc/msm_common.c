@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
-
+#define DEBUG
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
 #include <linux/slab.h>
 #include <linux/of_device.h>
+#include <linux/init.h>
+#include <linux/kernel.h>
+#include <linux/module.h>
 #include <sound/control.h>
 #include <sound/core.h>
 #include <sound/soc.h>
@@ -76,15 +79,32 @@ struct chmap_pdata {
 static int qos_vote_status;
 static bool lpi_pcm_logging_enable;
 static bool vote_against_sleep_enable;
+static unsigned int vote_against_sleep_cnt;
 
 static struct dev_pm_qos_request latency_pm_qos_req; /* pm_qos request */
 static unsigned int qos_client_active_cnt;
 /* set audio task affinity to core 1 & 2 */
-static const unsigned int audio_core_list[] = {1, 2};
+static const unsigned int audio_core_list[] = {0, 1, 2, 3, 4, 5};
 static cpumask_t audio_cpu_map = CPU_MASK_NONE;
 static struct dev_pm_qos_request *msm_audio_req = NULL;
 static bool kregister_pm_qos_latency_controls = false;
 #define MSM_LL_QOS_VALUE	300 /* time in us to ensure LPM doesn't go in C3/C4 */
+
+#ifdef AUDIO_SILENT_OBSERVER
+extern ssize_t xlogchar_kwrite(const char __user *buf, size_t count);
+static int report_audio_silent_to_onetrack(int level, const char* scenario, const char* location,
+								const char* silent_reason, int silent_type, const char* source_sink,
+								const char* audio_device, const char* extra_info)
+{
+	char msg[512];
+	const char* format = "{\"name\":\"audio_silent_observer\",\"audio_event\":{\"scenario\":\"%s\", \"location\":\"%s\", \"silent_reason\":\"%s\", \"level\":\"%d\",\"silent_type\":\"%d\", \"source_sink\":\"%s\", \"audio_device\":\"%s\", \"extra_info\":\"%s\"},\"dgt\":\"null\",\"audio_ext\":\"null\" }";
+	snprintf(msg, sizeof(msg) - 1, format, scenario, location, silent_reason, level, silent_type,
+			 source_sink, audio_device, extra_info);
+	xlogchar_kwrite(msg, sizeof(msg));
+	pr_info("%s: send msg %s", __func__, msg);
+	return 0;
+}
+#endif
 
 static ssize_t aud_dev_sysfs_store(struct kobject *kobj,
 		struct attribute *attr,
@@ -159,6 +179,8 @@ int snd_card_notify_user(snd_card_status_t card_status)
 {
 	snd_card_pdata->card_status = card_status;
 	sysfs_notify(&snd_card_pdata->snd_card_kobj, NULL, "card_state");
+	if (card_status == 0)
+		vote_against_sleep_cnt = 0;
 	return 0;
 }
 
@@ -232,6 +254,10 @@ static void check_userspace_service_state(struct snd_soc_pcm_runtime *rtd,
 	if (pdata->aud_dev_state[rtd->num] == DEVICE_ENABLE) {
 		dev_info(rtd->card->dev, "%s userspace service crashed\n",
 				__func__);
+#ifdef AUDIO_SILENT_OBSERVER
+		report_audio_silent_to_onetrack(0, "", __FILE__, "check_userspace_service_state: (AGM) \
+				userspace service crashed", 3, "", "AGM", "");
+#endif
 		/*Reset the state as sysfs node wont be triggred*/
 		pdata->aud_dev_state[rtd->num] = DEVICE_DISABLE;
 		for (i = 0; i < pdata->num_aud_devs; i++) {
@@ -1013,10 +1039,24 @@ static int msm_vote_against_sleep_ctl_put(struct snd_kcontrol *kcontrol,
 	int ret = 0;
 
 	vote_against_sleep_enable = ucontrol->value.integer.value[0];
-	pr_debug("%s: vote against sleep enable: %d", __func__,
-			vote_against_sleep_enable);
+	pr_debug("%s: vote against sleep enable: %d sleep cnt: %d", __func__,
+			vote_against_sleep_enable, vote_against_sleep_cnt);
 
-	ret = audio_prm_set_vote_against_sleep((uint8_t)vote_against_sleep_enable);
+	if (vote_against_sleep_enable) {
+		vote_against_sleep_cnt++;
+		if (vote_against_sleep_cnt ==  1) {
+			ret = audio_prm_set_vote_against_sleep(1);
+			if (ret < 0) {
+				--vote_against_sleep_cnt;
+				pr_err("%s: failed to vote against sleep ret: %d\n", __func__, ret);
+			}
+		}
+	} else {
+		if (vote_against_sleep_cnt == 1)
+			ret = audio_prm_set_vote_against_sleep(0);
+		if (vote_against_sleep_cnt > 0)
+			vote_against_sleep_cnt--;
+	}
 
 	pr_debug("%s: vote against sleep vote ret: %d\n", __func__, ret);
 	return ret;

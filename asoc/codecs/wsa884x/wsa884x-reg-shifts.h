@@ -177,6 +177,30 @@
 #define WSA884X_CLSH_CTL_0_DLY_EN_SHIFT                                   0x02
 #define WSA884X_CLSH_CTL_0_INPUT_EN_SHIFT                                 0x01
 #define WSA884X_CLSH_CTL_0_CLSH_EN_SHIFT                                  0x00
+/* WSA884X_CLSH_CTL_1 Fields: */
+#define WSA884X_CLSH_CTL_1_SLR_MAX_SHIFT                                  0x04
+#define WSA884X_CLSH_CTL_1_VERF_OVRD_EN_SHIFT                             0x03
+#define WSA884X_CLSH_CTL_1_DECAY_RATE_SHIFT                               0x00
+/* WSA884X_CLSH_V_HD_PA Fields: */
+#define WSA884X_CLSH_V_HD_PA_V_HD_PA_SHIFT                                0x00
+/* WSA884X_UVLO_PROG Fields: */
+#define WSA884X_UVLO_PROG_UVLO1_HYST_SHIFT                                0x04
+#define WSA884X_UVLO_PROG_UVLO1_VTH_SHIFT                                 0x00
+/* WSA884X_DAC_VCM_CTRL_REG2 Fields: */
+#define WSA884X_DAC_VCM_CTRL_REG2_DAC_VCM_SHIFT_SHIFT                     0x00
+/* WSA884X_DAC_VCM_CTRL_REG3 Fields: */
+#define WSA884X_DAC_VCM_CTRL_REG3_DAC_VCM_SHIFT_SHIFT                     0x00
+/* WSA884X_DAC_VCM_CTRL_REG4 Fields: */
+#define WSA884X_DAC_VCM_CTRL_REG4_DAC_VCM_SHIFT_SHIFT                     0x00
+/* WSA884X_DAC_VCM_CTRL_REG5 Fields: */
+#define WSA884X_DAC_VCM_CTRL_REG5_DAC_VCM_SHIFT_SHIFT                     0x00
+/* WSA884X_DAC_VCM_CTRL_REG6 Fields: */
+#define WSA884X_DAC_VCM_CTRL_REG6_DAC_VCM_SHIFT_SHIFT                     0x00
+/* WSA884X_DAC_VCM_CTRL_REG7 Fields: */
+#define WSA884X_DAC_VCM_CTRL_REG7_SPARE_BITS_7_2_SHIFT                    0x02
+#define WSA884X_DAC_VCM_CTRL_REG7_DAC_VCM_SHIFT_FINAL_OVERRIDE_SHIFT      0x01
+#define WSA884X_DAC_VCM_CTRL_REG7_DAC_VCM_SHIFT_ZONE_OVERRIDE_SHIFT       0x00
+
 /* WSA884X_STB_CTRL1 Fields: */
 #define WSA884X_STB_CTRL1_SLOPE_COMP_CURRENT_SHIFT                        0x03
 #define WSA884X_STB_CTRL1_VOUT_FS_SHIFT                                   0x00
