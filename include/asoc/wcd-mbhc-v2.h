@@ -299,6 +299,13 @@ enum wcd_mbhc_event_state {
 	WCD_MBHC_EVENT_PA_HPHR,
 };
 
+#ifdef AUDIO_MBHC_ABNORMAL
+enum wcd_mbhc_stage {
+	MBHC_INIT_IRQ,
+	MBHC_DETECT_PLUG,
+};
+#endif
+
 struct wcd_mbhc_general_cfg {
 	u8 t_ldoh;
 	u8 t_bg_fast_settle;
@@ -440,6 +447,9 @@ struct wcd_mbhc_config {
 	bool enable_anc_mic_detect;
 	u32 enable_usbc_analog;
 	bool moisture_duty_cycle_en;
+	int uart_audio_switch_gpio;
+	struct device_node *uart_audio_switch_gpio_p; /* used by pinctrl API */
+	bool flip_switch;
 	bool usbss_hsj_connect_enable;
 };
 
@@ -643,5 +653,8 @@ int wcd_cancel_btn_work(struct wcd_mbhc *mbhc);
 int wcd_mbhc_get_button_mask(struct wcd_mbhc *mbhc);
 void wcd_mbhc_report_plug(struct wcd_mbhc *mbhc, int insertion,
 			enum snd_jack_types jack_type);
+#ifdef AUDIO_MBHC_ABNORMAL
+int send_audio_mbhc_abnormal_to_onetrack(int stage, const char* reason);
+#endif
 
 #endif /* __WCD_MBHC_V2_H__ */

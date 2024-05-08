@@ -544,7 +544,7 @@ static int swr_haptics_probe(struct swr_device *sdev)
 		return -ENOMEM;
 
 	/* VMAX default to 5V */
-	swr_hap->vmax = 100;
+	swr_hap->vmax = 140;
 	swr_hap->swr_slave = sdev;
 	swr_hap->dev = &sdev->dev;
 	pmic_type = (uintptr_t)of_device_get_match_data(swr_hap->dev);

@@ -3,7 +3,7 @@
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022-2024, Qualcomm Innovation Center, Inc. All rights reserved.
  */
-
+#define DEBUG
 #include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/gpio.h>
@@ -15,7 +15,8 @@
 #include <linux/input.h>
 #include <linux/of_device.h>
 #include <linux/soc/qcom/fsa4480-i2c.h>
-#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+#if defined(CONFIG_TARGET_PRODUCT_CHENFENG) || defined(CONFIG_TARGET_PRODUCT_PERIDOT)
+#elif IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 #include <linux/soc/qcom/wcd939x-i2c.h>
 #endif
 #include <linux/pm_qos.h>
@@ -49,6 +50,12 @@
 #include "msm-audio-defs.h"
 #include "msm_common.h"
 #include "msm_dailink.h"
+#if IS_ENABLED(CONFIG_MIEV)
+#include <miev/mievent.h>
+#include <linux/timer.h>
+#include <linux/timex.h>
+#include <linux/rtc.h>
+#endif
 
 #define DRV_NAME "pineapple-asoc-snd"
 #define __CHIPSET__ "PINEAPPLE "
@@ -58,7 +65,7 @@
 #define WCD9XXX_MBHC_DEF_BUTTONS    8
 #define CODEC_EXT_CLK_RATE          9600000
 #define DEV_NAME_STR_LEN            32
-#define WCD_MBHC_HS_V_MAX           1600
+#define WCD_MBHC_HS_V_MAX           1700
 
 #define WCN_CDC_SLIM_RX_CH_MAX 2
 #define WCN_CDC_SLIM_TX_CH_MAX 2
@@ -91,6 +98,7 @@ struct msm_asoc_mach_data {
 	int core_audio_vote_count;
 	u32 wsa_max_devs;
 	int wcd_disabled;
+	int cdc_dam_disabled;
 	int (*get_dev_num)(struct snd_soc_component *);
 	int backend_used;
 	struct prm_earpa_hw_intf_config upd_config;
@@ -129,9 +137,9 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.swap_gnd_mic = NULL,
 	.hs_ext_micbias = true,
 	.key_code[0] = KEY_MEDIA,
-	.key_code[1] = KEY_VOICECOMMAND,
-	.key_code[2] = KEY_VOLUMEUP,
-	.key_code[3] = KEY_VOLUMEDOWN,
+	.key_code[1] = BTN_1,
+	.key_code[2] = BTN_2,
+	.key_code[3] = 0,
 	.key_code[4] = 0,
 	.key_code[5] = 0,
 	.key_code[6] = 0,
@@ -144,6 +152,20 @@ static struct wcd_mbhc_config wcd_mbhc_cfg = {
 	.moisture_duty_cycle_en = true,
 };
 
+static int usbhs_direction_get(struct snd_kcontrol *kcontrol,
+				struct snd_ctl_elem_value *ucontrol)
+{
+	if (wcd_mbhc_cfg.flip_switch)
+		ucontrol->value.integer.value[0] = 1;
+	else
+		ucontrol->value.integer.value[0] = 0;
+	return 0;
+}
+
+static const struct snd_kcontrol_new msm_common_snd_controls[] = {
+	SOC_SINGLE_EXT("USB Headset Direction", 0, 0, UINT_MAX, 0,usbhs_direction_get, NULL),
+};
+
 static bool msm_usbc_swap_gnd_mic(struct snd_soc_component *component, bool active)
 {
 	int ret = 0;
@@ -154,10 +176,12 @@ static bool msm_usbc_swap_gnd_mic(struct snd_soc_component *component, bool acti
 	if (!pdata->fsa_handle && !pdata->wcd_usbss_handle)
 		return false;
 
+	wcd_mbhc_cfg.flip_switch = true;
 	if (pdata->fsa_handle) {
 		ret = fsa4480_switch_event(pdata->fsa_handle, FSA_MIC_GND_SWAP);
 	} else {
-#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+#if defined(CONFIG_TARGET_PRODUCT_CHENFENG) || defined(CONFIG_TARGET_PRODUCT_PERIDOT)
+#elif IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 		if (wcd_mbhc_cfg.usbss_hsj_connect_enable)
 			ret = wcd_usbss_switch_update(WCD_USBSS_GND_MIC_SWAP_HSJ,
 							WCD_USBSS_CABLE_CONNECT);
@@ -491,8 +515,8 @@ static void *def_wcd_mbhc_cal(void)
 		(sizeof(btn_cfg->_v_btn_low[0]) * btn_cfg->num_btn);
 
 	btn_high[0] = 75;
-	btn_high[1] = 150;
-	btn_high[2] = 237;
+	btn_high[1] = 260;
+	btn_high[2] = 500;
 	btn_high[3] = 500;
 	btn_high[4] = 500;
 	btn_high[5] = 500;
@@ -1267,6 +1291,17 @@ static struct snd_soc_dai_link msm_tdm_dai_links[] = {
 		SND_SOC_DAILINK_REG(quin_tdm_rx_0),
 	},
 	{
+		.name = LPASS_BE_QUIN_TDM_RX_0_VIRT,
+		.stream_name = LPASS_BE_QUIN_TDM_RX_0_VIRT,
+		.playback_only = 1,
+		.trigger = {SND_SOC_DPCM_TRIGGER_POST,
+			SND_SOC_DPCM_TRIGGER_POST},
+		.ops = &msm_common_be_ops,
+		.ignore_suspend = 1,
+		.ignore_pmdown_time = 1,
+		SND_SOC_DAILINK_REG(quin_tdm_rx_0),
+	},
+	{
 		.name = LPASS_BE_QUIN_TDM_TX_0,
 		.stream_name = LPASS_BE_QUIN_TDM_TX_0,
 		.capture_only = 1,
@@ -1527,7 +1562,8 @@ static int msm_snd_card_late_probe(struct snd_soc_card *card)
 		return -ENOMEM;
 	wcd_mbhc_cfg.calibration = mbhc_calibration;
 
-#if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
+#if defined(CONFIG_TARGET_PRODUCT_CHENFENG) || defined(CONFIG_TARGET_PRODUCT_PERIDOT)
+#elif IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 	if (of_find_property(card->dev->of_node,
 				"qcom,usbss-hsj-connect-enabled", NULL))
 		wcd_mbhc_cfg.usbss_hsj_connect_enable = true;
@@ -1558,7 +1594,8 @@ err_hs_detect:
 	return ret;
 }
 
-static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int wsa_max_devs)
+static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int wsa_max_devs,
+									int cdc_dma_disable)
 {
 	struct snd_soc_card *card = NULL;
 	struct snd_soc_dai_link *dailink = NULL;
@@ -1578,12 +1615,13 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int w
 		card = &snd_soc_card_pineapple_msm;
 
 		/* late probe uses dai link at index '0' to get wcd component */
-		memcpy(msm_pineapple_dai_links + total_links,
-		       msm_rx_tx_cdc_dma_be_dai_links,
-		       sizeof(msm_rx_tx_cdc_dma_be_dai_links));
-		total_links +=
-			ARRAY_SIZE(msm_rx_tx_cdc_dma_be_dai_links);
-
+		if (!cdc_dma_disable) {
+			memcpy(msm_pineapple_dai_links + total_links,
+			       msm_rx_tx_cdc_dma_be_dai_links,
+			       sizeof(msm_rx_tx_cdc_dma_be_dai_links));
+			total_links +=
+				ARRAY_SIZE(msm_rx_tx_cdc_dma_be_dai_links);
+		}
 		switch (wsa_max_devs) {
 		case MONO_SPEAKER:
 		case STEREO_SPEAKER:
@@ -1623,10 +1661,12 @@ static struct snd_soc_card *populate_snd_card_dailinks(struct device *dev, int w
 			break;
 		}
 
-		memcpy(msm_pineapple_dai_links + total_links,
-		       msm_va_cdc_dma_be_dai_links,
-		       sizeof(msm_va_cdc_dma_be_dai_links));
-		total_links += ARRAY_SIZE(msm_va_cdc_dma_be_dai_links);
+		if (!cdc_dma_disable) {
+			memcpy(msm_pineapple_dai_links + total_links,
+			       msm_va_cdc_dma_be_dai_links,
+			       sizeof(msm_va_cdc_dma_be_dai_links));
+			total_links += ARRAY_SIZE(msm_va_cdc_dma_be_dai_links);
+		}
 
 		memcpy(msm_pineapple_dai_links + total_links,
 		       msm_common_be_dai_links,
@@ -2029,6 +2069,13 @@ static int msm_rx_tx_codec_init(struct snd_soc_pcm_runtime *rtd)
 		return ret;
 	}
 
+	ret = snd_soc_add_component_controls(lpass_cdc_component, msm_common_snd_controls,
+                                             ARRAY_SIZE(msm_common_snd_controls));
+	if (ret < 0) {
+		pr_err("%s: add common snd controls failed: %d\n",__func__, ret);
+		return ret;
+	}
+
 	dapm = snd_soc_component_get_dapm(lpass_cdc_component);
 
 	snd_soc_dapm_new_controls(dapm, msm_int_dapm_widgets,
@@ -2169,6 +2216,7 @@ static int pineapple_ssr_enable(struct device *dev, void *data)
 		dev_dbg(dev, "%s: pdata is NULL \n", __func__);
 		goto err;
 	}
+
 	rtd_wcd = snd_soc_get_pcm_runtime(card, &card->dai_link[0]);
 	if (!rtd_wcd) {
 		dev_dbg(dev,
@@ -2185,6 +2233,7 @@ static int pineapple_ssr_enable(struct device *dev, void *data)
 			__func__, card->dai_link[ARRAY_SIZE(msm_rx_tx_cdc_dma_be_dai_links)]);
 		}
 	}
+
 	/* set UPD configuration */
 	if(!pdata->upd_config.backend_used) {
 		dev_dbg(dev,
@@ -2208,7 +2257,6 @@ static int pineapple_ssr_enable(struct device *dev, void *data)
 	}
 
 	msm_set_upd_config(rtd);
-
 err:
 	return ret;
 }
@@ -2217,7 +2265,6 @@ static void pineapple_ssr_disable(struct device *dev, void *data)
 {
 	struct platform_device *pdev = to_platform_device(dev);
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
-
 	if (!card) {
 		dev_err_ratelimited(dev, "%s: card is NULL\n", __func__);
 		return;
@@ -2298,7 +2345,10 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	int ret = 0;
 	struct clk *lpass_audio_hw_vote = NULL;
 	const struct of_device_id *match;
-
+#if IS_ENABLED(CONFIG_MIEV)
+	struct misight_mievent *mievent;
+	struct timespec64 curTime;
+#endif
 	if (!pdev->dev.of_node) {
 		dev_err(&pdev->dev, "%s: No platform supplied from device tree\n", __func__);
 		return -EINVAL;
@@ -2311,6 +2361,10 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	of_property_read_u32(pdev->dev.of_node,
 						"qcom,wcd-disabled",
 						&pdata->wcd_disabled);
+
+	of_property_read_u32(pdev->dev.of_node,
+						"qcom,cdc-dma-disabled",
+						&pdata->cdc_dam_disabled);
 
 	/* Get maximum WSA device count for this platform */
 	ret = of_property_read_u32(pdev->dev.of_node,
@@ -2326,7 +2380,8 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	pdata->dedicated_wsa2 = of_find_property(pdev->dev.of_node,
 				"qcom,dedicated-wsa2", NULL);
 
-	card = populate_snd_card_dailinks(&pdev->dev, pdata->wsa_max_devs);
+	card = populate_snd_card_dailinks(&pdev->dev, pdata->wsa_max_devs,
+						pdata->cdc_dam_disabled);
 	if (!card) {
 		dev_err(&pdev->dev, "%s: Card uninitialized\n", __func__);
 		ret = -EINVAL;
@@ -2352,7 +2407,7 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 		goto err;
 	}
 
-	if(!strcmp(match->data, "codec")) {
+	if(!strcmp(match->data, "codec") && !pdata->cdc_dam_disabled) {
 		ret = snd_soc_of_parse_audio_routing(card, "qcom,audio-routing");
 		if (ret) {
 			dev_err(&pdev->dev, "%s: parse audio routing failed, err:%d\n",
@@ -2363,6 +2418,7 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 
 	ret = msm_populate_dai_link_component_of_node(card);
 	if (ret) {
+		printk("<%s><%d>: X.\n", __func__, __LINE__);
 		ret = -EPROBE_DEFER;
 		goto err;
 	}
@@ -2382,6 +2438,10 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	}
 	dev_info(&pdev->dev, "%s: Sound card %s registered\n",
 		 __func__, card->name);
+#if IS_ENABLED(CONFIG_MIEV)
+	dev_info(&pdev->dev, "%s: log when mievent dump error is enabled\n",
+		 __func__);
+#endif
 
 	if (wcd_mbhc_cfg.enable_usbc_analog)
 		wcd_mbhc_cfg.swap_gnd_mic = msm_usbc_swap_gnd_mic;
@@ -2397,7 +2457,13 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	if (!pdata->wcd_usbss_handle)
 		dev_dbg(&pdev->dev, "property %s not detected in node %s\n",
 			"wcd939x-i2c-handle", pdev->dev.of_node->full_name);
-
+#if defined(CONFIG_TARGET_PRODUCT_CHENFENG) || defined(CONFIG_TARGET_PRODUCT_PERIDOT)
+	pdata->fsa_handle = of_parse_phandle(pdev->dev.of_node,
+					"fsa4480-i2c-handle", 0);
+	if (!pdata->fsa_handle)
+		dev_dbg(&pdev->dev, "property %s not detected in node %s\n",
+			"fsa4480-i2c-handle", pdev->dev.of_node->full_name);
+#endif
 	pdata->dmic01_gpio_p = of_parse_phandle(pdev->dev.of_node,
 					      "qcom,cdc-dmic01-gpios",
 					       0);
@@ -2447,6 +2513,18 @@ static int msm_asoc_machine_probe(struct platform_device *pdev)
 	return 0;
 err:
 	devm_kfree(&pdev->dev, pdata);
+	printk("<%s><%d>: X, failed.\n", __func__, __LINE__);
+#if IS_ENABLED(CONFIG_MIEV)
+	if(ret != -EPROBE_DEFER) {
+		dev_dbg(&pdev->dev,"<%s><%d>: X, failed.non-DEFER skip sound card registration.\n", __func__, __LINE__);
+		ktime_get_real_ts64(&curTime);
+		mievent  = cdev_tevent_alloc(906001001);
+		cdev_tevent_add_int(mievent, "CurrentTime", curTime.tv_sec);
+		cdev_tevent_add_str(mievent, "Keyword", "sound_card_not_registered");
+		cdev_tevent_write(mievent);
+		cdev_tevent_destroy(mievent);
+	}
+#endif
 	return ret;
 }
 

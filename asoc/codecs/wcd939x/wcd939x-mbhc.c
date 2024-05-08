@@ -3,6 +3,7 @@
  * Copyright (c) 2018-2019, The Linux Foundation. All rights reserved.
  * Copyright (c) 2022-2023, Qualcomm Innovation Center, Inc. All rights reserved.
  */
+#define DEBUG
 #include <linux/module.h>
 #include <linux/init.h>
 #include <linux/platform_device.h>
@@ -24,6 +25,7 @@
 #include <linux/kobject.h>
 #include "wcd939x-registers.h"
 #include "internal.h"
+#include "hwid.h"
 #if IS_ENABLED(CONFIG_QCOM_WCD_USBSS_I2C)
 #include <linux/soc/qcom/wcd939x-i2c.h>
 #endif
@@ -36,6 +38,8 @@
 #define WCD939X_ZDET_VAL_100K           100000000
 /* Z floating defined in ohms */
 #define WCD939X_ZDET_FLOATING_IMPEDANCE 0x0FFFFFFE
+#define ZDET_300_LMT_MOHMS 100000
+#define ZDET_32_LMT_MOHMS 33443
 
 #define WCD939X_ZDET_NUM_MEASUREMENTS   900
 #define WCD939X_MBHC_GET_C1(c)          ((c & 0xC000) >> 14)
@@ -44,6 +48,10 @@
 #define WCD939X_MBHC_IS_SECOND_RAMP_REQUIRED(z) false
 #define WCD939X_MBHC_ZDET_CONST         (1071 * 1024)
 #define WCD939X_MBHC_MOISTURE_RREF      R_24_KOHM
+#define RDOWN_TIMER_PERIOD_MSEC 100
+
+#define RESIDUAL_AUD_FACTOR_MOHMS 0
+#define RESIDUAL_GND_FACTOR_MOHMS 0
 
 #define OHMS_TO_MILLIOHMS 1000
 #define SLOPE_FACTOR_SCALER 10000
@@ -1374,15 +1382,12 @@ static int create_sysfs_entry_file(struct wcd939x_priv *wcd939x, char *name, int
 {
 	struct usbcss_hs_attr *usbc_attr;
 	char *name_copy;
-
 	usbc_attr = devm_kmalloc(wcd939x->dev, sizeof(*usbc_attr), GFP_KERNEL);
 	if (!usbc_attr)
 		return -ENOMEM;
-
 	name_copy = devm_kstrdup(wcd939x->dev, name, GFP_KERNEL);
 	if (!name_copy)
 		return -ENOMEM;
-
 	usbc_attr->priv = wcd939x;
 	usbc_attr->index = index;
 	usbc_attr->attr.attr.name = name_copy;
@@ -1390,7 +1395,6 @@ static int create_sysfs_entry_file(struct wcd939x_priv *wcd939x, char *name, int
 	usbc_attr->attr.show = usbcss_sysfs_show;
 	usbc_attr->attr.store = usbcss_sysfs_store;
 	sysfs_attr_init(&usbc_attr->attr.attr);
-
 	return sysfs_create_file(parent, &usbc_attr->attr.attr);
 }
 
@@ -1399,23 +1403,19 @@ static int usbcss_hs_sysfs_init(struct wcd939x_priv *wcd939x)
 	int rc = 0;
 	int i = 0;
 	struct kobject *kobj = NULL;
-
 	if (!wcd939x || !wcd939x->dev) {
 		pr_err("%s: Invalid wcd939x private data.\n", __func__);
 		return -EINVAL;
 	}
-
 	kobj = kobject_create_and_add("usbcss_hs", kernel_kobj);
 	if (!kobj) {
 		dev_err(wcd939x->dev, "%s: Could not create the USBC-SS HS kobj.\n", __func__);
 		return -ENOMEM;
 	}
-
 	for (i = 0; i < ARRAY_SIZE(usbcss_sysfs_files); i++) {
 		rc = create_sysfs_entry_file(wcd939x, usbcss_sysfs_files[i],
 				0644, i, kobj);
 	}
-
 	return 0;
 }
 
@@ -1515,6 +1515,7 @@ static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 	wcd939x_mbhc_zdet_ramp(component, zdet_param_ptr, &z1L, NULL, d1);
 	if ((z1L == WCD939X_ZDET_FLOATING_IMPEDANCE) || (z1L > WCD939X_ZDET_VAL_100K)) {
 		*zl = WCD939X_ZDET_FLOATING_IMPEDANCE;
+		pdata->usbcss_hs.aud.l.zval = *zl;
 	} else {
 		*zl = z1L;
 		wcd939x_wcd_mbhc_qfuse_cal(component, zl, 0);
@@ -1538,6 +1539,7 @@ static void wcd939x_wcd_mbhc_calc_impedance(struct wcd_mbhc *mbhc, uint32_t *zl,
 	wcd939x_mbhc_zdet_ramp(component, zdet_param_ptr, NULL, &z1R, d1);
 	if ((z1R == WCD939X_ZDET_FLOATING_IMPEDANCE) || (z1R > WCD939X_ZDET_VAL_100K)) {
 		*zr = WCD939X_ZDET_FLOATING_IMPEDANCE;
+		pdata->usbcss_hs.aud.r.zval = *zr;
 	} else {
 		*zr = z1R;
 		wcd939x_wcd_mbhc_qfuse_cal(component, zr, 4);
@@ -2332,10 +2334,19 @@ int wcd939x_mbhc_init(struct wcd939x_mbhc **mbhc,
 	}
 
 	(*mbhc) = wcd939x_mbhc;
+/*
 	snd_soc_add_component_controls(component, impedance_detect_controls,
 				   ARRAY_SIZE(impedance_detect_controls));
 	snd_soc_add_component_controls(component, hph_type_detect_controls,
 				   ARRAY_SIZE(hph_type_detect_controls));
+*/
+	wcd939x = dev_get_drvdata(component->dev);
+	if (!wcd939x) {
+		dev_err(component->dev, "%s: wcd939x pointer is NULL\n", __func__);
+		ret = -EINVAL;
+		goto err;
+	}
+	usbcss_hs_sysfs_init(wcd939x);
 
 	wcd939x = dev_get_drvdata(component->dev);
 	if (!wcd939x) {

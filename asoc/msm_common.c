@@ -4,6 +4,8 @@
  * Copyright (c) 2021-2023 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
+#define DEBUG
+
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
 #include <linux/platform_device.h>
@@ -44,8 +46,14 @@ struct snd_card_pdata {
 #define DIR_SZ 10
 
 #define MAX_CODEC_DAI 8
+#if defined(CONFIG_TARGET_PRODUCT_SUIREN)
+#define TDM_SLOT_WIDTH_BITS 16
+#define TDM_MAX_SLOTS 32
+#define TDM_MAX_SLOTS_FOR_BT_SCO 2
+#else
 #define TDM_SLOT_WIDTH_BITS 32
 #define TDM_MAX_SLOTS 8
+#endif
 #define MI2S_NUM_CHANNELS 2
 
 #define SAMPLING_RATE_44P1KHZ   44100
@@ -417,6 +425,11 @@ int msm_common_snd_hw_params(struct snd_pcm_substream *substream,
 		if (atomic_read(&pdata->lpass_intf_clk_ref_cnt[index]) == 0) {
 			if ((strnstr(stream_name, "TDM", strlen(stream_name)))) {
 				slots = pdata->tdm_max_slots;
+				#if defined(CONFIG_TARGET_PRODUCT_SUIREN)
+				if (index == SEN_MI2S_TDM_AUXPCM) {
+				    slots = TDM_MAX_SLOTS_FOR_BT_SCO;
+				}
+				#endif
 				rate = params_rate(params);
 
 				ret = get_tdm_clk_id(index);
@@ -426,6 +439,11 @@ int msm_common_snd_hw_params(struct snd_pcm_substream *substream,
 				intf_clk_cfg.clk_id = ret;
 				intf_clk_cfg.clk_freq_in_hz = rate * slot_width * slots;
 				intf_clk_cfg.clk_attri = pdata->tdm_clk_attribute[index];
+				#if defined(CONFIG_TARGET_PRODUCT_SUIREN)
+				if (index == SEN_MI2S_TDM_AUXPCM) {
+				    intf_clk_cfg.clk_attri = CLOCK_ATTRIBUTE_COUPLE_NO;
+				}
+				#endif
 				intf_clk_cfg.clk_root = 0;
 
 				if (pdata->is_audio_hw_vote_required[index]  &&

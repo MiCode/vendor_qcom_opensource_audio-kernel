@@ -14,6 +14,7 @@
 #define DRV_NAME "msm-stub-codec"
 
 /* A dummy driver useful only to advertise hardware parameters */
+#if defined(CONFIG_TARGET_PRODUCT_CHENFENG) || defined(CONFIG_TARGET_PRODUCT_PERIDOT)
 static struct snd_soc_dai_driver msm_stub_dais[] = {
 	{
 		.name = "msm-stub-rx",
@@ -21,7 +22,7 @@ static struct snd_soc_dai_driver msm_stub_dais[] = {
 			.stream_name = "Playback",
 			.channels_min = 1,
 			.channels_max = 8,
-			.rates = SNDRV_PCM_RATE_8000_48000,
+			.rates = SNDRV_PCM_RATE_8000_96000,
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S24_LE |
 				    SNDRV_PCM_FMTBIT_S24_3LE |
@@ -34,6 +35,35 @@ static struct snd_soc_dai_driver msm_stub_dais[] = {
 			.stream_name = "Record",
 			.channels_min = 1,
 			.channels_max = 8,
+			.rates = SNDRV_PCM_RATE_8000_96000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+				    SNDRV_PCM_FMTBIT_S24_LE |
+				    SNDRV_PCM_FMTBIT_S24_3LE |
+				    SNDRV_PCM_FMTBIT_S32_LE),
+		},
+	},
+};
+#else
+static struct snd_soc_dai_driver msm_stub_dais[] = {
+	{
+		.name = "msm-stub-rx",
+		.playback = { /* Support maximum range */
+			.stream_name = "Playback",
+			.channels_min = 1,
+			.channels_max = 32,
+			.rates = SNDRV_PCM_RATE_8000_48000,
+			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
+				    SNDRV_PCM_FMTBIT_S24_LE |
+				    SNDRV_PCM_FMTBIT_S24_3LE |
+				    SNDRV_PCM_FMTBIT_S32_LE),
+		},
+	},
+	{
+		.name = "msm-stub-tx",
+		.capture = { /* Support maximum range */
+			.stream_name = "Record",
+			.channels_min = 1,
+			.channels_max = 32,
 			.rates = SNDRV_PCM_RATE_8000_48000,
 			.formats = (SNDRV_PCM_FMTBIT_S16_LE |
 				    SNDRV_PCM_FMTBIT_S24_LE |
@@ -42,7 +72,7 @@ static struct snd_soc_dai_driver msm_stub_dais[] = {
 		},
 	},
 };
-
+#endif
 static const struct snd_soc_component_driver soc_msm_stub = {
 	.name = DRV_NAME,
 };

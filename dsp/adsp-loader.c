@@ -67,6 +67,20 @@ static struct work_struct adsp_ldr_work;
 static struct platform_device *adsp_private;
 static void adsp_loader_unload(struct platform_device *pdev);
 
+#ifdef AUDIO_SILENT_OBSERVER
+extern ssize_t xlogchar_kwrite(const char __user *buf, size_t count);
+static int report_audio_silent_to_onetrack(int level, const char* scenario, const char* location,
+							const char* silent_reason, int silent_type, const char* source_sink,
+							const char* audio_device, const char* extra_info)
+{
+	char msg[512];
+	const char* format = "{\"name\":\"audio_silent_observer\",\"audio_event\":{\"scenario\":\"%s\", \"location\":\"%s\", \"silent_reason\":\"%s\", \"level\":\"%d\",\"silent_type\":\"%d\", \"source_sink\":\"%s\", \"audio_device\":\"%s\", \"extra_info\":\"%s\"},\"dgt\":\"null\",\"audio_ext\":\"null\" }";
+	snprintf(msg, sizeof(msg) - 1, format, scenario, location, silent_reason, level, silent_type, source_sink, audio_device, extra_info);
+	xlogchar_kwrite(msg, sizeof(msg));
+	pr_info("%s: send msg %s", __func__, msg);
+	return 0;
+}
+#endif
 
 static void adsp_load_fw(struct work_struct *adsp_ldr_work)
 {
@@ -223,6 +237,9 @@ static ssize_t adsp_ssr_store(struct kobject *kobj,
 	rproc_shutdown(adsp_dev);
 	adsp_loader_do(adsp_private);
 
+#ifdef AUDIO_SILENT_OBSERVER
+	report_audio_silent_to_onetrack(0, "", __FILE__, "ADSP restarted", 3, "", "DSP", "");
+#endif
 	dev_dbg(&pdev->dev, "%s :: ADSP restarted\n", __func__);
 	return count;
 }

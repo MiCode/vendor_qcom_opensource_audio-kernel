@@ -6,6 +6,8 @@ else
 	KERNEL_BUILD := 0
 endif
 
+ccflags-y += -I$(srctree)/drivers/misc/hwid/
+
 ifeq ($(KERNEL_BUILD), 1)
 	# These are configurable via Kconfig for kernel-based builds
 	# Need to explicitly configure for Android-based builds
@@ -109,6 +111,17 @@ ifeq ($(call cc-option-yn, -Wheader-guard),y)
 EXTRA_CFLAGS += -Wheader-guard
 endif
 
+ifneq (, $(filter $(word 2,$(subst _, ,$(TARGET_PRODUCT))), shennong))
+	CDEFINES += -DCONFIG_TARGET_PRODUCT_SHENNONG
+endif
+
+ifneq (, $(filter $(word 2,$(subst _, ,$(TARGET_PRODUCT))), houji))
+	CDEFINES += -DCONFIG_TARGET_PRODUCT_HOUJI
+endif
+
+ifneq (, $(filter $(word 2,$(subst _, ,$(TARGET_PRODUCT))), manet))
+        CDEFINES += -DCONFIG_TARGET_PRODUCT_MANET
+endif
 
 # Module information used by KBuild framework
 obj-$(CONFIG_SND_SOC_WCD939X) += wcd939x_dlkm.o

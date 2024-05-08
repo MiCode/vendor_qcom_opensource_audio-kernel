@@ -129,16 +129,20 @@ static inline void wcd_clsh_set_flyback_mode(
 		snd_soc_component_update_bits(component,
 				WCD9XXX_ANA_RX_SUPPLIES,
 				0x04, 0x04);
+#if 0
 		snd_soc_component_update_bits(component,
 				WCD9XXX_FLYBACK_VNEG_CTRL_4,
 				0xF0, 0x80);
+#endif
 	} else {
 		snd_soc_component_update_bits(component,
 				WCD9XXX_ANA_RX_SUPPLIES,
 				0x04, 0x00); /* set to Default */
+#if 0
 		snd_soc_component_update_bits(component,
 				WCD9XXX_FLYBACK_VNEG_CTRL_4,
 				0xF0, 0x70);
+#endif
 	}
 }
 

@@ -23,5 +23,6 @@
 #define AUDIO_LPASS_MCLK_11           14 /* WSA_TX CORE CLK */
 #define AUDIO_LPASS_MCLK_12           15 /* WSA2_TX CORE CLK */
 #define AUDIO_LPASS_MCLK_13           16 /* RX_MCLK2 2X CLK */
+#define AUDIO_LPASS_MCLK_14           17 /* TLV320 CLK */
 
 #endif

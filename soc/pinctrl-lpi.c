@@ -173,7 +173,7 @@ static int lpi_gpio_read(struct lpi_gpio_pad *pad, unsigned int addr)
 
 	if (!lpi_dev_up) {
 		if (__ratelimit(&rtl))
-			pr_err_ratelimited("%s: ADSP is down due to SSR, return\n",
+			pr_err_ratelimited("%s: ADSP is down due to SSR, return[TF-NOSOUND]\n",
 				   __func__);
 		return 0;
 	}
