@@ -1,0 +1,10 @@
+config SND_SOC_TFA98XX
+	tristate "TFA98XX audio/haptic controller support"
+	depends on I2C
+	depends on LEDS_CLASS
+	help
+	  The is the codec driver for TFA98XX smart amplifiers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called snd_soc_tfa98xx
+
