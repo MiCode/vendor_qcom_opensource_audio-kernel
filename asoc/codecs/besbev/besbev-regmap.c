@@ -1,0 +1,240 @@
+// SPDX-License-Identifier: GPL-2.0-only
+/*
+ * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022-2023 Qualcomm Innovation Center, Inc. All rights reserved.
+ */
+
+#include <linux/regmap.h>
+#include <linux/device.h>
+#include "besbev-registers.h"
+
+extern const u8 besbev_reg_access_analog[
+			BESBEV_REG(BESBEV_ANALOG_REGISTERS_MAX_SIZE)];
+extern const u8 besbev_reg_access_digital[
+			BESBEV_REG(BESBEV_DIGITAL_REGISTERS_MAX_SIZE)];
+
+static const struct reg_default besbev_defaults[] = {
+	{ BESBEV_ANA_MICBIAS_MICB_1_2_EN,	0x11 },
+	{ BESBEV_ANA_MICBIAS_LDO_1_SETTING,	0x21 },
+	{ BESBEV_ANA_MICB_LDO_1_CTRL,		0x00 },
+	{ BESBEV_ANA_MICB_LDO_ATEST,		0x00 },
+	{ BESBEV_ANA_TX_AMIC1,			0x00 },
+	{ BESBEV_ANA_TX_AMIC2,			0x00 },
+	{ BESBEV_ANA_TX_ATEST_TOP_CTL,		0x00 },
+	{ BESBEV_ANA_TX_ATEST_BLK_CTL,		0x00 },
+	{ BESBEV_ANA_TX_TEST_EN,		0xF0 },
+	{ BESBEV_ANA_TX_TEST_BLK_EN,		0x40 },
+
+	{ BESBEV_ANA_TX_CKIN_CTL,		0x01 },
+	{ BESBEV_ANA_TX_BIAS_CTL,		0x01 },
+	{ BESBEV_ANA_TX_TEST_CTL,		0x01 },
+	{ BESBEV_ANA_TX_TXFE_CLKDIV,		0x01 },
+	{ BESBEV_ANA_TX_SAR1_ERR,		0x01 },
+	{ BESBEV_ANA_TX_SAR2_ERR,		0x01 },
+	{ BESBEV_ANA_TX_CTUNE_BYP,		0x01 },
+	{ BESBEV_ANA_TX_RCTUNE_OUT,		0x01 },
+	{ BESBEV_ANA_TX_RCTUNE_CTL,		0x01 },
+	{ BESBEV_ANA_TX_ADC_VREF_CTL,		0x01 },
+	{ BESBEV_ANA_TX_MISC_CTL,		0x01 },
+	{ BESBEV_ANA_TX_SPARE,			0x01 },
+
+	{ BESBEV_ANA_MBIAS_TSADC_EN,		0x00 },
+	{ BESBEV_MBIAS_TSADC_SPARE,		0x00 },
+	{ BESBEV_MBIAS_TSADC_OP_CTL,		0xA8 },
+	{ BESBEV_MBIAS_TSADC_IREF_CTL,		0x57 },
+	{ BESBEV_MBIAS_TSADC_ISENS_CTL,		0x47 },
+	{ BESBEV_MBIAS_TSADC_CLK_CTL,		0x87 },
+	{ BESBEV_MBIAS_TSADC_TEST_CTL_1,	0x00 },
+	{ BESBEV_MBIAS_TSADC_BIAS_1,		0x51 },
+	{ BESBEV_MBIAS_TSADC_ADC_CTL,		0x01 },
+	{ BESBEV_MBIAS_TSADC_VBAT_SNS,		0x28 },
+	{ BESBEV_MBIAS_TSADC_BOP_UVLO_PROG,	0xFF },
+	{ BESBEV_MBIAS_TSADC_ADC_ITRIM_PROG,	0x43 },
+	{ BESBEV_MBIAS_TSADC_BOP_HYST_PROG,	0x77 },
+	{ BESBEV_MBIAS_TSADC_BOP_ATEST,		0x00 },
+	{ BESBEV_SPK_TOP_DAC_CTRL_REG,		0x10 },
+	{ BESBEV_SPK_TOP_DAC_EN_DEBUG_REG,	0x00 },
+	{ BESBEV_SPK_TOP_DAC_REFBUF_CTRL_REG,	0x61 },
+	{ BESBEV_SPK_TOP_ATEST_REG,		0x00 },
+	{ BESBEV_SPK_TOP_SPKR_TOP_BIAS_REG1,	0xA8 },
+	{ BESBEV_SPK_TOP_SPKR_TOP_BIAS_REG2,	0x23 },
+	{ BESBEV_SPK_TOP_SPKR_TOP_BIAS_REG3,	0x05 },
+	{ BESBEV_SPK_TOP_SPKR_TOP_BIAS_REG4,	0x29 },
+	{ BESBEV_SPK_TOP_SPKR_CLIP_DET_REG,	0x9C },
+	{ BESBEV_SPK_TOP_SPKR_DRV_LF_BLK_EN,	0x0F },
+	{ BESBEV_SPK_TOP_SPKR_DRV_LF_EN,	0x0A },
+	{ BESBEV_SPK_TOP_SPKR_DRV_LF_MISC_CTL,	0x02 },
+	{ BESBEV_SPK_TOP_SPKR_DRV_LF_MISC_CTL1,	0x00 },
+	{ BESBEV_SPK_TOP_SPKR_DRV_LF_REG_GAIN,	0x00 },
+	{ BESBEV_SPK_TOP_SPKR_DRV_OS_CAL_CTL,	0x00 },
+	{ BESBEV_SPK_TOP_SPKR_DRV_OS_CAL_CTL1,	0x90 },
+	{ BESBEV_SPK_TOP_SPKR_PWM_CLK_CTL,	0x00 },
+	{ BESBEV_SPK_TOP_SPKR_PDRV_HS_CTL,	0x52 },
+	{ BESBEV_SPK_TOP_SPKR_PDRV_LS_CTL,	0x48 },
+	{ BESBEV_SPK_TOP_SPKR_PWRSTG_DBG,	0x00 },
+	{ BESBEV_SPKR_OCP_CTL,			0xE0 },
+	{ BESBEV_SPK_TOP_SPKR_BBM_CTL,		0xB0 },
+	{ BESBEV_CKWD_CKWD_CTL_0,		0x14 },
+	{ BESBEV_CKWD_CKWD_CTL_1,		0x15 },
+	{ BESBEV_CKWD_CKWD_CTL_2,		0x00 },
+	{ BESBEV_CKWD_ADTEST,			0x00 },
+	{ BESBEV_IVSENSE_EN,			0x23 },
+	{ BESBEV_IVSENSE_OVERRIDE1,		0x00 },
+	{ BESBEV_IVSENSE_OVERRIDE2,		0x08 },
+	{ BESBEV_IVSENSE_ISENSE1,		0xD3 },
+	{ BESBEV_IVSENSE_VSENSE1,		0xD4 },
+	{ BESBEV_IVSENSE_ISENSE2,		0x07 },
+	{ BESBEV_IVSENSE_ISENSE_CAL,		0x00 },
+	{ BESBEV_IVSENSE_MISC,			0x08 },
+	{ BESBEV_IVSENSE_ADC_0,			0x00 },
+	{ BESBEV_IVSENSE_ADC_1,			0x00 },
+	{ BESBEV_IVSENSE_ADC_2,			0x40 },
+	{ BESBEV_IVSENSE_ADC_3,			0x80 },
+	{ BESBEV_IVSENSE_ADC_4,			0x25 },
+	{ BESBEV_IVSENSE_ADC_5,			0x25 },
+	{ BESBEV_IVSENSE_ADC_6,			0x08 },
+	{ BESBEV_IVSENSE_ADC_7,			0x81 },
+	{ BESBEV_IVSENSE_CALREF_CALICODE,	0x00 },
+	{ BESBEV_IVSENSE_IDLE_CTRL,		0x00 },
+
+	{ BESBEV_DIG_SWR_CHIP_ID0,		0x01 },
+	{ BESBEV_DIG_SWR_CHIP_ID1,		0x01 },
+	{ BESBEV_DIG_SWR_CHIP_ID2,		0x01 },
+	{ BESBEV_DIG_SWR_CHIP_ID3,		0x01 },
+
+	{ BESBEV_DIG_SWR_CDC_RST_CTL,		0x01 },
+	{ BESBEV_DIG_SWR_CDC_RST,		0x00 },
+	{ BESBEV_DIG_SWR_CDC_TX_RST,		0x00 },
+	{ BESBEV_DIG_SWR_RST_EN,		0x00 },
+	{ BESBEV_DIG_SWR_TX_CLK_RATE,		0x00 },
+	{ BESBEV_DIG_SWR_CDC_RX_MODE,		0x02 },
+	{ BESBEV_DIG_SWR_CDC_TX_MODE,		0x00 },
+	{ BESBEV_DIG_SWR_RX_CLK_CTL,		0x07 },
+	{ BESBEV_DIG_SWR_TX_CLK_CTL,		0x33 },
+	{ BESBEV_PA_FSM_CTL,			0x00 },
+	{ BESBEV_PA_FSM_TIMER0,			0x80 },
+	{ BESBEV_PA_FSM_TIMER1,			0x80 },
+	{ BESBEV_PA_FSM_MSK,			0x00 },
+	{ BESBEV_PA_FSM_BYP,			0x00 },
+	{ BESBEV_PA_FSM_DBG,			0x00 },
+	{ BESBEV_PA_OTP_LOW_M,			0xFF },
+	{ BESBEV_PA_OTP_LOW_L,			0xC0 },
+	{ BESBEV_PA_OTP_HIGH_M,			0xFF },
+	{ BESBEV_PA_OTP_HIGH_L,			0xC0 },
+	{ BESBEV_TADC_VALUE_CTL,		0x03 },
+	{ BESBEV_TEMP_DETECT_CTL,		0x01 },
+	{ BESBEV_TEMP_MSB,              	0x00 },
+	{ BESBEV_TEMP_LSB,              	0x00 },
+	{ BESBEV_TEMP_CONFIG0,			0x00 },
+	{ BESBEV_TEMP_CONFIG1,			0x00 },
+	{ BESBEV_VBAT_ADC_FLT_CTL,		0x00 },
+	{ BESBEV_UVLO_DEGLITCH_CTL,		0x05 },
+	{ BESBEV_BOP_DEGLITCH_CTL,		0x05 },
+	{ BESBEV_CDC_RX_CTL,			0xFE },
+	{ BESBEV_CDC_SPK_GAIN_PDM_0,		0x00 },
+	{ BESBEV_CDC_SPK_GAIN_PDM_1,		0xFC },
+	{ BESBEV_CDC_SPK_GAIN_PDM_2,		0x05 },
+	{ BESBEV_PDM_WD_CTL,			0x00 },
+	{ BESBEV_DEM_BYPASS_DATA0,		0x00 },
+	{ BESBEV_DEM_BYPASS_DATA1,		0x00 },
+	{ BESBEV_DEM_BYPASS_DATA2,		0x00 },
+	{ BESBEV_DEM_BYPASS_DATA3,		0x00 },
+
+	{ BESBEV_DRE_CTL_0,			0x70 },
+	{ BESBEV_DRE_CTL_1,			0x00 },
+	{ BESBEV_DRE_IDLE_DET_CTL,		0xAF },
+	{ BESBEV_DIG_GAIN_RAMPING_CTL,		0x51 },
+	{ BESBEV_TAGC_CTL,			0x10 },
+	{ BESBEV_TAGC_TIME,			0x20 },
+	{ BESBEV_TAGC_E2E_GAIN,			0x02 },
+	{ BESBEV_TAGC_FORCE_VAL,		0x00 },
+	{ BESBEV_VAGC_CTL,			0x00 },
+	{ BESBEV_VAGC_TIME,			0x08 },
+	{ BESBEV_VAGC_ATTN_LVL_1_2,		0x21 },
+	{ BESBEV_VAGC_ATTN_LVL_3,		0x03 },
+	{ BESBEV_INTR_MODE,			0x00 },
+	{ BESBEV_INTR_MASK0,			0x90 },
+	{ BESBEV_INTR_MASK1,			0x00 },
+	{ BESBEV_INTR_CLEAR0,			0x00 },
+	{ BESBEV_INTR_CLEAR1,			0x00 },
+	{ BESBEV_INTR_LEVEL0,			0x00 },
+	{ BESBEV_INTR_LEVEL1,			0x00 },
+	{ BESBEV_INTR_SET0,			0x00 },
+	{ BESBEV_INTR_SET1,			0x00 },
+	{ BESBEV_INTR_TEST0,			0x00 },
+	{ BESBEV_INTR_TEST1,			0x00 },
+	{ BESBEV_PDM_TEST_MODE,			0x00 },
+	{ BESBEV_DIG_DEBUG_CTL,			0x00 },
+	{ BESBEV_DIG_DEBUG_EN,			0x00 },
+	{ BESBEV_SWR_HM_TEST0,			0x08 },
+	{ BESBEV_SAMPLE_EDGE_SEL,		0x7F },
+	{ BESBEV_DATA_EDGE_CTL,			0x08 },
+	{ BESBEV_SWR_EDGE_SEL,			0x00 },
+	{ BESBEV_TADC_DETECT_DBG_CTL,		0x00 },
+	{ BESBEV_TADC_DEBUG_MSB,		0x00 },
+	{ BESBEV_TADC_DEBUG_LSB,		0x00 },
+	{ BESBEV_SSP_DBG,			0x00 },
+	{ BESBEV_DIG_DEBUG_CSR,			0x51 },
+	{ BESBEV_SPARE_0,			0x00 },
+	{ BESBEV_SPARE_1,			0x00 },
+	{ BESBEV_SPARE_2,			0x00 },
+	{ BESBEV_CDC_TX0_CTL,			0x68 },
+	{ BESBEV_CDC_TX1_CTL,			0x68 },
+	{ BESBEV_CDC_REQ0_CTL,			0x01 },
+	{ BESBEV_CDC_REQ1_CTL,			0x01 },
+	{ BESBEV_P5_SPARE_0,			0x00 },
+	{ BESBEV_P5_SPARE_1,			0x00 },
+	{ BESBEV_P5_SPARE_2,			0x00 },
+};
+
+static bool besbev_readable_register(struct device *dev, unsigned int reg)
+{
+	if (reg > BESBEV_ANA_BASE_ADDR && reg <
+				BESBEV_ANALOG_REGISTERS_MAX_SIZE)
+		return besbev_reg_access_analog[BESBEV_REG(reg)] & RD_REG;
+	if (reg > BESBEV_DIG_BASE_ADDR && reg <
+				BESBEV_DIGITAL_REGISTERS_MAX_SIZE)
+		return besbev_reg_access_digital[BESBEV_REG(reg)] & RD_REG;
+	return 0;
+}
+
+static bool besbev_writeable_register(struct device *dev, unsigned int reg)
+{
+	if (reg > BESBEV_ANA_BASE_ADDR && reg <
+					BESBEV_ANALOG_REGISTERS_MAX_SIZE)
+		return besbev_reg_access_analog[BESBEV_REG(reg)] & WR_REG;
+	if (reg > BESBEV_DIG_BASE_ADDR && reg <
+					BESBEV_DIGITAL_REGISTERS_MAX_SIZE)
+		return besbev_reg_access_digital[BESBEV_REG(reg)] & WR_REG;
+	return 0;
+}
+
+static bool besbev_volatile_register(struct device *dev, unsigned int reg)
+{
+	if (reg > BESBEV_ANA_BASE_ADDR && reg <
+					BESBEV_ANALOG_REGISTERS_MAX_SIZE)
+		if ((besbev_reg_access_analog[BESBEV_REG(reg)] & RD_REG)
+		    && !(besbev_reg_access_analog[BESBEV_REG(reg)] & WR_REG))
+			return true;
+	if (reg > BESBEV_DIG_BASE_ADDR && reg <
+					BESBEV_DIGITAL_REGISTERS_MAX_SIZE)
+		if ((besbev_reg_access_digital[BESBEV_REG(reg)] & RD_REG)
+		    && !(besbev_reg_access_digital[BESBEV_REG(reg)] & WR_REG))
+			return true;
+	return 0;
+}
+
+struct regmap_config besbev_regmap_config = {
+	.name = "besbev_csr",
+	.reg_bits = 16,
+	.val_bits = 8,
+	.cache_type = REGCACHE_RBTREE,
+	.reg_defaults = besbev_defaults,
+	.num_reg_defaults = ARRAY_SIZE(besbev_defaults),
+	.max_register = BESBEV_ANALOG_MAX_REGISTER +
+				BESBEV_DIGITAL_MAX_REGISTER,
+	.readable_reg = besbev_readable_register,
+	.writeable_reg = besbev_writeable_register,
+	.volatile_reg = besbev_volatile_register,
+	.can_multi_write = true,
+};
