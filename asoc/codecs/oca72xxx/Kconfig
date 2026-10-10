@@ -1,0 +1,5 @@
+config SND_SOC_OCA72XXX
+	tristate "SoC Audio for ocs OCA72XXX Smart K PA"
+	depends on I2C
+	help
+	  This option enables support for OCA72XXX Smart K PA.
